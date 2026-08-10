@@ -1,0 +1,6 @@
+{
+  "name": "Inoreader",
+  "description": "An Inoreader web replica featuring Feeds management, Saved articles, Global Search, and RSS feed discovery.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
