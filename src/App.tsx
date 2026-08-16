@@ -378,13 +378,13 @@ export default function App() {
 
   // Compute Visible Articles according to current tab & filters
   const visibleArticles = useMemo(() => {
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     return articles.filter((article) => {
-      // 0. Only show articles published within 7 days (unless explicitly starred)
+      // 0. Only show articles published within 30 days (unless explicitly starred)
       const pubTime = new Date(article.pubDate).getTime();
-      if (!isNaN(pubTime) && pubTime < now - SEVEN_DAYS_MS && !article.starred) {
+      if (!isNaN(pubTime) && pubTime < now - THIRTY_DAYS_MS && !article.starred) {
         return false;
       }
 

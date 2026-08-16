@@ -618,15 +618,17 @@ Respond in clean markdown formatted with bullet points.`;
 });
 
 async function startServer() {
-  // Vite middleware for development vs static in production
-  if (process.env.NODE_ENV !== "production") {
+  const distPath = path.join(process.cwd(), "dist");
+  const isProd = process.env.NODE_ENV === "production" && fs.existsSync(distPath);
+
+  // Vite middleware for development (or when dist build is not present)
+  if (!isProd) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));

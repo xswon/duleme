@@ -33,13 +33,17 @@ export function getStoredArticles(): Article[] {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Map over stored items to update thumbnails from INITIAL_ARTICLES or assign domain image
+        // Map over stored items to update thumbnails & refresh pubDate for initial seed articles
         const updated = parsed.map((a: Article) => {
           const initMatch = INITIAL_ARTICLES.find(
             (ia) => ia.id === a.id || (ia.title && a.title && ia.title.trim() === a.title.trim())
           );
-          if (initMatch && initMatch.thumbnail) {
-            return { ...a, thumbnail: initMatch.thumbnail };
+          if (initMatch) {
+            return {
+              ...a,
+              pubDate: initMatch.pubDate,
+              thumbnail: initMatch.thumbnail || a.thumbnail,
+            };
           }
           if (!a.thumbnail) {
             if (a.feedTitle?.includes("苔藓") || a.title?.includes("办公Agent")) {
@@ -58,15 +62,7 @@ export function getStoredArticles(): Article[] {
           return a;
         });
 
-        // Filter out items older than 30 days unless starred or fewer than 5 items
-        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-        const cutoff = Date.now() - THIRTY_DAYS_MS;
-        const validRecent = updated.filter((a: Article) => {
-          if (a.starred) return true;
-          const t = new Date(a.pubDate).getTime();
-          return isNaN(t) || t >= cutoff;
-        });
-        if (validRecent.length > 0) return validRecent;
+        return updated;
       }
     }
   } catch (e) {

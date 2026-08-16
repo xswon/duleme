@@ -20,8 +20,7 @@ import {
   Pause,
   RotateCcw,
   RotateCw,
-  CloudDownload,
-  ListMusic,
+  ListPlus,
   Headphones,
   ShieldAlert,
   Volume2,
@@ -51,7 +50,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"desc" | "transcript" | "topics" | "article">("desc");
+  const [activeTab, setActiveTab] = useState<"desc" | "transcript">("desc");
 
   // Audio Player State
   const [isPlaying, setIsPlaying] = useState(false);
@@ -259,36 +258,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             >
               <Circle className={`w-4 h-4 ${!article.read ? "fill-blue-600 text-blue-600" : ""}`} />
             </button>
-
-            {/* AI Sparkles Summarize Button */}
-            <button
-              onClick={handleSummarize}
-              disabled={isSummarizing}
-              className={`p-2 rounded-lg transition-colors cursor-pointer hover:bg-slate-100 ${
-                aiSummary ? "text-purple-600" : "text-slate-500 hover:text-purple-600"
-              }`}
-              title="一键 AI 总结"
-            >
-              <Sparkles className={`w-4 h-4 ${isSummarizing ? "animate-spin text-purple-600" : ""}`} />
-            </button>
-
-            {/* Coffee / Podcast Toggle */}
-            <button
-              className={`p-2 rounded-lg transition-colors cursor-pointer hover:bg-slate-100 ${
-                isPodcast ? "text-indigo-600" : "text-slate-500"
-              }`}
-              title="播客收听模式"
-            >
-              <Coffee className="w-4 h-4" />
-            </button>
-
-            {/* More Options (...) */}
-            <button
-              className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-              title="更多操作"
-            >
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Action Icon Group Right */}
@@ -351,29 +320,16 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               <div className="space-y-4">
                 {/* Inoreader Exact 1:1 Replica Audio Player Card */}
                 <div className="bg-[#f2f4f7] rounded-xl overflow-hidden text-slate-800 shadow-xs border border-slate-200/80">
-                  {/* Top Control Bar */}
-                  <div className="flex items-center justify-between px-4 py-3 text-slate-700 text-sm font-medium">
-                    <div className="flex items-center gap-2.5">
-                      <button className="hover:text-slate-900 transition-colors cursor-pointer" title="下载音频">
-                        <CloudDownload className="w-5 h-5 text-slate-700" />
-                      </button>
-                      <button
-                        onClick={handleSpeedChange}
-                        className="hover:text-slate-900 font-medium text-sm transition-colors cursor-pointer"
-                        title="播放倍速"
-                      >
-                        {playbackRate}x
-                      </button>
-                    </div>
-
-                    <button className="hover:text-slate-900 transition-colors cursor-pointer" title="播放列表">
-                      <ListMusic className="w-5 h-5 text-slate-700" />
+                  {/* Top Control Bar with ListPlus (≡+) Icon */}
+                  <div className="flex items-center justify-end px-4 py-2.5 bg-[#f2f4f7]">
+                    <button className="text-slate-600 hover:text-slate-900 transition-colors cursor-pointer p-1" title="添加到播放列表">
+                      <ListPlus className="w-5 h-5 text-slate-700 stroke-[1.8]" />
                     </button>
                   </div>
 
-                  {/* Banner Artwork & Overlay Player Controls */}
-                  <div className="relative bg-[#2d1b1a] h-52 sm:h-60 flex flex-col justify-between overflow-hidden select-none">
-                    {/* Stretched / Blurred Artwork Layer */}
+                  {/* Banner Artwork & Overlay Player Controls (Exact 182px height specification) */}
+                  <div className="relative bg-[#081425] h-[182px] flex flex-col justify-between overflow-hidden select-none">
+                    {/* Stretched / Blurred Artwork Layer with #081425 Overlay */}
                     <div className="absolute inset-0 overflow-hidden">
                       {article.thumbnail ? (
                         <>
@@ -381,15 +337,15 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                             src={resolveImageUrl(article.thumbnail)}
                             alt=""
                             referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover blur-xl scale-125 opacity-30"
+                            className="w-full h-full object-cover blur-xl scale-125 opacity-40"
                           />
-                          <div className="absolute inset-0 bg-black/40" />
-                          {/* Centered Square Artwork */}
+                          <div className="absolute inset-0 bg-[#081425]/45 mix-blend-multiply" />
+                          {/* Centered Artwork */}
                           <img
                             src={resolveImageUrl(article.thumbnail)}
                             alt=""
                             referrerPolicy="no-referrer"
-                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-full max-w-[240px] sm:max-w-[280px] object-contain shadow-2xl"
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-full max-w-[280px] object-cover opacity-90"
                             onError={(e) => {
                               const target = e.currentTarget;
                               if (article.thumbnail && article.thumbnail.includes("@") && !target.dataset.triedClean) {
@@ -403,58 +359,60 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                               }
                             }}
                           />
+                          {/* Tint overlay for exact color match */}
+                          <div className="absolute inset-0 bg-[#3a5d80]/30 mix-blend-color" />
                         </>
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-                          <Headphones className="w-16 h-16 text-slate-600" />
+                        <div className="w-full h-full bg-[#3a5d80] flex items-center justify-center">
+                          <Headphones className="w-16 h-16 text-slate-300" />
                         </div>
                       )}
                     </div>
 
-                    {/* Middle Playback Control Icons (No background rings on rewind/forward) */}
-                    <div className="relative z-10 my-auto flex items-center justify-around w-full max-w-xs sm:max-w-md mx-auto px-4">
-                      {/* 10s Rewind - Clean Icon Only */}
+                    {/* Middle Playback Control Icons */}
+                    <div className="relative z-10 my-auto flex items-center justify-around w-full max-w-xs sm:max-w-sm mx-auto px-4">
+                      {/* 10s Rewind */}
                       <button
                         onClick={handleRewind10}
-                        className="text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer p-2 relative flex items-center justify-center"
+                        className="text-white/90 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer p-2 relative flex items-center justify-center"
                         title="倒退 10 秒"
                       >
-                        <RotateCcw className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.8]" />
-                        <span className="absolute text-[9px] font-bold text-white pt-0.5">10</span>
+                        <RotateCcw className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.6]" />
+                        <span className="absolute text-[8px] font-bold text-white pt-0.5">10</span>
                       </button>
 
-                      {/* Main Play/Pause Button - White Ring Outline with Play Icon Inside */}
+                      {/* Main Play/Pause Button - Ring Outline */}
                       <button
                         onClick={togglePlay}
-                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-[2.5px] border-white flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer drop-shadow-md"
+                        className="w-12 h-12 rounded-full border-[2px] border-white/90 flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-transform cursor-pointer drop-shadow-md bg-black/10 backdrop-blur-xs"
                       >
                         {isPlaying ? (
-                          <Pause className="w-6 h-6 fill-white stroke-none" />
+                          <Pause className="w-5 h-5 fill-white stroke-none" />
                         ) : (
-                          <Play className="w-6 h-6 fill-white stroke-none ml-1" />
+                          <Play className="w-5 h-5 fill-white stroke-none ml-0.5" />
                         )}
                       </button>
 
-                      {/* 10s Forward - Clean Icon Only */}
+                      {/* 10s Forward */}
                       <button
                         onClick={handleForward10}
-                        className="text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer p-2 relative flex items-center justify-center"
+                        className="text-white/90 hover:text-white hover:scale-110 active:scale-95 transition-transform cursor-pointer p-2 relative flex items-center justify-center"
                         title="快进 10 秒"
                       >
-                        <RotateCw className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.8]" />
-                        <span className="absolute text-[9px] font-bold text-white pt-0.5">10</span>
+                        <RotateCw className="w-7 h-7 sm:w-8 sm:h-8 stroke-[1.6]" />
+                        <span className="absolute text-[8px] font-bold text-white pt-0.5">10</span>
                       </button>
                     </div>
 
                     {/* Time Counter & Progress Bar at Banner Bottom */}
                     <div className="relative z-10 w-full">
-                      <div className="flex items-center justify-between text-xs font-mono text-white/90 px-3 pb-1.5 drop-shadow-sm">
+                      <div className="flex items-center justify-between text-xs font-sans text-white/80 px-3 pb-1">
                         <span>{formatAudioTime(currentTime)}</span>
-                        <span>{article.duration || (duration > 0 ? formatAudioTime(duration) : "77:19")}</span>
+                        <span>{article.duration || (duration > 0 ? formatAudioTime(duration) : "60:14")}</span>
                       </div>
 
                       {/* Progress Line Bar */}
-                      <div className="w-full bg-slate-700/60 h-1.5 relative cursor-pointer group">
+                      <div className="w-full bg-white/20 h-1 relative cursor-pointer group">
                         <input
                           type="range"
                           min="0"
@@ -464,7 +422,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                         />
                         <div
-                          className="bg-slate-300 h-full transition-all"
+                          className="bg-white/80 h-full transition-all"
                           style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
                         />
                       </div>
@@ -472,14 +430,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                   </div>
 
                   {/* Title Bar at Bottom */}
-                  <div className="p-4 bg-[#f2f4f7]">
+                  <div className="p-4 sm:p-5 bg-[#f2f4f7]">
                     <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
                       {article.title}
                     </h3>
                   </div>
                 </div>
 
-                {/* Podcast Tab Selector matching Image 1: 描述 | 转写 | 话题 | 文章 | 现在升级 */}
+                {/* Podcast Tab Selector: 描述 | 转写 */}
                 <div className="flex items-center gap-4 sm:gap-8 border-b border-slate-200 text-xs sm:text-sm font-semibold pt-1">
                   <button
                     onClick={() => setActiveTab("desc")}
@@ -501,29 +459,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                   >
                     转写
                   </button>
-                  <button
-                    onClick={() => setActiveTab("topics")}
-                    className={`pb-2.5 border-b-2 transition-all cursor-pointer ${
-                      activeTab === "topics"
-                        ? "border-blue-600 text-blue-600"
-                        : "border-transparent text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    话题
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("article")}
-                    className={`pb-2.5 border-b-2 transition-all cursor-pointer ${
-                      activeTab === "article"
-                        ? "border-blue-600 text-blue-600"
-                        : "border-transparent text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    文章
-                  </button>
-                  <span className="ml-auto text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200/80 font-medium flex items-center gap-1 cursor-pointer hover:bg-amber-200">
-                    🛡️ 现在升级
-                  </span>
                 </div>
               </div>
             )}
@@ -556,19 +491,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               </div>
             )}
 
-            {/* Topics Tab View */}
-            {isPodcast && activeTab === "topics" && (
-              <div className="flex flex-wrap gap-2 p-2">
-                <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-medium border border-slate-200"># 喜马拉雅资本</span>
-                <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-medium border border-slate-200"># 查理芒格</span>
-                <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-medium border border-slate-200"># 价值投资</span>
-                <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-medium border border-slate-200"># 巴菲特</span>
-                <span className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-medium border border-slate-200"># 商业思考</span>
-              </div>
-            )}
-
-            {/* Article Main Body Content (Description or Article) */}
-            {(!isPodcast || activeTab === "desc" || activeTab === "article") && (
+            {/* Article Main Body Content (Description) */}
+            {(!isPodcast || activeTab === "desc") && (
               <div
                 className="prose max-w-none text-slate-800 text-base sm:text-lg leading-relaxed sm:leading-loose space-y-4 pt-1"
                 dangerouslySetInnerHTML={{

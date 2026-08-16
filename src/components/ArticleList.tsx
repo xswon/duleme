@@ -157,9 +157,9 @@ export const ArticleList: React.FC<ArticleListProps> = ({
         <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center mb-4 text-slate-400">
           <BookOpen className="w-8 h-8" />
         </div>
-        <h3 className="text-lg font-semibold text-slate-800 mb-1">未找到近7天文章</h3>
+        <h3 className="text-lg font-semibold text-slate-800 mb-1">未找到相关文章</h3>
         <p className="text-sm text-slate-500 max-w-sm">
-          暂无7天内的订阅文章。尝试点击右上角刷新图标，或切换筛选条件与订阅源！
+          暂无符合条件订阅文章。尝试点击右上角刷新图标，或切换筛选条件与订阅源！
         </p>
       </div>
     );
