@@ -8,6 +8,7 @@ import { marked } from "marked";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4317;
+const HMR_PORT = Number(process.env.HMR_PORT) || 4318;
 
 // In-memory cache for BidClub episode covers (slug -> thumbnail_url)
 const bidclubThumbCache = new Map<string, string>();
@@ -803,7 +804,10 @@ async function startServer() {
   // Vite middleware for development (or when dist build is not present)
   if (!isProd) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { port: HMR_PORT },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
