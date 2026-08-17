@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import {
   X,
-  Settings,
   FolderPlus,
   Trash2,
   Folder,
   Edit2,
   Check,
   ArrowUpDown,
-  Move,
   Rss,
   Plus,
 } from "lucide-react";
@@ -75,30 +73,25 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl text-slate-900 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl text-slate-900 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-blue-100 text-blue-600 border border-blue-200">
-              <Settings className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="font-bold text-lg text-slate-900">设置订阅源</h2>
-              <p className="text-xs text-slate-500">
-                管理已订阅源、文件夹分类、排序规则及分类设置
-              </p>
-            </div>
+        <div className="px-6 py-4 flex items-center justify-between bg-slate-50">
+          <div>
+            <h2 className="font-bold text-lg text-slate-900">设置订阅源</h2>
+            <p className="text-xs text-slate-500">
+              管理已订阅源、文件夹分类与排序规则
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex border-b border-slate-200 bg-slate-50/50 text-xs font-semibold px-6 pt-3 gap-6">
+        <div className="flex bg-slate-50/60 text-xs font-semibold px-6 pt-3 gap-6">
           <button
             onClick={() => setActiveTab("feeds")}
             className={`pb-3 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -141,14 +134,14 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
             <div className="space-y-3">
               {feeds.length === 0 ? (
                 <div className="text-center py-8 text-slate-400 text-xs">
-                  暂无订阅源，请通过“添加订阅”按钮添加 RSS 源。
+                  暂无订阅源，请通过"添加订阅"按钮添加 RSS 源。
                 </div>
               ) : (
-                <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                <div className="rounded-xl bg-slate-50/70 p-1.5 space-y-0.5">
                   {feeds.map((feed) => (
                     <div
                       key={feed.id}
-                      className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                      className="p-3 rounded-lg flex items-center justify-between gap-3 hover:bg-white transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         {feed.favicon ? (
@@ -178,22 +171,22 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
                       {/* Folder selector & Delete button */}
                       <div className="flex items-center gap-2 shrink-0">
                         <select
-                          value={feed.category || "Uncategorized"}
+                          value={feed.category || "未分类"}
                           onChange={(e) =>
                             onUpdateFeedCategory(feed.id, e.target.value)
                           }
-                          className="bg-slate-50 border border-slate-200 rounded-lg text-xs px-2 py-1 text-slate-700 focus:outline-none focus:border-blue-500"
+                          className="bg-white border border-slate-200 rounded-lg text-xs px-2 py-1 text-slate-700 focus:outline-none focus:border-blue-500"
                         >
                           {categories.map((cat) => (
                             <option key={cat} value={cat}>
-                              📁 {cat}
+                              {cat}
                             </option>
                           ))}
                         </select>
 
                         <button
                           onClick={() => {
-                            if (confirm(`确定要删除订阅“${feed.title}”吗？`)) {
+                            if (confirm(`确定要删除订阅"${feed.title}"吗？`)) {
                               onDeleteFeed(feed.id);
                             }
                           }}
@@ -225,7 +218,7 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
                 <button
                   type="submit"
                   disabled={!newFolderInput.trim()}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-all cursor-pointer"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>添加文件夹</span>
@@ -233,7 +226,7 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
               </form>
 
               {/* List existing folders */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 bg-white">
+              <div className="rounded-xl bg-slate-50/70 p-1.5 space-y-0.5">
                 {categories.map((cat) => {
                   const catFeedsCount = feeds.filter(
                     (f) => f.category === cat
@@ -243,7 +236,7 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
                   return (
                     <div
                       key={cat}
-                      className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                      className="p-3 rounded-lg flex items-center justify-between gap-3 hover:bg-white transition-colors"
                     >
                       <div className="flex items-center gap-2.5 flex-1 min-w-0">
                         <Folder className="w-4 h-4 text-amber-500 shrink-0" />
@@ -255,7 +248,7 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
                             onKeyDown={(e) => {
                               if (e.key === "Enter") handleSaveRename(cat);
                             }}
-                            className="bg-slate-100 border border-blue-400 rounded px-2 py-0.5 text-xs text-slate-900 focus:outline-none"
+                            className="bg-white border border-blue-400 rounded px-2 py-0.5 text-xs text-slate-900 focus:outline-none"
                             autoFocus
                           />
                         ) : (
@@ -291,7 +284,7 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
                           onClick={() => {
                             if (
                               confirm(
-                                `确定要删除文件夹“${cat}”吗？其中订阅源将被移至“未分类”。`
+                                `确定要删除文件夹"${cat}"吗？其中订阅源将被移至"未分类"。`
                               )
                             ) {
                               onDeleteCategory(cat);
@@ -320,10 +313,10 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
               <div className="space-y-2">
                 <button
                   onClick={() => onSortModeChange("default")}
-                  className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  className={`w-full p-3 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
                     sortMode === "default"
-                      ? "border-blue-500 bg-blue-50/50 text-blue-900 font-semibold shadow-xs"
-                      : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                      ? "bg-blue-50 text-blue-900 font-semibold"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700"
                   }`}
                 >
                   <div>
@@ -339,10 +332,10 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
 
                 <button
                   onClick={() => onSortModeChange("alphabetical")}
-                  className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  className={`w-full p-3 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
                     sortMode === "alphabetical"
-                      ? "border-blue-500 bg-blue-50/50 text-blue-900 font-semibold shadow-xs"
-                      : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                      ? "bg-blue-50 text-blue-900 font-semibold"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700"
                   }`}
                 >
                   <div>
@@ -358,10 +351,10 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
 
                 <button
                   onClick={() => onSortModeChange("unread")}
-                  className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  className={`w-full p-3 rounded-xl text-left flex items-center justify-between transition-all cursor-pointer ${
                     sortMode === "unread"
-                      ? "border-blue-500 bg-blue-50/50 text-blue-900 font-semibold shadow-xs"
-                      : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                      ? "bg-blue-50 text-blue-900 font-semibold"
+                      : "bg-slate-50 hover:bg-slate-100 text-slate-700"
                   }`}
                 >
                   <div>
@@ -380,10 +373,10 @@ export const ManageFeedsModal: React.FC<ManageFeedsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+        <div className="px-6 py-3 bg-slate-50 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
           >
             完成设置
           </button>

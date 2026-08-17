@@ -1,1 +1,140 @@
 @import "tailwindcss";
+
+/* ---- Utilities used across the app ---- */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.15s ease-out;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-slate-300) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-slate-300);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- Reading typography for article bodies (RSS / BidClub HTML) ---- */
+
+.reader-content {
+  font-size: 16px;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+  color: var(--color-slate-800);
+  overflow-wrap: break-word;
+}
+
+.reader-content p {
+  margin: 0 0 1em;
+}
+
+/* Chapter / section headings: clearly distinguished from body text */
+.reader-content h1,
+.reader-content h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-slate-900);
+  line-height: 1.5;
+  margin: 1.75em 0 0.6em;
+}
+
+.reader-content h3,
+.reader-content h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-slate-900);
+  line-height: 1.5;
+  margin: 1.5em 0 0.5em;
+}
+
+.reader-content strong,
+.reader-content b {
+  color: var(--color-slate-900);
+  font-weight: 600;
+}
+
+.reader-content a {
+  color: var(--color-blue-600);
+  text-decoration: none;
+}
+.reader-content a:hover {
+  text-decoration: underline;
+}
+
+.reader-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.25em auto;
+  border-radius: 0.75rem;
+}
+
+.reader-content figure {
+  margin: 1.25em 0;
+}
+.reader-content figcaption {
+  margin-top: 0.5em;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-slate-400);
+}
+
+.reader-content ul,
+.reader-content ol {
+  margin: 0 0 1em;
+  padding-left: 1.5em;
+}
+.reader-content li {
+  margin: 0.3em 0;
+}
+.reader-content li::marker {
+  color: var(--color-slate-400);
+}
+
+.reader-content blockquote {
+  margin: 1.25em 0;
+  padding-left: 1em;
+  border-left: 3px solid var(--color-slate-200);
+  color: var(--color-slate-600);
+}
+
+.reader-content hr {
+  border: none;
+  border-top: 1px solid var(--color-slate-100);
+  margin: 2em 0;
+}
+
+.reader-content code {
+  font-size: 0.875em;
+  background: var(--color-slate-100);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+}
+.reader-content pre {
+  background: var(--color-slate-50);
+  border-radius: 0.75rem;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+.reader-content pre code {
+  background: transparent;
+  padding: 0;
+}

@@ -3,41 +3,27 @@ import {
   Menu,
   RotateCw,
   CheckCheck,
-  LayoutGrid,
   Search as SearchIcon,
-  ChevronDown,
-  MoreHorizontal,
 } from "lucide-react";
-import { FilterType, ViewMode, ActiveTab, ThemeMode } from "../types";
+import { FilterType, ActiveTab } from "../types";
 
 interface HeaderProps {
   activeTab: ActiveTab;
   currentTitle: string;
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
   filterType: FilterType;
   setFilterType: (filter: FilterType) => void;
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
   onRefresh: () => void;
   onMarkAllRead: () => void;
   isRefreshing: boolean;
-  theme?: ThemeMode;
-  setTheme?: (t: ThemeMode) => void;
   onToggleMobileMenu: () => void;
   onNavigateSearch: () => void;
   unreadCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  activeTab,
   currentTitle,
-  viewMode,
-  setViewMode,
   filterType,
   setFilterType,
-  searchQuery,
-  setSearchQuery,
   onRefresh,
   onMarkAllRead,
   isRefreshing,
@@ -48,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       id="inoreader-header"
-      className="h-16 bg-white text-slate-800 sticky top-0 z-30 shrink-0 border-b border-slate-100/80 transition-colors duration-200"
+      className="h-16 bg-white text-slate-800 sticky top-0 z-30 shrink-0 transition-colors duration-200"
     >
       <div className="max-w-4xl mx-auto w-full h-full px-4 sm:px-6 flex items-center justify-between gap-3">
         {/* Left: Mobile Menu Toggle & Title */}
@@ -56,29 +42,25 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onToggleMobileMenu}
             className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-            title="Toggle Menu"
+            title="打开菜单"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-1.5 min-w-0 group cursor-pointer">
-            <h1 className="font-extrabold text-slate-900 text-lg sm:text-xl truncate tracking-tight">
-              {currentTitle}
-            </h1>
-            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0 group-hover:text-slate-900 transition-colors" />
-          </div>
+          <h1 className="font-extrabold text-slate-900 text-lg sm:text-xl truncate tracking-tight">
+            {currentTitle}
+          </h1>
         </div>
 
         {/* Right Actions Bar */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          {/* Mark Read Dropdown Button */}
+          {/* Mark All Read */}
           <button
             onClick={onMarkAllRead}
-            title="Mark All Read"
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-100/80 hover:bg-slate-200/70 text-slate-700 transition-colors cursor-pointer text-xs font-semibold"
+            title="全部标为已读"
+            className="flex items-center px-2 py-1.5 rounded-lg bg-slate-100/80 hover:bg-slate-200/70 text-slate-700 transition-colors cursor-pointer"
           >
-            <CheckCheck className="w-4 h-4 text-slate-700" />
-            <ChevronDown className="w-3 h-3 text-slate-500" />
+            <CheckCheck className="w-4 h-4" />
           </button>
 
           {/* Unread / All Filter Pills */}
@@ -91,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              {unreadCount > 0 ? `${unreadCount} Unread` : "Unread"}
+              {unreadCount > 0 ? `未读 ${unreadCount}` : "未读"}
             </button>
             <button
               onClick={() => setFilterType("all")}
@@ -101,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              All articles
+              全部
             </button>
           </div>
 
@@ -109,22 +91,9 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onNavigateSearch}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Search"
+            title="搜索"
           >
             <SearchIcon className="w-4 h-4" />
-          </button>
-
-          {/* View Mode Toggle */}
-          <button
-            onClick={() => {
-              if (viewMode === "magazine") setViewMode("card");
-              else if (viewMode === "card") setViewMode("list");
-              else setViewMode("magazine");
-            }}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="Switch View Mode"
-          >
-            <LayoutGrid className="w-4 h-4" />
           </button>
 
           {/* Refresh Feeds */}
@@ -132,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onRefresh}
             disabled={isRefreshing}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
-            title="Refresh"
+            title="刷新"
           >
             <RotateCw
               className={`w-4 h-4 ${
@@ -140,17 +109,8 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             />
           </button>
-
-          {/* More options */}
-          <button
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-            title="More"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </header>
   );
 };
-

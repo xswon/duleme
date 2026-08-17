@@ -1,19 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   ActiveTab,
   Article,
   Feed,
   FilterType,
-  ThemeMode,
-  ViewMode,
 } from "./types";
 import {
   getStoredFeeds,
   saveStoredFeeds,
   getStoredArticles,
   saveStoredArticles,
+  attachBidclubMatches,
   fetchRssFeed,
-  exportOpml,
 } from "./services/rssService";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
@@ -23,7 +21,7 @@ import { AddFeedModal } from "./components/AddFeedModal";
 import { ManageFeedsModal, SortMode } from "./components/ManageFeedsModal";
 import { SearchView } from "./components/SearchView";
 import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
-import { HelpCircle, Sparkles } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 
 export default function App() {
   // Primary Navigation State
@@ -32,10 +30,8 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // View & Filter Preferences
-  const [viewMode, setViewMode] = useState<ViewMode>("magazine");
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [theme] = useState<ThemeMode>("light");
   const [sortMode, setSortMode] = useState<SortMode>("default");
 
   // Data State
@@ -63,6 +59,15 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Lightweight toast notification
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+
   // Auto-sync state to localStorage
   useEffect(() => {
     saveStoredFeeds(feeds);
@@ -83,11 +88,6 @@ export default function App() {
       })
     );
   }, [articles]);
-
-  // Ensure Light Mode
-  useEffect(() => {
-    document.documentElement.classList.remove("dark");
-  }, []);
 
   // Handler: Add New Feed
   const handleAddFeed = (newFeed: Feed, newArticles: Article[] = []) => {
@@ -163,16 +163,6 @@ export default function App() {
     setIsManageFeedsOpen(true);
   };
 
-  // Handler: Mark category as read
-  const handleMarkCategoryRead = (category: string) => {
-    const categoryFeedIds = new Set(
-      feeds.filter((f) => f.category === category).map((f) => f.id)
-    );
-    setArticles((prev) =>
-      prev.map((a) => (categoryFeedIds.has(a.feedId) ? { ...a, read: true } : a))
-    );
-  };
-
   // Handler: Refresh all active feeds
   const handleRefreshAllFeeds = useCallback(async () => {
     if (isRefreshing || feeds.length === 0) return;
@@ -184,7 +174,16 @@ export default function App() {
       for (const feed of feeds) {
         try {
           const parsed = await fetchRssFeed(feed.feedUrl);
-          const mappedItems: Article[] = (parsed.items || []).map((item) => ({
+          const bidclubData = feed.bidclubFeedUrl
+            ? await fetchRssFeed(feed.bidclubFeedUrl).catch((error) => {
+                console.warn(`Failed to sync BidClub helper feed for ${feed.title}:`, error);
+                return null;
+              })
+            : null;
+          const matchedItems = bidclubData
+            ? attachBidclubMatches(parsed.items, bidclubData.items)
+            : parsed.items;
+          const mappedItems: Article[] = (matchedItems || []).map((item) => ({
             ...item,
             feedId: feed.id,
             feedTitle: feed.title,
@@ -200,15 +199,31 @@ export default function App() {
 
       if (fetchedNewArticles.length > 0) {
         setArticles((prev) => {
+          const fetchedById = new Map(fetchedNewArticles.map((a) => [a.id, a]));
+          const updatedExisting = prev.map((article) => {
+            const fresh = fetchedById.get(article.id);
+            return fresh
+              ? { ...article, ...fresh, read: article.read, starred: article.starred, savedAt: article.savedAt, aiSummary: article.aiSummary }
+              : article;
+          });
           const existingIds = new Set(prev.map((a) => a.id));
           const trulyNew = fetchedNewArticles.filter((a) => !existingIds.has(a.id));
-          return [...trulyNew, ...prev];
+          return [...trulyNew, ...updatedExisting];
         });
       }
     } finally {
       setIsRefreshing(false);
     }
   }, [feeds, isRefreshing]);
+
+  // Auto-refresh feeds once on initial mount so new default feeds populate articles
+  const hasAutoRefreshed = useRef(false);
+  useEffect(() => {
+    if (hasAutoRefreshed.current) return;
+    hasAutoRefreshed.current = true;
+    handleRefreshAllFeeds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handler: Toggle Star / Save Article
   const handleToggleStar = (articleId: string) => {
@@ -243,6 +258,13 @@ export default function App() {
       );
     }
   };
+
+  // Handler: Persist a lazily-resolved cover image (e.g. BidClub episode artwork)
+  const handleResolveThumbnail = useCallback((articleId: string, url: string) => {
+    setArticles((prev) =>
+      prev.map((a) => (a.id === articleId && !a.thumbnail ? { ...a, thumbnail: url } : a))
+    );
+  }, []);
 
   // Handler: Select & Read Article
   const handleSelectArticle = (article: Article) => {
@@ -281,11 +303,11 @@ export default function App() {
       const importedFeeds: Feed[] = [];
       outlines.forEach((node, idx) => {
         const xmlUrl = node.getAttribute("xmlUrl");
-        const title = node.getAttribute("title") || node.getAttribute("text") || `Imported Feed ${idx + 1}`;
+        const title = node.getAttribute("title") || node.getAttribute("text") || `导入源 ${idx + 1}`;
         const parentCategory =
           node.parentElement?.getAttribute("title") ||
           node.parentElement?.getAttribute("text") ||
-          "Imported";
+          "未分类";
 
         if (xmlUrl) {
           importedFeeds.push({
@@ -305,17 +327,17 @@ export default function App() {
           const newOnly = importedFeeds.filter((f) => !existingUrls.has(f.feedUrl));
           return [...newOnly, ...prev];
         });
-        alert(`Successfully imported ${importedFeeds.length} feeds from OPML!`);
+        showToast(`成功导入 ${importedFeeds.length} 个订阅源`);
         handleRefreshAllFeeds();
       } else {
-        alert("No valid RSS outlines found in the OPML file.");
+        showToast("OPML 文件中未找到有效的 RSS 订阅");
       }
     } catch (e: any) {
-      alert(`OPML parse error: ${e.message || "Unknown error"}`);
+      showToast(`OPML 解析失败：${e.message || "未知错误"}`);
     }
   };
 
-  // Keyboard Navigation Listeners (Inoreader Hotkeys)
+  // Keyboard Navigation Listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore hotkeys when typing in input/textarea
@@ -348,12 +370,6 @@ export default function App() {
         handleRefreshAllFeeds();
       } else if (e.key === "a" || e.key === "A") {
         setIsAddFeedOpen(true);
-      } else if (e.key === "1") {
-        setViewMode("list");
-      } else if (e.key === "2") {
-        setViewMode("card");
-      } else if (e.key === "3") {
-        setViewMode("magazine");
       } else if (e.key === "?") {
         setIsShortcutsOpen(true);
       }
@@ -365,15 +381,14 @@ export default function App() {
 
   // Compute Active Title
   const activeTitle = useMemo(() => {
-    if (activeTab === "saved") return "Saved Articles";
-    if (activeTab === "search") return "Global Article Search";
-    if (activeTab === "add_feed") return "Add Feed";
+    if (activeTab === "saved") return "收藏文章";
+    if (activeTab === "search") return "全文搜索";
     if (selectedFeedId) {
       const target = feeds.find((f) => f.id === selectedFeedId);
-      return target ? target.title : "Feed Articles";
+      return target ? target.title : "订阅文章";
     }
     if (selectedCategory) return selectedCategory;
-    return "Newsfeed";
+    return "全部文章";
   }, [activeTab, selectedFeedId, selectedCategory, feeds]);
 
   // Compute Visible Articles according to current tab & filters
@@ -441,9 +456,6 @@ export default function App() {
         onOpenManageFeeds={handleOpenManageFeeds}
         sortMode={sortMode}
         setSortMode={setSortMode}
-        onMarkCategoryRead={handleMarkCategoryRead}
-        onExportOpml={() => exportOpml(feeds)}
-        onImportOpmlClick={() => setIsAddFeedOpen(true)}
         isMobileOpen={isMobileMenuOpen}
         setIsMobileOpen={setIsMobileMenuOpen}
       />
@@ -454,16 +466,11 @@ export default function App() {
         <Header
           activeTab={activeTab}
           currentTitle={activeTitle}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
           filterType={filterType}
           setFilterType={setFilterType}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
           onRefresh={handleRefreshAllFeeds}
           onMarkAllRead={handleMarkAllRead}
           isRefreshing={isRefreshing}
-          theme={theme}
           onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onNavigateSearch={() => setActiveTab("search")}
           unreadCount={visibleArticles.filter((a) => !a.read).length}
@@ -475,37 +482,37 @@ export default function App() {
             <SearchView
               articles={articles}
               feeds={feeds}
-              viewMode={viewMode}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               onSelectArticle={handleSelectArticle}
               onToggleStar={handleToggleStar}
               onToggleRead={handleToggleRead}
               onSummarizeAI={(article) => setSelectedArticle(article)}
+              onResolveThumbnail={handleResolveThumbnail}
             />
           ) : (
             <ArticleList
               articles={visibleArticles}
-              viewMode={viewMode}
               onSelectArticle={handleSelectArticle}
               onToggleStar={handleToggleStar}
               onToggleRead={handleToggleRead}
               onSummarizeAI={(article) => setSelectedArticle(article)}
+              onResolveThumbnail={handleResolveThumbnail}
             />
           )}
 
           {/* Floating Keyboard Shortcuts Trigger */}
           <button
             onClick={() => setIsShortcutsOpen(true)}
-            title="Keyboard Shortcuts (?)"
-            className="fixed bottom-4 right-4 p-2.5 rounded-full bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 shadow-lg transition-all z-20 cursor-pointer"
+            title="键盘快捷键 (?)"
+            className="fixed bottom-4 right-4 p-2.5 rounded-full bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 shadow-lg ring-1 ring-slate-900/5 transition-all z-20 cursor-pointer"
           >
             <HelpCircle className="w-5 h-5" />
           </button>
         </main>
       </div>
 
-      {/* Reader Modal / Full Detail Pane */}
+      {/* Reader Modal */}
       {(() => {
         const selectedIndex = selectedArticle
           ? visibleArticles.findIndex((a) => a.id === selectedArticle.id)
@@ -561,6 +568,13 @@ export default function App() {
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
       />
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-xl animate-fadeIn">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

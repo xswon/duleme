@@ -1,10 +1,6 @@
-export type ViewMode = "list" | "card" | "magazine";
-
 export type FilterType = "all" | "unread" | "starred";
 
-export type ActiveTab = "feeds" | "saved" | "search" | "add_feed";
-
-export type ThemeMode = "light" | "dark" | "system";
+export type ActiveTab = "feeds" | "saved" | "search";
 
 export interface Article {
   id: string;
@@ -24,6 +20,8 @@ export interface Article {
   aiSummary?: string;
   audioUrl?: string;
   duration?: string;
+  bidclubUrl?: string;
+  bidclubSlug?: string;
 }
 
 export interface Feed {
@@ -37,6 +35,8 @@ export interface Feed {
   unreadCount: number;
   lastUpdated?: string;
   error?: string;
+  bidclubFeedUrl?: string;
+  bidclubShowSlug?: string;
 }
 
 export interface Folder {
@@ -61,6 +61,10 @@ export interface RssParseResponse {
     pubDate: string;
     author?: string;
     thumbnail?: string;
+    audioUrl?: string;
+    duration?: string;
+    bidclubUrl?: string;
+    bidclubSlug?: string;
   }>;
 }
 
@@ -71,4 +75,24 @@ export interface CuratedFeedOption {
   category: string;
   description: string;
   favicon: string;
+}
+
+export interface BidclubEpisode {
+  title: string;
+  dek: string;
+  lang: string;
+  langAlt: string;
+  tldrHtml: string;
+  digestHtml: string;
+  transcriptHtml: string;
+  tldrAltHtml: string;
+  digestAltHtml: string;
+  chapters: { id: string; title: string }[];
+  sourceUrl?: string;
+  sourceLabel?: string;
+  thumbnailUrl?: string;
+  durationMin?: number | null;
+  showName?: string;
+  hosts?: string;
+  chips?: string[];
 }

@@ -1,22 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Rss,
   Bookmark,
   Search,
   Plus,
   ChevronDown,
   ChevronRight,
-  Folder as FolderIcon,
-  FolderOpen,
   Settings,
   FolderPlus,
   ArrowUpDown,
   Newspaper,
   Check,
-  Radio,
-  Globe,
-  Upload,
-  Download,
 } from "lucide-react";
 import { ActiveTab, Feed } from "../types";
 import { SortMode } from "./ManageFeedsModal";
@@ -36,9 +29,6 @@ interface SidebarProps {
   onOpenManageFeeds: (tab?: "feeds" | "folders" | "sort") => void;
   sortMode: SortMode;
   setSortMode: (mode: SortMode) => void;
-  onMarkCategoryRead: (category: string) => void;
-  onExportOpml: () => void;
-  onImportOpmlClick: () => void;
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
 }
@@ -58,9 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenManageFeeds,
   sortMode,
   setSortMode,
-  onMarkCategoryRead,
-  onExportOpml,
-  onImportOpmlClick,
   isMobileOpen,
   setIsMobileOpen,
 }) => {
@@ -170,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     const label = (feed.title || "RSS").trim().slice(0, 2).toUpperCase();
     return (
-      <div className="w-4 h-4 rounded-full bg-rose-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0 tracking-tighter shadow-xs">
+      <div className="w-4 h-4 rounded-full bg-rose-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0 tracking-tighter">
         {label}
       </div>
     );
@@ -193,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Header: 订阅源 Title + Action Buttons (Settings, Add Folder, Sort) */}
-        <div className="px-4 py-3.5 flex items-center justify-between border-b border-slate-200 bg-white">
+        <div className="px-4 py-3.5 flex items-center justify-between">
           <h1 className="font-extrabold text-slate-900 text-lg tracking-tight">
             订阅源
           </h1>
@@ -203,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => onOpenManageFeeds("feeds")}
               title="设置订阅源 (管理、删除、编辑)"
-              className="p-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-slate-200/60 hover:text-slate-900 transition-colors cursor-pointer"
             >
               <Settings className="w-4 h-4" />
             </button>
@@ -212,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => onOpenManageFeeds("folders")}
               title="增加文件夹 / 分类"
-              className="p-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg hover:bg-slate-200/60 hover:text-slate-900 transition-colors cursor-pointer"
             >
               <FolderPlus className="w-4 h-4" />
             </button>
@@ -221,8 +208,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
               title="排序方式"
-              className={`p-1.5 rounded-lg hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer ${
-                isSortMenuOpen ? "bg-slate-100 text-slate-900" : ""
+              className={`p-1.5 rounded-lg hover:bg-slate-200/60 hover:text-slate-900 transition-colors cursor-pointer ${
+                isSortMenuOpen ? "bg-slate-200/60 text-slate-900" : ""
               }`}
             >
               <ArrowUpDown className="w-4 h-4" />
@@ -230,8 +217,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Sort Dropdown Menu */}
             {isSortMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 text-xs text-slate-700 animate-fadeIn">
-                <div className="px-3 py-1.5 font-bold text-[11px] text-slate-400 border-b border-slate-100">
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg ring-1 ring-slate-900/5 z-50 py-1 text-xs text-slate-700 animate-fadeIn">
+                <div className="px-3 py-1.5 font-bold text-[11px] text-slate-400">
                   订阅源排序方式
                 </div>
                 <button
@@ -285,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation Sections & Folder Tree */}
         <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 text-sm scrollbar-thin">
-          {/* Top Main Item: Newsfeed (All Feeds) */}
+          {/* Top Main Item: All Feeds */}
           <button
             id="nav-tab-feeds"
             onClick={handleSelectAllFeeds}
@@ -296,21 +283,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <div className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center border border-blue-200 shrink-0">
-                <Newspaper className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-bold text-sm">Newsfeed</span>
+              <Newspaper className="w-4 h-4 text-blue-600 shrink-0" />
+              <span className="font-bold text-sm">全部文章</span>
             </div>
-            {/* Right-aligned total unread count */}
-            <span className="text-xs font-semibold text-slate-500 tabular-nums text-right ml-auto shrink-0">
-              {totalUnread}
-            </span>
+            {/* Right-aligned total unread count (hidden when zero) */}
+            {totalUnread > 0 && (
+              <span className="text-xs font-semibold text-slate-500 tabular-nums text-right ml-auto shrink-0">
+                {totalUnread}
+              </span>
+            )}
           </button>
 
-          <div className="my-1 border-t border-slate-200/60" />
-
           {/* Folder & Feed Tree */}
-          <div className="space-y-1">
+          <div className="space-y-1 pt-1">
             {sortedCategories.map((category) => {
               const rawFeeds = feedsByCategory[category] || [];
 
@@ -366,10 +351,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                     </div>
 
-                    {/* Right-aligned folder unread count */}
-                    <span className="text-xs font-semibold text-slate-500 tabular-nums text-right ml-auto shrink-0">
-                      {catUnread}
-                    </span>
+                    {/* Right-aligned folder unread count (hidden when zero) */}
+                    {catUnread > 0 && (
+                      <span className="text-xs font-semibold text-slate-500 tabular-nums text-right ml-auto shrink-0">
+                        {catUnread}
+                      </span>
+                    )}
                   </div>
 
                   {/* Feed Items under Category */}
@@ -396,10 +383,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               </span>
                             </div>
 
-                            {/* Unread number strictly right-aligned */}
-                            <span className="text-xs font-semibold text-slate-500 tabular-nums text-right ml-auto shrink-0">
-                              {feed.unreadCount}
-                            </span>
+                            {/* Unread number strictly right-aligned (hidden when zero) */}
+                            {feed.unreadCount > 0 && (
+                              <span className="text-xs font-semibold text-slate-500 tabular-nums text-right ml-auto shrink-0">
+                                {feed.unreadCount}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -410,10 +399,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             })}
           </div>
 
-          <div className="my-2 border-t border-slate-200" />
-
-          {/* Quick Nav Links: Saved / 收藏, Search / 搜索 */}
-          <div className="space-y-0.5 pt-1">
+          {/* Quick Nav Links: Saved / Search / Add Feed */}
+          <div className="space-y-0.5 pt-3">
             <button
               id="nav-tab-saved"
               onClick={() => {
@@ -424,17 +411,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
               className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left cursor-pointer ${
                 activeTab === "saved"
-                  ? "bg-amber-100 text-amber-800 font-bold border border-amber-200"
+                  ? "bg-amber-100/80 text-amber-800 font-bold"
                   : "hover:bg-slate-200/50 text-slate-700"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <Bookmark className="w-4 h-4 text-amber-600 shrink-0" />
-                <span className="text-xs font-medium">收藏文章 (Saved)</span>
+                <span className="text-xs font-medium">收藏文章</span>
               </div>
-              <span className="text-xs font-semibold text-amber-800 tabular-nums text-right ml-auto shrink-0">
-                {totalSaved}
-              </span>
+              {totalSaved > 0 && (
+                <span className="text-xs font-semibold text-amber-800 tabular-nums text-right ml-auto shrink-0">
+                  {totalSaved}
+                </span>
+              )}
             </button>
 
             <button
@@ -445,9 +434,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 setSelectedCategory(null);
                 setIsMobileOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-left cursor-pointer ${
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left cursor-pointer ${
                 activeTab === "search"
-                  ? "bg-blue-100 text-blue-700 font-bold border border-blue-200"
+                  ? "bg-blue-100/80 text-blue-700 font-bold"
                   : "hover:bg-slate-200/50 text-slate-700"
               }`}
             >
@@ -455,7 +444,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Search className="w-4 h-4 text-slate-400" />
                 <span className="text-xs font-medium">搜索全文</span>
               </div>
-              <span className="text-[10px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded font-mono">
+              <span className="text-[10px] text-slate-400 bg-slate-200/80 px-1.5 py-0.5 rounded font-mono">
                 ⌘K
               </span>
             </button>
@@ -466,7 +455,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenAddFeed();
                 setIsMobileOpen(false);
               }}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors text-left cursor-pointer hover:bg-slate-200/50 text-slate-700"
+              className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-left cursor-pointer hover:bg-slate-200/50"
             >
               <div className="flex items-center gap-2.5">
                 <Plus className="w-4 h-4 text-blue-600" />
@@ -474,29 +463,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   添加新订阅源
                 </span>
               </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Footer OPML Backup */}
-        <div className="p-3 border-t border-slate-200 bg-white text-xs text-slate-500 flex items-center justify-between">
-          <span className="font-medium text-[11px] text-slate-500">
-            OPML 导入与导出
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onImportOpmlClick}
-              title="导入 OPML 订阅文件"
-              className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onExportOpml}
-              title="导出 OPML 订阅文件"
-              className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

@@ -4,9 +4,13 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { XMLParser } from "fast-xml-parser";
 import { GoogleGenAI } from "@google/genai";
+import { marked } from "marked";
 
 const app = express();
 const PORT = 3000;
+
+// In-memory cache for BidClub episode covers (slug -> thumbnail_url)
+const bidclubThumbCache = new Map<string, string>();
 
 app.use(express.json({ limit: "5mb" }));
 
@@ -117,8 +121,9 @@ function extractImageFromHtml(html?: string, baseUrl?: string): string | undefin
     return mdMatch[1];
   }
 
-  // 3. Match plain CDN image URLs
-  const cdnRegex = /(https?:\/\/[^\s"'\)<>\\]+(?:xyzcdn\.net|qiniucdn\.com|aliyuncs\.com|unsplash\.com|36krcdn\.com|sspai\.com|\.(?:jpg|jpeg|png|webp|svg))[^\s"'\)<>\\]*)/i;
+  // 3. Match plain CDN image URLs (require image hosts or real image extensions —
+  // audio track URLs may embed "xyzcdn.net" in their path)
+  const cdnRegex = /(https?:\/\/(?:image\.xyzcdn\.net|[^\s"'\)<>\\]*?(?:qiniucdn\.com|aliyuncs\.com|unsplash\.com|36krcdn\.com|sspai\.com))[^\s"'\)<>\\]*|https?:\/\/[^\s"'\)<>\\]+?\.(?:jpg|jpeg|png|webp|svg)(?:\?[^\s"'\)<>\\]*)?)/i;
   const cdnMatch = decoded.match(cdnRegex);
   if (cdnMatch) {
     return cdnMatch[1];
@@ -133,26 +138,44 @@ function extractItemThumbnail(item: any, content: string, channel: any, feedUrl:
   const mediaThumbUrl = getImgUrlFromObject(item["media:thumbnail"]);
   if (mediaThumbUrl) return mediaThumbUrl;
 
-  // 2. Check media:content
-  const mediaContentUrl = getImgUrlFromObject(item["media:content"]);
-  if (mediaContentUrl) return mediaContentUrl;
-
-  // 3. Check iTunes image (Podcasts) on item
+  // 2. Check iTunes image (Podcasts) on item
   const itunesItemImg = getImgUrlFromObject(item["itunes:image"]);
   if (itunesItemImg) return itunesItemImg;
+
+  // 3. Check media:content (only when it actually is an image — podcast feeds
+  // often put the audio file here, which must not become the cover)
+  const mediaContent = item["media:content"];
+  if (mediaContent) {
+    const mcArray = Array.isArray(mediaContent) ? mediaContent : [mediaContent];
+    for (const mc of mcArray) {
+      const mcUrl = getImgUrlFromObject(mc);
+      const mcType = mc?.["@_type"] || mc?.type || "";
+      const mcMedium = mc?.["@_medium"] || mc?.medium || "";
+      if (
+        mcUrl &&
+        (mcType.startsWith("image") ||
+          mcMedium === "image" ||
+          /\.(?:jpg|jpeg|png|webp|svg|gif)(?:\?|#|$)/i.test(mcUrl))
+      ) {
+        return mcUrl;
+      }
+    }
+  }
 
   // 4. Check podcast:image, image, cover on item
   const podcastImg = getImgUrlFromObject(item["podcast:image"]) || getImgUrlFromObject(item["image"]) || getImgUrlFromObject(item["cover"]);
   if (podcastImg) return podcastImg;
 
-  // 5. Check enclosure
+  // 5. Check enclosure (only real image enclosures — podcast audio URLs may
+  // contain "xyzcdn.net" inside their path, so require an image type or a
+  // real image file extension)
   let enclosure = item.enclosure;
   if (enclosure) {
     const encArray = Array.isArray(enclosure) ? enclosure : [enclosure];
     for (const enc of encArray) {
       const encUrl = getImgUrlFromObject(enc);
       const encType = enc?.["@_type"] || enc?.type || "";
-      if (encUrl && (encType.startsWith("image") || /(?:xyzcdn\.net|\.(?:jpg|jpeg|png|webp|svg|gif))/i.test(encUrl))) {
+      if (encUrl && (encType.startsWith("image") || /\.(?:jpg|jpeg|png|webp|svg|gif)(?:\?|#|$)/i.test(encUrl))) {
         return encUrl;
       }
     }
@@ -165,7 +188,9 @@ function extractItemThumbnail(item: any, content: string, channel: any, feedUrl:
   // 7. Regex scan over entire item object string
   try {
     const itemStr = JSON.stringify(item);
-    const itemImgMatch = itemStr.match(/(https?:\/\/[^\s"'\)<>\\]+(?:xyzcdn\.net|qiniucdn\.com|aliyuncs\.com|unsplash\.com|phobos\.apple\.com|mzstatic\.com|qpic\.cn|\.(?:jpg|jpeg|png|webp|svg))[^\s"'\)<>\\]*)/i);
+    const itemImgMatch =
+      itemStr.match(/(https?:\/\/(?:image\.xyzcdn\.net|[^\s"'\)<>\\]*(?:qiniucdn\.com|aliyuncs\.com|unsplash\.com|phobos\.apple\.com|mzstatic\.com|qpic\.cn))[^\s"'\)<>\\]*)/i) ||
+      itemStr.match(/(https?:\/\/[^\s"'\)<>\\]+?\.(?:jpg|jpeg|png|webp|svg)(?:\?[^\s"'\)<>\\]*)?)/i);
     if (itemImgMatch) return itemImgMatch[1];
   } catch (e) {
     // ignore
@@ -532,6 +557,46 @@ app.get("/api/rss/parse", async (req, res) => {
       }
     }
 
+    // Backfill covers for BidClub episodes (their Atom entries carry no image fields,
+    // but the episode API exposes a per-episode thumbnail_url)
+    const needBidclubThumb = items.filter(
+      (it) => !it.thumbnail && typeof it.link === "string" && it.link.includes("bidclub.ai/e/")
+    );
+    if (needBidclubThumb.length > 0) {
+      await Promise.allSettled(
+        needBidclubThumb.map(async (it) => {
+          const slug = it.link.split("/").filter(Boolean).pop() || "";
+          if (!slug) return;
+          const cached = bidclubThumbCache.get(slug);
+          if (cached) {
+            it.thumbnail = cached;
+            return;
+          }
+          try {
+            const thumbController = new AbortController();
+            const thumbTimeout = setTimeout(() => thumbController.abort(), 8000);
+            const thumbResp = await fetch(
+              `https://bidclub.ai/api/v1/episodes/${encodeURIComponent(slug)}`,
+              {
+                signal: thumbController.signal,
+                headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" },
+              }
+            );
+            clearTimeout(thumbTimeout);
+            if (thumbResp.ok) {
+              const thumbData = await thumbResp.json();
+              if (thumbData.thumbnail_url) {
+                bidclubThumbCache.set(slug, thumbData.thumbnail_url);
+                it.thumbnail = thumbData.thumbnail_url;
+              }
+            }
+          } catch {
+            // ignore thumbnail fetch failures, item keeps no cover
+          }
+        })
+      );
+    }
+
     // Filter out very old articles only if we have plenty of items
     if (items.length > 20) {
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -613,6 +678,120 @@ Respond in clean markdown formatted with bullet points.`;
     console.error("AI Summary error:", err);
     return res.status(500).json({
       error: `AI Generation failed: ${err.message || "Unknown error"}`,
+    });
+  }
+});
+
+// Bold standalone speaker-name lines in a transcript so they stand out from spoken text
+function formatTranscript(md: string | undefined | null): string {
+  if (!md) return "";
+  const lines = md.split("\n");
+  return lines
+    .map((line, i) => {
+      const t = line.trim();
+      const prevBlank = i === 0 || lines[i - 1].trim() === "";
+      const nextBlank = i === lines.length - 1 || lines[i + 1].trim() === "";
+      const isSpeaker =
+        t.length > 0 &&
+        t.length <= 15 &&
+        prevBlank &&
+        nextBlank &&
+        !/\s/.test(t) &&
+        !/[。，、！？：；,.!?:;…"'"')\]》」〉】]$/.test(t) &&
+        !/^[#*\-\[>`~]/.test(t);
+      return isSpeaker ? `**${t}**` : line;
+    })
+    .join("\n");
+}
+
+// Extract chapter headings (### N. 标题) from digest markdown and annotate rendered <h3> with anchor ids
+function digestWithChapters(
+  md: string | undefined | null
+): { html: string; chapters: { id: string; title: string }[] } {
+  const chapters: { id: string; title: string }[] = [];
+  if (!md) return { html: "", chapters };
+  const lines = md.split("\n");
+  for (const line of lines) {
+    const m = line.match(/^###\s+(.+)$/);
+    if (m) {
+      chapters.push({ id: `chapter-${chapters.length + 1}`, title: m[1].trim() });
+    }
+  }
+  let html = marked.parse(md) as string;
+  let i = 0;
+  html = html.replace(/<h3([^>]*)>/g, (_match: string, attrs: string) => {
+    i += 1;
+    return `<h3${attrs} id="chapter-${i}">`;
+  });
+  return { html, chapters };
+}
+
+// API: Fetch full BidClub episode detail (TL;DR + digest + transcript) and render markdown to HTML
+app.get("/api/bidclub/episode", async (req, res) => {
+  const url = (req.query.url as string) || (req.query.slug as string);
+  if (!url) {
+    return res.status(400).json({ error: "Missing episode url or slug parameter" });
+  }
+
+  // Extract slug from a full URL like https://bidclub.ai/e/{slug}, or accept a bare slug
+  let slug = url.trim();
+  if (slug.includes("bidclub.ai/e/")) {
+    try {
+      const segments = new URL(slug).pathname.split("/").filter(Boolean);
+      slug = segments[segments.length - 1] || "";
+    } catch (e) {
+      slug = "";
+    }
+  }
+  if (!slug) {
+    return res.status(400).json({ error: "Invalid episode url" });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const resp = await fetch(`https://bidclub.ai/api/v1/episodes/${encodeURIComponent(slug)}`, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "application/json",
+      },
+    });
+    clearTimeout(timeout);
+
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+
+    const toHtml = (md: string | undefined | null): string =>
+      md ? (marked.parse(md) as string) : "";
+    const digest = digestWithChapters(data.digest_md);
+
+    return res.json({
+      title: data.title || "",
+      dek: data.dek || "",
+      lang: data.lang || "",
+      langAlt: data.lang_alt || "",
+      tldrHtml: toHtml(data.tldr_md),
+      digestHtml: digest.html,
+      chapters: digest.chapters,
+      transcriptHtml: toHtml(formatTranscript(data.transcript_md)),
+      tldrAltHtml: toHtml(data.tldr_md_alt),
+      digestAltHtml: toHtml(data.digest_md_alt),
+      sourceUrl: data.source_url || "",
+      sourceLabel: data.source_label || "",
+      thumbnailUrl: data.thumbnail_url || "",
+      durationMin: typeof data.duration_min === "number" ? data.duration_min : null,
+      showName: data.shows?.name || "",
+      hosts: data.shows?.hosts || "",
+      chips: Array.isArray(data.chips) ? data.chips : [],
+    });
+  } catch (error: any) {
+    console.error("Error fetching BidClub episode:", error);
+    return res.status(500).json({
+      error: `Failed to fetch BidClub episode: ${error.message || "Unknown error"}`,
     });
   }
 });

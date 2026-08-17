@@ -1,30 +1,30 @@
 import React, { useState } from "react";
-import { Search as SearchIcon, Filter, X, Star, BookOpen, Rss } from "lucide-react";
-import { Article, Feed, ViewMode } from "../types";
+import { Search as SearchIcon, Star, X } from "lucide-react";
+import { Article, Feed } from "../types";
 import { ArticleList } from "./ArticleList";
 
 interface SearchViewProps {
   articles: Article[];
   feeds: Feed[];
-  viewMode: ViewMode;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onSelectArticle: (article: Article) => void;
   onToggleStar: (articleId: string) => void;
   onToggleRead: (articleId: string) => void;
   onSummarizeAI: (article: Article) => void;
+  onResolveThumbnail?: (articleId: string, url: string) => void;
 }
 
 export const SearchView: React.FC<SearchViewProps> = ({
   articles,
   feeds,
-  viewMode,
   searchQuery,
   setSearchQuery,
   onSelectArticle,
   onToggleStar,
   onToggleRead,
   onSummarizeAI,
+  onResolveThumbnail,
 }) => {
   const [selectedFeedFilter, setSelectedFeedFilter] = useState<string>("ALL");
   const [readFilter, setReadFilter] = useState<"ALL" | "UNREAD" | "READ">("ALL");
@@ -62,7 +62,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
       {/* Top Search Controls Bar */}
-      <div className="p-4 border-b border-slate-200 bg-white space-y-3 shrink-0">
+      <div className="p-4 bg-white space-y-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <SearchIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
@@ -71,15 +71,16 @@ export const SearchView: React.FC<SearchViewProps> = ({
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search across all feeds, titles, content, or authors..."
+              placeholder="搜索所有订阅源的标题、内容或作者…"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                title="清空"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -94,7 +95,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
               onChange={(e) => setSelectedFeedFilter(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-blue-500"
             >
-              <option value="ALL">All Feeds</option>
+              <option value="ALL">全部订阅源</option>
               {feeds.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.title}
@@ -103,22 +104,22 @@ export const SearchView: React.FC<SearchViewProps> = ({
             </select>
 
             {/* Read Filter */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg">
               <button
                 onClick={() => setReadFilter("ALL")}
                 className={`px-2 py-1 rounded transition-colors ${
                   readFilter === "ALL" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500"
                 }`}
               >
-                All
+                全部
               </button>
               <button
                 onClick={() => setReadFilter("UNREAD")}
                 className={`px-2 py-1 rounded transition-colors ${
-                  readFilter === "UNREAD" ? "bg-blue-100 text-blue-700 font-semibold" : "text-slate-500"
+                  readFilter === "UNREAD" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500"
                 }`}
               >
-                Unread
+                未读
               </button>
               <button
                 onClick={() => setReadFilter("READ")}
@@ -126,40 +127,40 @@ export const SearchView: React.FC<SearchViewProps> = ({
                   readFilter === "READ" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500"
                 }`}
               >
-                Read
+                已读
               </button>
             </div>
 
             {/* Starred Toggle */}
             <button
               onClick={() => setStarredOnly(!starredOnly)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all ${
                 starredOnly
-                  ? "bg-amber-100 text-amber-800 border-amber-300 font-semibold"
-                  : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900"
+                  ? "bg-amber-100 text-amber-800 font-semibold"
+                  : "bg-slate-50 text-slate-600 hover:text-slate-900"
               }`}
             >
               <Star className={`w-3.5 h-3.5 ${starredOnly ? "fill-amber-500 text-amber-500" : ""}`} />
-              <span>Starred Only</span>
+              <span>仅收藏</span>
             </button>
           </div>
 
-          {/* Results Count Badge */}
+          {/* Results Count */}
           <span className="text-slate-500 text-xs">
-            Found <strong className="text-blue-600">{filteredArticles.length}</strong> articles
+            找到 <strong className="text-blue-600">{filteredArticles.length}</strong> 篇文章
           </span>
         </div>
       </div>
 
       {/* Results List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-white">
         <ArticleList
           articles={filteredArticles}
-          viewMode={viewMode}
           onSelectArticle={onSelectArticle}
           onToggleStar={onToggleStar}
           onToggleRead={onToggleRead}
           onSummarizeAI={onSummarizeAI}
+          onResolveThumbnail={onResolveThumbnail}
         />
       </div>
     </div>
