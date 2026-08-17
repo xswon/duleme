@@ -807,6 +807,9 @@ async function startServer() {
       server: {
         middlewareMode: true,
         hmr: { port: HMR_PORT },
+        watch: process.env.DOCKER === "true"
+          ? { usePolling: true, interval: 300 }
+          : undefined,
       },
       appType: "spa",
     });
