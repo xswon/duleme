@@ -7,8 +7,8 @@ import { GoogleGenAI } from "@google/genai";
 import { marked } from "marked";
 
 const app = express();
-const PORT = Number(process.env.PORT) || 4317;
-const HMR_PORT = Number(process.env.HMR_PORT) || 4318;
+const PORT = Number(process.env.PORT) || 4387;
+const HMR_PORT = Number(process.env.HMR_PORT) || 4388;
 
 // In-memory cache for BidClub episode covers (slug -> thumbnail_url)
 const bidclubThumbCache = new Map<string, string>();
