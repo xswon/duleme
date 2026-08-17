@@ -9,6 +9,7 @@ services:
       PORT: 4387
       HMR_PORT: 4388
       DOCKER: "true"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     ports:
       - "4387:4387"
       - "4388:4388"
