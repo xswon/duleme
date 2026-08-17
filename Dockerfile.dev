@@ -4,6 +4,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
+# npm can skip platform-specific optional packages when the lockfile was
+# generated on macOS. The development image currently targets Linux ARM64.
+RUN npm install --no-save --package-lock=false @rollup/rollup-linux-arm64-gnu@4.62.4
 
 COPY . .
 
