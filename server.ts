@@ -7,7 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import { marked } from "marked";
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 4317;
 
 // In-memory cache for BidClub episode covers (slug -> thumbnail_url)
 const bidclubThumbCache = new Map<string, string>();
@@ -815,7 +815,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Inoreader server running on http://0.0.0.0:${PORT}`);
+    console.log(`Inoreader server running on http://127.0.0.1:${PORT}`);
   });
 }
 
