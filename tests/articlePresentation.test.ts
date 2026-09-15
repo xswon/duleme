@@ -31,7 +31,7 @@ const podcastTabs = [
 ];
 
 describe("article presentation resolver", () => {
-  it("presents a regular article as a continuous body with an inline overview action", () => {
+  it("gives a regular article the shared body-first tabs with a generatable overview", () => {
     const result = resolveArticlePresentation(article());
 
     expect(result).toMatchObject({
@@ -46,6 +46,19 @@ describe("article presentation resolver", () => {
         canGenerateOverview: true,
       },
     });
+    expect(result.tabs).toEqual([
+      { key: "body", label: "正文" },
+      { key: "overview", label: "AI 摘要" },
+    ]);
+  });
+
+  it("drops the article overview tab when verified enrichment has no overview content", () => {
+    const result = resolveArticlePresentation(
+      article({ enrichment: enrichment("available") }),
+      { status: "available", digest: "<p>Digest only</p>" }
+    );
+
+    expect(result.capabilities).toMatchObject({ hasOverview: false, canGenerateOverview: false });
     expect(result.tabs).toEqual([{ key: "body", label: "正文" }]);
   });
 

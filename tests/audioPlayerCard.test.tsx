@@ -60,5 +60,12 @@ describe("AudioPlayerCard playlist control", () => {
     expect(active).toContain("player-track");
     expect(active).toContain("player-toggle");
     expect(active).toContain('aria-label="后退 15 秒"');
+    const rewindStart = active.indexOf('title="后退 15 秒"');
+    const rewindEnd = active.indexOf("</button>", rewindStart);
+    const rewindHtml = active.slice(rewindStart, rewindEnd);
+    expect(rewindHtml).toContain('d="M3 12a9 9 0 1 0 9-9c-2.52 0-4.93 1-6.74 2.74L3 8M3 3v5h5"');
+    expect(rewindHtml).toContain('d="M9 12h6"');
+    expect(rewindHtml).not.toContain("<text");
+    expect(rewindHtml).not.toContain("M12 8v8M9 12h6");
   });
 });

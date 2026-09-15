@@ -58,6 +58,9 @@ export function resolveArticlePresentation(
   const hasDigest = hasProviderDigest;
   const hasTranscript = hasProviderTranscript;
 
+  // Phase one only summarizes article bodies. Show notes are not a transcript.
+  const canGenerateOverview = !hasAudio && !isDigested;
+
   const capabilities = {
     hasAudio,
     hasCover: hasText(article.thumbnail),
@@ -66,22 +69,21 @@ export function resolveArticlePresentation(
     hasOverview,
     hasDigest,
     hasTranscript,
-    // Phase one only summarizes article bodies. Show notes are not a transcript.
-    canGenerateOverview: !hasAudio && !isDigested,
+    canGenerateOverview,
   };
 
   const bodyTab: DetailTabPresentation = {
     key: "body",
     label: hasAudio ? "节目介绍" : "正文",
   };
-  let tabs: DetailTabPresentation[] = [bodyTab];
-  if (hasAudio) {
-    tabs = [
-      bodyTab,
-      { key: "overview", label: "AI 摘要" },
-      { key: "transcript", label: "逐字稿" },
-    ];
-  }
+  const overviewTab: DetailTabPresentation = { key: "overview", label: "AI 摘要" };
+  // Articles keep the same tab structure as podcasts: the body is always first,
+  // and the overview tab appears whenever it has content or can still be generated.
+  const tabs: DetailTabPresentation[] = hasAudio
+    ? [bodyTab, overviewTab, { key: "transcript", label: "逐字稿" }]
+    : canGenerateOverview || hasOverview
+      ? [bodyTab, overviewTab]
+      : [bodyTab];
 
   return {
     contentType: hasAudio ? "podcast" : "article",

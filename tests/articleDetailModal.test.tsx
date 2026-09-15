@@ -125,7 +125,7 @@ describe("ArticleDetailModal", () => {
     expect(html).toContain(">Article without a cover</h1>");
   });
 
-  it("renders as an embedded reader with return, immersion, and inline AI summary controls", () => {
+  it("renders as an embedded reader with return, immersion, and body-first article tabs", () => {
     const html = renderToStaticMarkup(
       <ArticleDetailModal
         article={{ ...article, aiSummary: "A concise summary" }}
@@ -139,11 +139,16 @@ describe("ArticleDetailModal", () => {
     expect(html).toContain('id="article-reader"');
     expect(html).toContain('aria-label="返回文章列表"');
     expect(html).toContain('aria-label="进入沉浸模式"');
-    expect(html).toContain('aria-label="AI 摘要"');
-    expect(html).toContain("A concise summary");
+    expect(html).toContain('aria-label="文章内容"');
+    expect((html.match(/role="tab"/g) || []).length).toBe(2);
+    expect(html).toContain("正文</button>");
+    expect(html).toContain("AI 摘要</button>");
+    expect(html).toContain("Readable body");
+    // The summary lives behind its own tab now, so the body tab stays uncluttered.
+    expect(html).not.toContain('aria-label="AI 摘要"');
+    expect(html).not.toContain("A concise summary");
     expect(html).not.toContain('aria-expanded="true"');
     expect(html).not.toContain("收起");
-    expect(html).not.toContain('aria-label="文章内容"');
     expect(html).not.toContain(">概要<");
     expect(html).not.toContain("fixed inset-0");
     expect(html).not.toContain('role="dialog"');

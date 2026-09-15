@@ -929,29 +929,59 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                 <span>{timeAgo}</span>
             </div>
 
-            {presentation?.contentType === "article" && (
-              <section className="ai-summary-card mt-5" aria-label="AI 摘要">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold text-violet-900">
-                    <Sparkle className="h-4 w-4 shrink-0 text-violet-500" aria-hidden="true" />
-                    <span>AI 摘要</span>
-                  </div>
-                  {!aiSummary && (
-                    <button type="button" onClick={handleSummarize} disabled={isSummarizing} className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-violet-800 transition-colors hover:bg-violet-100 disabled:cursor-wait disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400">
-                      {isSummarizing ? "生成中…" : summaryError ? "重试" : "生成摘要"}
-                    </button>
-                  )}
-                </div>
-                {aiSummary && <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-violet-950/80">{aiSummary}</p>}
-                {!aiSummary && summaryError && <p className="mt-2 text-xs text-rose-700" role="alert">{summaryError}</p>}
-              </section>
-            )}
-
             {/* Audio Card (仅真实播客音频) */}
             {hasAudio && <AudioPlayerCard model={{ article, isPlaying, currentTime, duration, playbackRate, audioPlayError, isInPlaylist, onTogglePlaylist, togglePlay: handleTogglePlay, onSeek: seekTo, onRateChange: () => audioPlayer?.cyclePlaybackRate(), onRewind: () => seekTo(currentTime - 15), onForward: () => seekTo(currentTime + 30) }} />}
 
-            {/* Cover Image (无音频时占播放器位置；BidClub 用节目真实封面) */}
-            {!hasAudio && (article.thumbnail || bidclub?.thumbnailUrl) && (
+            {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
+            {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
+              {tabs.map((tab) => {
+                const isInsightTab = tab.key === "overview" || tab.key === "digest";
+                const hasInsightContent = tab.key === "overview"
+                  ? !!(bidclubTldrHtml?.trim() || bidclubDigestHtml?.trim())
+                  : !!bidclubDigestHtml?.trim();
+                const InsightIcon = tab.key === "body"
+                  ? FileText
+                  : tab.key === "transcript"
+                    ? AudioLines
+                    : Sparkle;
+                return (
+                  <button
+                    type="button"
+                    key={tab.key}
+                    onClick={() => handleDetailTabChange(tab.key)}
+                    role="tab"
+                    aria-selected={detailTab === tab.key}
+                    className={`reader-tab ${detailTab === tab.key ? "is-active" : ""}`}
+                  >
+                    <InsightIcon
+                      className={`reader-tab-icon ${
+                        isInsightTab && enrichmentStatus === "available" && hasVerifiedBidclubEnrichment && hasInsightContent
+                          ? "text-violet-500"
+                          : "text-slate-400"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {tab.label}
+                  </button>
+                );
+              })}
+              {notesLoaded && notes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { markUserInteracted(); setDetailTab("notes"); onDetailTabChange?.("notes"); }}
+                  role="tab"
+                  aria-selected={detailTab === "notes"}
+                  className={`reader-tab ${detailTab === "notes" ? "is-active" : ""}`}
+                >
+                  <MessageSquareText className="reader-tab-icon" aria-hidden="true" />
+                  笔记 <em>{notes.length}</em>
+                </button>
+              )}
+            </div>}
+
+            {/* Cover Image (无音频时占播放器位置；BidClub 用节目真实封面。
+                原型把封面归入“正文”面板，切到其他 Tab 时不显示。) */}
+            {!hasAudio && detailTab === "body" && (article.thumbnail || bidclub?.thumbnailUrl) && (
               <div className="mt-6 rounded-xl overflow-hidden bg-slate-100">
                 <img
                   src={resolveImageUrl(article.thumbnail || bidclub?.thumbnailUrl)}
@@ -974,62 +1004,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                 />
               </div>
             )}
-
-            {/* Ordinary articles are a continuous reading flow. Tabs are only
-                needed for podcasts/enrichment or when an article has notes. */}
-            {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
-              {tabs.map((tab) => {
-                const isInsightTab = tab.key === "overview" || tab.key === "digest";
-                const hasInsightContent = tab.key === "overview"
-                  ? !!(bidclubTldrHtml?.trim() || bidclubDigestHtml?.trim())
-                  : !!bidclubDigestHtml?.trim();
-                const InsightIcon = tab.key === "body"
-                  ? FileText
-                  : tab.key === "transcript"
-                    ? AudioLines
-                    : Sparkle;
-                return (
-                  <button
-                    type="button"
-                    key={tab.key}
-                    onClick={() => handleDetailTabChange(tab.key)}
-                    role="tab"
-                    aria-selected={detailTab === tab.key}
-                    className={`reader-tab ${
-                      detailTab === tab.key
-                        ? "border-blue-600 text-blue-600"
-                        : "border-transparent text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    <InsightIcon
-                      className={`reader-tab-icon ${
-                        isInsightTab && enrichmentStatus === "available" && hasVerifiedBidclubEnrichment && hasInsightContent
-                          ? "text-violet-500"
-                          : "text-slate-400"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    {tab.label}
-                  </button>
-                );
-              })}
-              {notesLoaded && notes.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { markUserInteracted(); setDetailTab("notes"); onDetailTabChange?.("notes"); }}
-                  role="tab"
-                  aria-selected={detailTab === "notes"}
-                  className={`reader-tab ${
-                    detailTab === "notes"
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  <MessageSquareText className="reader-tab-icon" aria-hidden="true" />
-                  笔记 <em>{notes.length}</em>
-                </button>
-              )}
-            </div>}
 
             {presentation?.enrichmentStatus === "checking" && (
               <p className="mt-3 text-xs text-slate-400" role="status">正在检查整理内容…</p>

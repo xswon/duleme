@@ -5,10 +5,17 @@
   line-height: normal;
   -webkit-font-smoothing: auto;
 }
-.wreader-brand { padding: 0 6px 0 16px; gap: 6px; }
+.wreader-brand { padding: 0 6px 0 16px; gap: 2px; }
 .wreader-brand-name { flex: 1; font-size: 13px; font-weight: 700; color: #2a3540; letter-spacing: normal; }
-.wreader-sidebar-collapse { margin-left: -8px; color: #687789; }
+.wreader-sidebar-search,
+.wreader-sidebar-collapse { margin-left: 0; color: #687789; }
+.wreader-sidebar-search { display: none; }
+.wreader-sidebar-search.is-selected { background: #e0eafa; color: #1f64ba; }
+@media (max-width: 1039px) {
+  .wreader-sidebar-search { display: inline-grid; }
+}
 .wreader-sidebar-collapse svg { width: 16px; height: 16px; }
+.wreader-sidebar-search svg { width: 16px; height: 16px; }
 .wreader-sidebar nav { padding: 9px 6px 8px; }
 .wreader-sidebar-footer { height: 59px; padding: 8px 10px 14px; border-top: 1px solid rgba(220,226,233,.6); background: #f4f5f7; }
 .wreader-sidebar-footer button { height: 34px; min-height: 36px; }
@@ -16,6 +23,7 @@
 .wreader-list-header-main > div:last-child { gap: 2px; }
 .wreader-list-header h1 { color: #202a35; }
 .wreader-timeline-window { color: #7f8a96; font-weight: 400; }
+.wreader-title-count { color: #7f8a96; font-size: 11px; font-weight: 400; white-space: nowrap; }
 .wreader-timeline-filter { height: 42px; padding: 5px 0 6px; }
 .wreader-timeline-unread-filter b { background: #e7ebef; color: #65717e; font-weight: 700; }
 .wreader-timeline-unread-filter.is-active b { background: #fff; color: #2369b6; }
@@ -47,12 +55,15 @@
   .wreader-sidebar { position: static !important; transform: none !important; translate: none !important; }
   .wreader-sidebar:not(.translate-x-0) { transform: none !important; }
   .wreader-sidebar-collapse { display: inline-grid; }
+  .wreader-app:not(.is-sidebar-collapsed) .wreader-sidebar-search { display: inline-grid; }
+  .wreader-app:not(.is-sidebar-collapsed) #nav-tab-search { display: none; }
   .wreader-menu-button, .wreader-header-refresh { display: none !important; }
   .wreader-app.is-sidebar-collapsed { --wreader-list: 360px; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar { display: flex; width: 52px !important; min-width: 52px; }
   .wreader-app.is-sidebar-collapsed .wreader-brand { justify-content: center; padding: 0; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-collapse { margin: 0; }
   .wreader-app.is-sidebar-collapsed .wreader-brand-name,
+  .wreader-app.is-sidebar-collapsed .wreader-sidebar-search,
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-refresh,
   .wreader-app.is-sidebar-collapsed .wreader-nav-section-label,
   .wreader-app.is-sidebar-collapsed .wreader-nav-label,
@@ -92,6 +103,8 @@
 .wreader-nav-leading { display: grid; width: 16px; flex: none; place-items: center; color: #7c8794; }
 .wreader-nav-leading svg, .wreader-subscription-add svg { width: 16px; height: 16px; }
 .wreader-sidebar-refresh svg { width: 15px; height: 15px; }
+.wreader-subscription-heading .wreader-sidebar-refresh { margin-left: 2px; }
+.wreader-subscription-heading .wreader-sidebar-refresh svg { width: 12px; height: 12px; }
 .wreader-nav-count { font-size: 11px; }
 .wreader-article-list .wreader-story-row > div:last-child > .wreader-story-time { min-height: 14px; margin-top: 2px; gap: 6px; color: #8c98a5; font-size: 11px; }
 .wreader-article-list .wreader-story-row .story-audio-meta svg { width: 11.5px; height: 11.5px; flex: 0 0 11.5px; }
@@ -103,6 +116,8 @@
 .wreader-toast.is-error { border-color: #f1c8c8; color: #a33e3e; }
 .wreader-toast button { color: #3175c6; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .wreader-toast .toast-close { color: #8b96a1; font-weight: 500; }
+.app-tooltip { position: fixed; z-index: 90; max-width: 300px; padding: 5px 9px; border-radius: 6px; background: #2f3a46; color: #fff; font-size: 11px; font-weight: 400; line-height: 1.35; letter-spacing: .01em; white-space: nowrap; pointer-events: none; opacity: 0; visibility: hidden; box-shadow: 0 6px 18px rgba(20,30,42,.24); transition: opacity .1s ease; }
+.app-tooltip.is-visible { opacity: 1; visibility: visible; }
 .wreader-refresh-failure-panel { position: fixed; z-index: 61; right: 24px; bottom: 72px; width: 310px; padding: 14px; border: 1px solid #efc9c9; border-radius: 10px; background: #fff; box-shadow: 0 12px 30px rgba(34,57,78,.2); color: #65727f; font-size: 11px; }
 .wreader-failure-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .wreader-failure-heading strong { color: #7f3f3f; font-size: 13px; }
@@ -124,3 +139,38 @@
 .wreader-playlist-empty-detail .wreader-playlist-detail-empty-icon { width: 30px; height: 30px; color: #91a0b1; }
 .wreader-playlist-empty-detail h2 { margin: 0; color: #4f6072; font-size: 15px; letter-spacing: normal; }
 .wreader-playlist-empty-detail p { margin: 0; color: #738196; font-size: 13px; }
+
+/* v20: the subscription heading owns refresh; adding belongs to the tree end and opens upward. */
+.wreader-tree-add-row { position: relative; margin-top: 8px; }
+.wreader-subscription-section .wreader-tree-add {
+  width: 100%;
+  min-width: 0;
+  height: 29px;
+  min-height: 29px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+  padding: 0 9px;
+  border-radius: 6px;
+  color: #586574;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+}
+.wreader-subscription-section .wreader-tree-add:hover { background: #e8ebef; }
+.wreader-subscription-section .wreader-tree-add svg { width: 16px; height: 16px; flex: none; color: #7c8794; }
+.wreader-subscription-add-menu {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  bottom: calc(100% + 4px);
+  width: 142px;
+  padding: 4px;
+  border: 1px solid #d9dfe5;
+  border-radius: 7px;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 8px 20px rgba(31,41,55,.13);
+}
+.wreader-subscription-add-menu button { width: 100%; padding: 7px 8px; border-radius: 4px; color: #596674; font-size: 11px; text-align: left; }
+.wreader-subscription-add-menu button:hover { background: #edf1f5; }

@@ -254,9 +254,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         <div className="wreader-brand flex h-[58px] shrink-0 items-center">
-          {onCollapse && <button type="button" onClick={onCollapse} className="wreader-sidebar-collapse wreader-icon-button" title={isCollapsed ? "展开侧边栏" : "收起侧边栏"} aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}><PrototypeIcon><path d="M4 4h16v16H4z" /><path d="M9 4v16" /></PrototypeIcon></button>}
           <h1 className="wreader-brand-name truncate">读了么</h1>
-          {onRefresh && <button type="button" onClick={onRefresh} disabled={isRefreshing} className="wreader-sidebar-refresh wreader-icon-button" title={isRefreshing ? "正在刷新" : "刷新订阅源"} aria-label={isRefreshing ? "正在刷新" : "刷新订阅源"}><PrototypeIcon><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5" /></PrototypeIcon></button>}
+          {!isCollapsed && <button type="button" onClick={() => selectUtilityTab("search")} className={`wreader-sidebar-search wreader-icon-button ${activeTab === "search" ? "is-selected" : ""}`} title="搜索" aria-label="搜索"><PrototypeIcon><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></PrototypeIcon></button>}
+          {onCollapse && <button type="button" onClick={onCollapse} className="wreader-sidebar-collapse wreader-icon-button" title={isCollapsed ? "展开侧边栏" : "收起侧边栏"} aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}><PrototypeIcon><path d="M4 4h16v16H4z" /><path d="M9 4v16" /></PrototypeIcon></button>}
         </div>
 
         <nav className="wreader-sidebar-scroll min-h-0 flex-1 overflow-y-auto">
@@ -270,6 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={scope}
                 type="button"
+                aria-label={label}
                 onClick={() => handleSelectScope(scope)}
                 className={itemClass(
                   (scope === "today" && activeTab === "feeds" && filterTypeForSidebar !== "starred" && !selectedFeedId && !selectedCategory) ||
@@ -279,32 +280,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="wreader-nav-leading" aria-hidden="true">
                   {scope === "today" ? <PrototypeIcon><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></PrototypeIcon> : <PrototypeIcon><path d="m12 3 2.78 5.63 6.22.9-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.92 1.06-6.2L3 9.53l6.22-.9L12 3Z" /></PrototypeIcon>}
                 </span>
-                <span className="wreader-nav-label truncate text-xs">{label}</span>
+                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">{label}</span>
                 {count > 0 && <span className="wreader-nav-count ml-auto text-xs tabular-nums text-slate-500" aria-label={getUnreadCountAriaLabel(count)} title={getUnreadCountAriaLabel(count)}>{formatUnreadCount(count)}</span>}
               </button>
             ))}
           </section>
           <section aria-label="快捷入口" className="wreader-primary-tools shrink-0 space-y-0.5">
-            <button id="nav-tab-playlist" onClick={() => selectUtilityTab("playlist")} className={itemClass(activeTab === "playlist")}>
+            <button id="nav-tab-playlist" aria-label="音频" onClick={() => selectUtilityTab("playlist")} className={itemClass(activeTab === "playlist")}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="wreader-nav-leading"><PrototypeIcon><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3" /></PrototypeIcon></span>
-                <span className="wreader-nav-label truncate text-xs">音频</span>
+                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">音频</span>
               </div>
               {playlistCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500">{playlistCount}</span>}
             </button>
-            <button id="nav-tab-notes" onClick={() => selectUtilityTab("notes")} className={itemClass(activeTab === "notes")}>
+            <button id="nav-tab-notes" aria-label="笔记" onClick={() => selectUtilityTab("notes")} className={itemClass(activeTab === "notes")}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="wreader-nav-leading"><PrototypeIcon><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /><path d="M7 11h10M7 15h6M7 7h8" /></PrototypeIcon></span>
-                <span className="wreader-nav-label truncate text-xs">笔记</span>
+                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>
               </div>
               {notesCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500">{notesCount}</span>}
             </button>
-            <button id="nav-tab-search" onClick={() => selectUtilityTab("search")} className={itemClass(activeTab === "search")}>
+            {isCollapsed && <button id="nav-tab-search" aria-label="搜索" onClick={() => selectUtilityTab("search")} className={itemClass(activeTab === "search")}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="wreader-nav-leading"><PrototypeIcon><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></PrototypeIcon></span>
                 <span className="wreader-nav-label truncate text-xs">搜索</span>
               </div>
-            </button>
+            </button>}
           </section>
           <section
             aria-label="订阅树"
@@ -312,13 +313,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="wreader-nav-section-label wreader-subscription-heading relative flex shrink-0 items-center">
               <span>我的订阅</span>
-              <button type="button" onClick={() => setIsAddMenuOpen((open) => !open)} className="wreader-subscription-add wreader-icon-button" aria-label="添加订阅或文件夹" aria-expanded={isAddMenuOpen} title="添加订阅或文件夹"><PrototypeIcon><path d="M12 5v14M5 12h14" /></PrototypeIcon></button>
-              {isAddMenuOpen && (
-                <div className="absolute right-2 top-8 z-20 w-44 rounded-lg border border-slate-200 bg-white p-1 text-left text-xs normal-case tracking-normal shadow-lg">
-                  <button type="button" onClick={() => { setIsAddMenuOpen(false); onOpenAddFeed(); setIsMobileOpen(false); }} className="flex w-full items-center rounded-md px-2.5 py-2 text-slate-700 hover:bg-slate-100">添加订阅源</button>
-                  <button type="button" onClick={() => { setIsAddMenuOpen(false); setIsFolderDialogOpen(true); }} className="flex w-full items-center rounded-md px-2.5 py-2 text-slate-700 hover:bg-slate-100">添加文件夹</button>
-                </div>
-              )}
+              {onRefresh && <button type="button" onClick={onRefresh} disabled={isRefreshing} className="wreader-sidebar-refresh wreader-icon-button" title={isRefreshing ? "正在刷新" : "刷新订阅源"} aria-label={isRefreshing ? "正在刷新" : "刷新订阅源"}><PrototypeIcon><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5" /></PrototypeIcon></button>}
             </div>
             <div
               id="subscription-tree-scroll"
@@ -363,7 +358,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => handleSelectCategory(category)}
                         className="flex min-w-0 flex-1 items-center pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >
-                        <span className={`truncate text-xs ${isSelectedCategory ? "font-bold text-blue-700" : "font-normal text-slate-800"}`}>
+                        <span className={`wreader-nav-name truncate ${isSelectedCategory ? "wreader-nav-selected-label" : "font-normal text-slate-800"}`}>
                           {displayCategoryName(category)}
                         </span>
                       </button>
@@ -392,7 +387,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             >
                               <span className="flex min-w-0 items-center gap-2 pr-2">
                                 {renderFeedAvatar(feed)}
-                                <span className="truncate text-slate-800">
+                                <span className={`wreader-nav-name truncate text-slate-800 ${isFeedSelected ? "wreader-nav-selected-label" : ""}`}>
                                   {feed.title}
                                 </span>
                               </span>
@@ -414,6 +409,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   暂无订阅源
                 </p>
               )}
+              <div className="wreader-tree-add-row">
+                <button type="button" onClick={() => setIsAddMenuOpen((open) => !open)} className="wreader-subscription-add wreader-tree-add" aria-label="添加订阅或文件夹" aria-expanded={isAddMenuOpen}><PrototypeIcon><path d="M12 5v14M5 12h14" /></PrototypeIcon><span>添加</span></button>
+                {isAddMenuOpen && (
+                  <div className="wreader-subscription-add-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={() => { setIsAddMenuOpen(false); onOpenAddFeed(); setIsMobileOpen(false); }}>添加订阅源</button>
+                    <button type="button" role="menuitem" onClick={() => { setIsAddMenuOpen(false); setIsFolderDialogOpen(true); }}>添加文件夹</button>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
@@ -423,6 +427,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <section aria-label="侧栏操作">
             <button
               id="nav-manage-feeds"
+              aria-label="设置"
               onClick={() => {
                 if (onOpenSettings) {
                   onOpenSettings();

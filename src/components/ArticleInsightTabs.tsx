@@ -102,14 +102,22 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   }
 
   if (p.tab === "overview" && p.canGenerateSummary) {
-    if (p.summary) return <div className="reader-content whitespace-pre-wrap">{p.summary}</div>;
+    if (p.summary) {
+      return (
+        <div className="audio-insight-layout wreader-ai-summary-layout">
+          <section className="audio-highlight-body">
+            <div className="reader-content bidclub-overview whitespace-pre-wrap">{p.summary}</div>
+          </section>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center py-10 text-center">
         <p className="text-sm text-slate-500 mb-4 max-w-xs">基于文章标题与正文生成核心观点概要</p>
         <button
           onClick={p.onSummarize}
           disabled={p.summarizing}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold transition-colors cursor-pointer"
         >
           {p.summarizing ? "正在生成…" : "生成文章概要"}
         </button>

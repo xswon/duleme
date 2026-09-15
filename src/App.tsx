@@ -490,6 +490,28 @@ export default function App() {
     }, 5000);
   }, [playlistIds, showToastWithAction, handleUndoPlaylistClear]);
 
+  const handleClearFavorites = useCallback(async () => {
+    const favoriteIds = articles.filter((article) => article.starred).map((article) => article.id);
+    if (favoriteIds.length === 0) {
+      showToast("收藏已清空");
+      return;
+    }
+
+    const favoriteIdSet = new Set(favoriteIds);
+    const previousFavorites = new Map(articles.filter((article) => favoriteIdSet.has(article.id)).map((article) => [article.id, article]));
+    setArticles((current) => current.map((article) => favoriteIdSet.has(article.id)
+      ? { ...article, starred: false, savedAt: undefined }
+      : article));
+    try {
+      await updateStoredArticlesStatus(favoriteIds, { starred: false, savedAt: undefined });
+      showToast("收藏已清空");
+    } catch (error) {
+      console.warn("Failed to clear favorites:", error);
+      setArticles((current) => current.map((article) => previousFavorites.get(article.id) || article));
+      showToast("收藏清空失败，请重试");
+    }
+  }, [articles, showToast]);
+
   const handleReorderPlaylist = useCallback((nextIds: string[]) => {
     setPlaylistIds((current) => {
       const allowed = new Set(current);
@@ -1056,7 +1078,7 @@ export default function App() {
   const handleClearNotes = useCallback(async () => {
     const visibleIds = new Set(articles.map((article) => article.id));
     const notesToDelete = articleNotes.filter((note) => visibleIds.has(note.articleId));
-    if (notesToDelete.length === 0 || !window.confirm(`确认删除全部 ${notesToDelete.length} 条笔记？`)) return;
+    if (notesToDelete.length === 0) return;
     const previousNotes = articleNotes;
     const deletingIds = new Set(notesToDelete.map((note) => note.id));
     setArticleNotes((current) => current.filter((note) => !deletingIds.has(note.id)));
@@ -1257,8 +1279,8 @@ export default function App() {
   const totalSaved = articles.filter((a) => a.starred).length;
   // Compute Active Title
   const activeTitle = useMemo(() => {
-    if (activeTab === "playlist") return `音频 ${playlistArticles.length} 条`;
-    if (activeTab === "notes") return `笔记 ${visibleArticleNotes.length} 条`;
+    if (activeTab === "playlist") return "音频";
+    if (activeTab === "notes") return "笔记";
     if (activeTab === "saved") return "收藏文章";
     if (activeTab === "search") return "搜索";
     if (activeTab === "settings") return "设置";
@@ -1271,6 +1293,12 @@ export default function App() {
     if (selectedCategory) return selectedCategory.replace(/\s*\|\s*/g, " · ");
     return "全部订阅";
   }, [activeTab, filterType, selectedFeedId, selectedCategory, feeds, playlistArticles.length, visibleArticleNotes.length]);
+  const activeCountLabel = useMemo(() => {
+    if (activeTab === "playlist") return `${playlistArticles.length} 条`;
+    if (activeTab === "notes") return `${visibleArticleNotes.length} 条`;
+    if (activeTab === "feeds" && filterType === "starred" && !selectedFeedId && !selectedCategory) return `${totalSaved} 条`;
+    return undefined;
+  }, [activeTab, filterType, playlistArticles.length, selectedCategory, selectedFeedId, totalSaved, visibleArticleNotes.length]);
 
   // Compute Visible Articles according to current tab & filters
   const visibleArticles = useMemo(() => {
@@ -1506,8 +1534,8 @@ export default function App() {
           setSelectedCategory={setSelectedCategory}
           totalUnread={totalUnread}
           totalSaved={totalSaved}
-          playlistCount={playablePlaylistIds.length}
-          notesCount={visibleArticleNotes.length}
+          playlistCount={0}
+          notesCount={0}
           onOpenAddFeed={() => setIsAddFeedOpen(true)}
           onCreateFolder={handleAddCategory}
           onOpenSettings={handleOpenSettings}
@@ -1535,12 +1563,14 @@ export default function App() {
               <Header
           activeTab={activeTab}
           currentTitle={activeTitle}
+          currentCountLabel={activeCountLabel}
           filterType={filterType}
           setFilterType={(nextFilter) => navigateToRoute({ activeTab: "feeds", filterType: nextFilter, articleId: null })}
           onRefresh={handleRefreshAllFeeds}
-          onMarkAllRead={activeTab === "playlist" ? () => { if (playlistIds.length > 0 && window.confirm(`确认清空播放列表中的 ${playlistIds.length} 个节目？`)) handleClearPlaylist(); } : activeTab === "notes" ? handleClearNotes : handleMarkAllRead}
+          onMarkAllRead={activeTab === "playlist" ? handleClearPlaylist : activeTab === "notes" ? handleClearNotes : activeTab === "feeds" && filterType === "starred" ? handleClearFavorites : handleMarkAllRead}
           notesEmpty={visibleArticleNotes.length === 0}
           playlistEmpty={playlistIds.length === 0}
+          favoritesEmpty={totalSaved === 0}
           isRefreshing={isRefreshing}
           onToggleMobileMenu={() => {
             if (window.matchMedia("(min-width: 1040px)").matches) {

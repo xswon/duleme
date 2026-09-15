@@ -19,6 +19,18 @@ const notes: ArticleNote[] = [
 afterEach(() => { document.body.innerHTML = ""; });
 
 describe("NotesView", () => {
+  it("uses the prototype empty state without repeating page guidance", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<NotesView notes={[]} articles={articles} onOpen={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />));
+
+    expect(container.querySelector(".wreader-notes-empty")?.textContent).toBe("暂无笔记");
+    expect(container.querySelector(".wreader-notes-empty svg")).toBeNull();
+    expect(container.textContent).not.toContain("在文章详情中选择文字");
+    await act(async () => root.unmount());
+  });
+
   it("lists linked notes by update time and opens the selected note", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);

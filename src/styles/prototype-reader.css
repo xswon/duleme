@@ -103,7 +103,6 @@
 #article-reader .reader-content blockquote { margin: 22px 0; padding: 9px 18px; border-left: 3px solid #a9c8e9; background: #f6f9fc; color: #526f8e; font-size: 15px; line-height: 1.7; }
 #article-reader .reader-content img { margin: 1.25em auto; border-radius: 10px; }
 
-#article-reader .ai-summary-card { margin-top: 18px; border-color: #e5e9ee; border-radius: 12px; background: #f6f8fb; }
 #article-reader .wreader-audio-card { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 84px; height: 84px; margin: 18px 0 22px; padding: 10px 12px 10px 10px; overflow: hidden; border-radius: 12px; background: #f6f8fb; color: #334155; }
 #article-reader .wreader-audio-cover { width: 62px; height: 62px; border-radius: 8px; }
 #article-reader .wreader-audio-body { gap: 8px; }

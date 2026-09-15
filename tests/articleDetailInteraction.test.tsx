@@ -369,4 +369,43 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     expect(container.querySelector('[aria-label="复制原文链接"]')).toBeNull();
     await act(async () => root.unmount());
   });
+
+  it("switches a regular article between its body and AI summary tabs", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const plainArticle: Article = {
+      ...baseArticle,
+      id: "plain-article",
+      audioUrl: undefined,
+      enrichment: undefined,
+      thumbnail: "https://example.com/cover.jpg",
+      aiSummary: "已生成的摘要",
+    };
+
+    await act(async () => renderDetail(root, plainArticle));
+    await waitForNotesToLoad(container);
+
+    expect(Array.from(container.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent))
+      .toEqual(["正文", "AI 摘要"]);
+    expect(container.textContent).toContain("Original show notes");
+    expect(container.querySelector("img")).not.toBeNull();
+
+    const aiTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+      .find((tab) => tab.textContent === "AI 摘要");
+    await act(async () => aiTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+
+    expect(container.querySelector(".bidclub-overview")?.textContent).toBe("已生成的摘要");
+    expect(container.textContent).not.toContain("Original show notes");
+    expect(container.querySelector("img")).toBeNull();
+
+    const bodyTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+      .find((tab) => tab.textContent === "正文");
+    await act(async () => bodyTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+
+    expect(container.textContent).toContain("Original show notes");
+    expect(container.querySelector("img")).not.toBeNull();
+    await act(async () => root.unmount());
+    container.remove();
+  });
 });

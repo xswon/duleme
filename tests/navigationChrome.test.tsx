@@ -63,6 +63,7 @@ describe("navigation chrome", () => {
     expect(html).toContain("我的订阅");
     expect(html).not.toContain("搜索全文");
     expect(html).toContain('aria-label="添加订阅或文件夹"');
+    expect(html).toContain('class="wreader-sidebar-search wreader-icon-button');
     expect(html).toContain(">设置<");
     expect(html).toContain("科技");
     expect(html).not.toContain("空文件夹");
@@ -71,15 +72,16 @@ describe("navigation chrome", () => {
     expect(html).not.toContain(">工具<");
     expect(html.indexOf("收藏")).toBeLessThan(html.indexOf("音频"));
     expect(html.indexOf("音频")).toBeLessThan(html.indexOf("笔记"));
-    expect(html.indexOf("笔记")).toBeLessThan(html.indexOf("搜索"));
+    expect(html.indexOf("笔记")).toBeLessThan(html.indexOf("科技"));
     expect(html.indexOf("搜索")).toBeLessThan(html.indexOf("科技"));
+    expect(html.indexOf("添加")).toBeGreaterThan(html.lastIndexOf("科技"));
 
-    const quickEntryOrder = ["时间线", "收藏", "音频", "笔记", "搜索"].map((label) =>
+    const quickEntryOrder = ["时间线", "收藏", "音频", "笔记"].map((label) =>
       html.indexOf(label)
     );
     expect(quickEntryOrder).toEqual([...quickEntryOrder].sort((a, b) => a - b));
     expect(html).toContain('id="nav-tab-notes"');
-    expect((html.match(/class="wreader-nav-label truncate text-xs"/g) || []).length).toBe(6);
+    expect((html.match(/wreader-nav-primary-label/g) || []).length).toBe(4);
     expect(html).toContain('d="M12.22 2h-.44');
     expect(html).toContain('d="M12 2v2M12 20v2');
     expect(html).not.toContain(">未读<");
@@ -90,16 +92,40 @@ describe("navigation chrome", () => {
   it("marks every utility label for the collapsed rail", () => {
     const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ isCollapsed: true })} />);
 
-    expect(html).toContain('class="wreader-nav-label truncate text-xs">音频</span>');
-    expect(html).toContain('class="wreader-nav-label truncate text-xs">笔记</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">音频</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>');
     expect(html).toContain('class="wreader-nav-label truncate text-xs">搜索</span>');
     expect(html).toContain('class="wreader-nav-label truncate text-xs">设置</span>');
   });
 
-  it("keeps refresh and desktop collapse controls in the sidebar header", () => {
+  it("keeps primary labels at their dedicated size when counts are zero", () => {
+    const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ totalUnread: 0, totalSaved: 0, feeds: [], categories: [] })} />);
+    const readingNavStart = html.indexOf('aria-label="阅读入口"');
+    const readingNavEnd = html.indexOf('aria-label="快捷入口"', readingNavStart);
+    const readingNavHtml = html.slice(readingNavStart, readingNavEnd);
+
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">时间线</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">收藏</span>');
+    expect(readingNavHtml).not.toContain("wreader-nav-count");
+  });
+
+  it("keeps search and collapse in the brand row and refresh beside subscriptions", () => {
     const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ onRefresh: vi.fn(), onCollapse: vi.fn() })} />);
-    expect(html).toContain('aria-label="刷新订阅源"');
+    expect((html.match(/aria-label="搜索"/g) || []).length).toBe(1);
     expect(html).toContain('aria-label="收起侧边栏"');
+    expect(html.indexOf('aria-label="搜索"')).toBeLessThan(html.indexOf('aria-label="收起侧边栏"'));
+    expect(html.indexOf('aria-label="刷新订阅源"')).toBeGreaterThan(html.indexOf("我的订阅"));
+    expect(html.indexOf('aria-label="添加订阅或文件夹"')).toBeGreaterThan(html.lastIndexOf("我的订阅"));
+    expect(html).toContain('class="wreader-tree-add-row"');
+  });
+
+  it("uses one selected label class for folders and feeds", () => {
+    const folderHtml = renderToStaticMarkup(<Sidebar {...sidebarProps({ selectedCategory: "科技" })} />);
+    const feedHtml = renderToStaticMarkup(<Sidebar {...sidebarProps({ selectedFeedId: "feed-1" })} />);
+    const defaultHtml = renderToStaticMarkup(<Sidebar {...sidebarProps()} />);
+    expect(folderHtml).toContain('class="wreader-nav-name truncate wreader-nav-selected-label">科技</span>');
+    expect(feedHtml).toContain('class="wreader-nav-name truncate text-slate-800 wreader-nav-selected-label">科技播客</span>');
+    expect(defaultHtml).toContain('class="wreader-nav-name truncate font-normal text-slate-800">');
   });
 
   it("opens settings as a page and closes the mobile drawer", async () => {
@@ -452,6 +478,60 @@ describe("navigation chrome", () => {
     expect(html).not.toContain("更多操作");
   });
 
+  it("renders explicit auxiliary counts for tools and favorites", () => {
+    const baseProps = {
+      filterType: "all" as const,
+      setFilterType: vi.fn(),
+      onRefresh: vi.fn(),
+      onMarkAllRead: vi.fn(),
+      isRefreshing: false,
+      onToggleMobileMenu: vi.fn(),
+      onNavigateSearch: vi.fn(),
+      unreadCount: 0,
+    };
+    const audioHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="playlist" currentTitle="音频" currentCountLabel="2 条" />);
+    const notesHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="notes" currentTitle="笔记" currentCountLabel="4 条" />);
+    const favoritesHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="feeds" filterType="starred" currentTitle="收藏" currentCountLabel="7 条" />);
+
+    for (const html of [audioHtml, notesHtml, favoritesHtml]) {
+      expect(html).toContain('class="wreader-title-count"');
+    }
+    expect(audioHtml).toContain("音频");
+    expect(audioHtml).toContain(">2 条</span>");
+    expect(notesHtml).toContain(">4 条</span>");
+    expect(favoritesHtml).toContain(">7 条</span>");
+  });
+
+  it("keeps favorite sorting beside the clear action and dispatches it", async () => {
+    const onToggleTimelineSort = vi.fn();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => root.render(
+      <Header
+        activeTab="feeds"
+        currentTitle="收藏"
+        currentCountLabel="2 条"
+        filterType="starred"
+        setFilterType={vi.fn()}
+        onRefresh={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        isRefreshing={false}
+        onToggleMobileMenu={vi.fn()}
+        onNavigateSearch={vi.fn()}
+        unreadCount={0}
+        timelineSortOrder="newest"
+        onToggleTimelineSort={onToggleTimelineSort}
+      />
+    ));
+    const sortButton = container.querySelector<HTMLButtonElement>('button[aria-label="排序：从新至旧"]');
+    expect(sortButton).not.toBeNull();
+    await act(async () => sortButton?.click());
+    expect(onToggleTimelineSort).toHaveBeenCalledTimes(1);
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it("reveals the list-header navigation control when the sidebar is collapsed", () => {
     const html = renderToStaticMarkup(
       <Header
@@ -493,6 +573,81 @@ describe("navigation chrome", () => {
     expect(html).toContain('aria-label="删除全部笔记"');
     expect(html).toContain('disabled=""');
     expect(html).not.toContain('aria-label="全部标为已读"');
+  });
+
+  it("uses Trash2 for notes and Eraser for audio and favorites bulk actions", () => {
+    const notesHtml = renderToStaticMarkup(
+      <Header
+        activeTab="notes"
+        currentTitle="笔记 2 条"
+        filterType="all"
+        setFilterType={vi.fn()}
+        onRefresh={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        isRefreshing={false}
+        onToggleMobileMenu={vi.fn()}
+        onNavigateSearch={vi.fn()}
+        unreadCount={0}
+      />
+    );
+    const audioHtml = renderToStaticMarkup(
+      <Header
+        activeTab="playlist"
+        currentTitle="音频 2 条"
+        filterType="all"
+        setFilterType={vi.fn()}
+        onRefresh={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        isRefreshing={false}
+        onToggleMobileMenu={vi.fn()}
+        onNavigateSearch={vi.fn()}
+        unreadCount={0}
+      />
+    );
+    const favoritesHtml = renderToStaticMarkup(
+      <Header
+        activeTab="feeds"
+        currentTitle="收藏"
+        filterType="starred"
+        setFilterType={vi.fn()}
+        onRefresh={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        isRefreshing={false}
+        onToggleMobileMenu={vi.fn()}
+        onNavigateSearch={vi.fn()}
+        unreadCount={0}
+      />
+    );
+
+    expect(notesHtml).toContain('aria-label="删除全部笔记"');
+    expect(notesHtml).toContain('d="M10 11v6M14 11v6');
+    expect(audioHtml).toContain('aria-label="清空播放列表"');
+    expect(audioHtml).toContain('d="M21 21H8a2 2 0 0 1-1.42-.587');
+    expect(audioHtml).toContain('data-tip="清空播放列表"');
+    expect(audioHtml).not.toContain('title="删除全部音频"');
+    expect(favoritesHtml).toContain('aria-label="清空收藏"');
+    expect(favoritesHtml).not.toContain('aria-label="全部标为已读"');
+  });
+
+  it("disables the favorites clear action when there are no favorites", () => {
+    const html = renderToStaticMarkup(
+      <Header
+        activeTab="feeds"
+        currentTitle="收藏"
+        filterType="starred"
+        setFilterType={vi.fn()}
+        onRefresh={vi.fn()}
+        onMarkAllRead={vi.fn()}
+        isRefreshing={false}
+        onToggleMobileMenu={vi.fn()}
+        onNavigateSearch={vi.fn()}
+        unreadCount={0}
+        favoritesEmpty
+      />
+    );
+
+    expect(html).toContain('aria-label="清空收藏"');
+    expect(html).toContain('disabled=""');
   });
 
   it("renders timeline type and unread filters and dispatches their changes", async () => {

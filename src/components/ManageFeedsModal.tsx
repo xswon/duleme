@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Folder,
@@ -98,6 +98,43 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onExportBackup,
   onImportBackup,
 }) => {
+  const settingsDialogRef = useRef<HTMLDivElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(
+    typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
+
+  useEffect(() => {
+    const dialog = settingsDialogRef.current;
+    if (!dialog) return undefined;
+    const getFocusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    ));
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onBack();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable: HTMLElement[] = getFocusable() as HTMLElement[];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    dialog.addEventListener("keydown", handleKeyDown);
+    return () => {
+      dialog.removeEventListener("keydown", handleKeyDown);
+      if (openerRef.current?.isConnected) openerRef.current.focus();
+    };
+  }, [onBack]);
+
   const [activeTab, setActiveTab] = useState<"subscriptions" | "ai" | "data">("subscriptions");
   const [isFolderComposerOpen, setIsFolderComposerOpen] = useState(false);
   const [newFolderInput, setNewFolderInput] = useState("");
@@ -306,7 +343,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   };
 
   return (
-    <div className="wreader-settings-modal fixed inset-0 z-[70] grid place-items-center p-6" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" onKeyDown={(event) => { if (event.key === "Escape") onBack(); }}>
+    <div ref={settingsDialogRef} className="wreader-settings-modal fixed inset-0 z-[70] grid place-items-center p-6" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
       <button type="button" className="wreader-settings-backdrop absolute inset-0" onClick={onBack} aria-label="关闭设置" />
       <section className="wreader-settings-card relative flex w-full flex-col overflow-hidden">
         <header className="wreader-settings-header flex shrink-0 items-center justify-between">

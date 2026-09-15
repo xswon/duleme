@@ -67,10 +67,8 @@
 .wreader-notes-editor > div { display: flex; justify-content: flex-end; gap: 7px; margin-top: 6px; }
 .wreader-notes-editor button { padding: 6px 9px; border-radius: 6px; color: #71808d; font-size: 11px; }
 .wreader-notes-editor button.primary { background: #3175c6; color: #fff; }
-.wreader-notes-empty { display: flex; min-height: 220px; align-items: center; justify-content: center; flex-direction: column; gap: 7px; color: #8b97a3; text-align: center; }
-.wreader-notes-empty > svg { width: 28px; height: 28px; }
-.wreader-notes-empty strong { color: #5f6d7a; font-size: 13px; }
-.wreader-notes-empty span { font-size: 11px; }
+.wreader-notes-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 0; padding: 42px 12px; color: #8b96a1; text-align: center; }
+.wreader-notes-empty strong { color: inherit; font-size: 12px; font-weight: 400; }
 
 /* Settings modal and settings page */
 .wreader-settings-modal { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 24px; }

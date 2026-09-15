@@ -2,7 +2,7 @@ import React from "react";
 import { ActiveTab, FilterType } from "../types";
 import type { TimelineContentFilter } from "../services/router";
 
-function PrototypeIcon({ type, className = "" }: { type: "menu" | "mail" | "sort" | "refresh" | "trash"; className?: string }) {
+function PrototypeIcon({ type, className = "" }: { type: "menu" | "mail" | "sort" | "refresh" | "trash" | "eraser"; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
       {type === "menu" && <path d="M4 6h16M4 12h16M4 18h16" />}
@@ -10,6 +10,7 @@ function PrototypeIcon({ type, className = "" }: { type: "menu" | "mail" | "sort
       {type === "sort" && <path d="m3 16 4 4 4-4M7 20V4M11 4h10M11 8h7M11 12h4" />}
       {type === "refresh" && <><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /></>}
       {type === "trash" && <><path d="M10 11v6M14 11v6M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>}
+      {type === "eraser" && <><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" /><path d="m5.082 11.09 8.828 8.828" /></>}
     </svg>
   );
 }
@@ -17,6 +18,7 @@ function PrototypeIcon({ type, className = "" }: { type: "menu" | "mail" | "sort
 interface HeaderProps {
   activeTab: ActiveTab;
   currentTitle: string;
+  currentCountLabel?: string;
   filterType: FilterType;
   setFilterType: (filter: FilterType) => void;
   onRefresh: () => void;
@@ -31,6 +33,7 @@ interface HeaderProps {
   onToggleTimelineSort?: () => void;
   notesEmpty?: boolean;
   playlistEmpty?: boolean;
+  favoritesEmpty?: boolean;
   sidebarCollapsed?: boolean;
   showTimelineFilters?: boolean;
   contentType?: TimelineContentFilter;
@@ -41,6 +44,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   currentTitle,
+  currentCountLabel,
   filterType,
   setFilterType,
   onRefresh,
@@ -53,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTimelineSort,
   notesEmpty = false,
   playlistEmpty = false,
+  favoritesEmpty = false,
   sidebarCollapsed = false,
   showTimelineFilters = false,
   contentType = "all",
@@ -64,17 +69,21 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex min-w-0 items-center gap-2">
         <button type="button" onClick={onToggleMobileMenu} aria-label="打开导航菜单" aria-controls="inoreader-sidebar" title="打开菜单" className={`wreader-menu-button wreader-icon-button ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}><PrototypeIcon type="menu" className="h-4 w-4" /></button>
         <h1 className="truncate text-[13px] font-bold text-slate-900">{currentTitle}</h1>
+        {currentCountLabel && <span className="wreader-title-count">{currentCountLabel}</span>}
         {showTimelineFilters && <span className="wreader-timeline-window">最近 {historyWindowDays} 天</span>}
         {isRefreshing && <span className="truncate text-[11px] text-slate-500" aria-live="polite">同步中 {refreshProgress?.completed || 0}/{refreshProgress?.total || ""}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-1">
       {activeTab === "playlist" ? <>
-        <button type="button" onClick={onMarkAllRead} disabled={playlistEmpty} title="删除全部音频" aria-label="删除全部音频" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="trash" className="h-4 w-4" /></button>
+        <button type="button" onClick={onMarkAllRead} disabled={playlistEmpty} data-tip="清空播放列表" aria-label="清空播放列表" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
         {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} aria-label={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
       </> : activeTab === "notes" ? <>
-        <button type="button" onClick={onMarkAllRead} disabled={notesEmpty} title="删除全部笔记" aria-label="删除全部笔记" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="trash" className="h-4 w-4" /></button>
+        <button type="button" onClick={onMarkAllRead} disabled={notesEmpty} data-tip="删除全部笔记" aria-label="删除全部笔记" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="trash" className="h-4 w-4" /></button>
+      </> : activeTab === "feeds" && filterType === "starred" ? <>
+        <button type="button" onClick={onMarkAllRead} disabled={favoritesEmpty} data-tip="清空收藏" aria-label="清空收藏" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
+        {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} aria-label={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
       </> : activeTab !== "search" && <>
-        <button type="button" onClick={onMarkAllRead} title="全部标为已读" aria-label="全部标为已读" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="mail" className="h-4 w-4" /></button>
+        <button type="button" onClick={onMarkAllRead} data-tip="全部标为已读" aria-label="全部标为已读" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="mail" className="h-4 w-4" /></button>
         {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} aria-label={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
       </>}
       {activeTab !== "playlist" && <button type="button" onClick={onRefresh} disabled={isRefreshing} title={isRefreshing ? "正在刷新" : "刷新订阅源"} aria-label={isRefreshing ? "正在刷新" : "刷新订阅源"} className="wreader-header-refresh wreader-icon-button"><PrototypeIcon type="refresh" className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} /></button>}

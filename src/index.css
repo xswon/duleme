@@ -1,12 +1,5 @@
 @import "tailwindcss";
 
-.ai-summary-card {
-  border: 1px solid color-mix(in srgb, #8b6ab7 22%, transparent);
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, #eee8f7 72%, white);
-  padding: 0.7rem 0.85rem;
-}
-
 /* ---- Utilities used across the app ---- */
 
 @keyframes fadeIn {
@@ -294,7 +287,7 @@
 
 /* Production shell follows the reviewed range-list-detail prototype. */
 :root {
-  --wreader-sidebar: 228px;
+  --wreader-sidebar: 248px;
   --wreader-list: 342px;
   --wreader-hit: 32px;
   --wreader-selected: #e7effa;
@@ -812,10 +805,6 @@ body,
 
 #article-reader h1 {
   letter-spacing: -0.035em;
-}
-
-#article-reader .ai-summary-card {
-  margin-top: 20px;
 }
 
 .wreader-tool-view {
@@ -1577,6 +1566,14 @@ body,
   margin-right: auto;
 }
 
+.wreader-nav-primary-label {
+  font-size: 12px;
+}
+
+.wreader-reading-nav button > span.wreader-nav-primary-label {
+  font-size: 12px;
+}
+
 .wreader-nav-count {
   width: var(--wreader-hit);
   min-width: var(--wreader-hit);
@@ -1585,7 +1582,7 @@ body,
   text-align: center;
 }
 
-.wreader-reading-nav button > span:last-child {
+.wreader-reading-nav button > span.wreader-nav-count {
   font-size: 11px;
   font-weight: inherit;
 }
@@ -1676,12 +1673,6 @@ body,
   font-size: 13px;
 }
 
-#article-reader .ai-summary-card {
-  margin-top: 18px;
-  border-color: #e5e9ee;
-  background: #f6f8fb;
-}
-
 .wreader-subscription-heading {
   justify-content: space-between;
   padding-right: 0 !important;
@@ -1752,6 +1743,11 @@ body,
   font-weight: 700;
 }
 
+.wreader-nav-selected-label {
+  color: #1f64ba !important;
+  font-weight: 700 !important;
+}
+
 .wreader-folder-toggle {
   width: 16px;
   height: 16px;
@@ -1792,6 +1788,10 @@ body,
 
 .wreader-feed-row {
   font-size: 11.5px !important;
+}
+
+.wreader-nav-name {
+  font-size: 12px;
 }
 
 .wreader-ai-summary-layout {

@@ -42,7 +42,7 @@ export function NotesView({ notes, articles, onOpen, onUpdate, onDelete }: Notes
   return (
     <div className="wreader-tool-view wreader-notes-view" aria-label="全部笔记">
       {visibleNotes.length === 0 ? (
-        <div className="wreader-notes-empty"><NoteIcon /><strong>还没有笔记</strong><span>在文章详情中选择文字即可创建摘录或笔记。</span></div>
+        <div className="wreader-notes-empty"><strong>暂无笔记</strong></div>
       ) : (
         <div className="wreader-notes-list">
           {visibleNotes.map((note) => {

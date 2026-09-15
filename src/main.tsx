@@ -6,9 +6,11 @@ import './styles/prototype-navigation.css';
 import './styles/prototype-tools.css';
 import './styles/prototype-reader.css';
 import './styles/prototype-player.css';
+import { PrototypeTooltipLayer } from './components/PrototypeTooltipLayer';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <PrototypeTooltipLayer />
   </StrictMode>,
 );
