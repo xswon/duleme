@@ -1,9 +1,9 @@
-import React, { useState } from "react";
-import { Search as SearchIcon, Star, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef } from "react";
+import { FileText, Search as SearchIcon, X } from "lucide-react";
 import { Article, Feed } from "../types";
-import { ArticleList } from "./ArticleList";
+import { getHighlightSegments, searchArticles, stripHtml } from "../services/searchService";
 
-interface SearchViewProps {
+export interface SearchViewProps {
   articles: Article[];
   feeds: Feed[];
   searchQuery: string;
@@ -13,155 +13,106 @@ interface SearchViewProps {
   onToggleRead: (articleId: string) => void;
   onSummarizeAI: (article: Article) => void;
   onResolveThumbnail?: (articleId: string, url: string) => void;
+  onResultsChange?: (articles: Article[]) => void;
+  selectedArticleId?: string | null;
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  return <>{getHighlightSegments(text, query).map((segment, index) => segment.highlighted ? (
+    <mark key={`${segment.text}-${index}`}>{segment.text}</mark>
+  ) : <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>)}</>;
+}
+
+function formatRelativeTime(pubDate: string) {
+  const date = new Date(pubDate);
+  if (Number.isNaN(date.getTime())) return "";
+  const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60_000));
+  if (minutes < 60) return `${Math.max(1, minutes)} 分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "昨天";
+  if (days < 7) return `${days} 天前`;
+  return date.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
 }
 
 export const SearchView: React.FC<SearchViewProps> = ({
   articles,
-  feeds,
   searchQuery,
   setSearchQuery,
   onSelectArticle,
-  onToggleStar,
-  onToggleRead,
-  onSummarizeAI,
-  onResolveThumbnail,
+  onResultsChange,
+  selectedArticleId,
 }) => {
-  const [selectedFeedFilter, setSelectedFeedFilter] = useState<string>("ALL");
-  const [readFilter, setReadFilter] = useState<"ALL" | "UNREAD" | "READ">("ALL");
-  const [starredOnly, setStarredOnly] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const results = useMemo(() => searchArticles(articles, searchQuery), [articles, searchQuery]);
 
-  // Filter logic
-  const filteredArticles = articles.filter((article) => {
-    // 1. Keyword search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const titleMatch = article.title.toLowerCase().includes(q);
-      const snippetMatch = article.snippet.toLowerCase().includes(q);
-      const feedMatch = article.feedTitle.toLowerCase().includes(q);
-      const authorMatch = article.author?.toLowerCase().includes(q);
-      if (!titleMatch && !snippetMatch && !feedMatch && !authorMatch) {
-        return false;
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
       }
-    }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
-    // 2. Feed filter
-    if (selectedFeedFilter !== "ALL" && article.feedId !== selectedFeedFilter) {
-      return false;
-    }
-
-    // 3. Read status filter
-    if (readFilter === "UNREAD" && article.read) return false;
-    if (readFilter === "READ" && !article.read) return false;
-
-    // 4. Starred filter
-    if (starredOnly && !article.starred) return false;
-
-    return true;
-  });
+  useEffect(() => {
+    onResultsChange?.(results.map(({ article }) => article));
+  }, [results, onResultsChange]);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
-      {/* Top Search Controls Bar */}
-      <div className="p-4 bg-white space-y-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <SearchIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
-            <input
-              type="text"
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜索所有订阅源的标题、内容或作者…"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-9 py-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-                title="清空"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
+    <div className="wreader-tool-view wreader-search-view h-full overflow-y-auto">
+      <header className="wreader-search-heading">
+        <span>工具</span>
+        <h2>搜索</h2>
+        <p>在全部订阅源中查找文章。</p>
+      </header>
 
-        {/* Filter Toolbar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Feed Selector */}
-            <select
-              value={selectedFeedFilter}
-              onChange={(e) => setSelectedFeedFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-blue-500"
-            >
-              <option value="ALL">全部订阅源</option>
-              {feeds.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.title}
-                </option>
-              ))}
-            </select>
-
-            {/* Read Filter */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg">
-              <button
-                onClick={() => setReadFilter("ALL")}
-                className={`px-2 py-1 rounded transition-colors ${
-                  readFilter === "ALL" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500"
-                }`}
-              >
-                全部
-              </button>
-              <button
-                onClick={() => setReadFilter("UNREAD")}
-                className={`px-2 py-1 rounded transition-colors ${
-                  readFilter === "UNREAD" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500"
-                }`}
-              >
-                未读
-              </button>
-              <button
-                onClick={() => setReadFilter("READ")}
-                className={`px-2 py-1 rounded transition-colors ${
-                  readFilter === "READ" ? "bg-white text-slate-900 font-semibold shadow-xs" : "text-slate-500"
-                }`}
-              >
-                已读
-              </button>
-            </div>
-
-            {/* Starred Toggle */}
-            <button
-              onClick={() => setStarredOnly(!starredOnly)}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all ${
-                starredOnly
-                  ? "bg-amber-100 text-amber-800 font-semibold"
-                  : "bg-slate-50 text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              <Star className={`w-3.5 h-3.5 ${starredOnly ? "fill-amber-500 text-amber-500" : ""}`} />
-              <span>仅收藏</span>
-            </button>
-          </div>
-
-          {/* Results Count */}
-          <span className="text-slate-500 text-xs">
-            找到 <strong className="text-blue-600">{filteredArticles.length}</strong> 篇文章
-          </span>
-        </div>
-      </div>
-
-      {/* Results List */}
-      <div className="flex-1 overflow-y-auto bg-white">
-        <ArticleList
-          articles={filteredArticles}
-          onSelectArticle={onSelectArticle}
-          onToggleStar={onToggleStar}
-          onToggleRead={onToggleRead}
-          onSummarizeAI={onSummarizeAI}
-          onResolveThumbnail={onResolveThumbnail}
+      <label className="wreader-search-box">
+        <SearchIcon aria-hidden="true" />
+        <input
+          ref={inputRef}
+          type="search"
+          autoFocus
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="搜索文章、订阅源或关键词"
+          aria-label="全文搜索"
+          aria-keyshortcuts="Control+K Meta+K"
         />
+        {searchQuery ? (
+          <button type="button" onClick={() => setSearchQuery("")} title="清空搜索词" aria-label="清空搜索词"><X /></button>
+        ) : <kbd>⌘K</kbd>}
+      </label>
+
+      <div className="wreader-search-results" aria-live="polite">
+        {results.length > 0 ? results.map(({ article }) => (
+          <button
+            type="button"
+            key={article.id}
+            className={`wreader-search-result${selectedArticleId === article.id ? " is-selected" : ""}`}
+            onClick={() => onSelectArticle(article)}
+          >
+            <span className="wreader-search-result-icon"><FileText /></span>
+            <span className="wreader-search-result-copy">
+              <strong><HighlightedText text={stripHtml(article.title)} query={searchQuery} /></strong>
+              <small>
+                <HighlightedText text={stripHtml(article.feedTitle)} query={searchQuery} />
+                {article.author && article.author !== article.feedTitle ? <> · <HighlightedText text={stripHtml(article.author)} query={searchQuery} /></> : null}
+              </small>
+            </span>
+            <time dateTime={article.pubDate}>{formatRelativeTime(article.pubDate)}</time>
+          </button>
+        )) : (
+          <div className="wreader-search-empty">
+            <SearchIcon />
+            <strong>{searchQuery.trim() ? "未找到匹配文章" : "暂无可显示文章"}</strong>
+            <span>{searchQuery.trim() ? "尝试更换关键词。" : "输入关键词即可搜索全部订阅源。"}</span>
+          </div>
+        )}
       </div>
     </div>
   );

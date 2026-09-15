@@ -1,6 +1,109 @@
 export type FilterType = "all" | "unread" | "starred";
 
-export type ActiveTab = "feeds" | "saved" | "search";
+export type ActiveTab = "feeds" | "saved" | "search" | "playlist" | "notes" | "settings";
+
+export type ContentType = "article" | "podcast";
+
+export type ProcessingState = "raw" | "digested";
+
+export type LocalTaskStatus = "not_started" | "processing" | "completed" | "failed";
+
+export interface LocalPodcastProcessing {
+  sessionId?: string;
+  jobId?: string;
+  sourceAudioUrl: string;
+  transcriptionStatus: LocalTaskStatus;
+  insightStatus: LocalTaskStatus;
+  updatedAt: string;
+  error?: string;
+  insightError?: string;
+}
+
+export interface TranscriptSegment {
+  startMs: number;
+  endMs?: number;
+  text: string;
+  timestamp?: string;
+}
+
+export interface LocalPodcastArtifacts {
+  transcript: TranscriptSegment[];
+  digest?: Record<string, unknown>;
+  transcriptSource?: string;
+}
+
+export type EnrichmentProvider = "bidclub";
+
+export type EnrichmentMatchMethod =
+  | "source-url"
+  | "episode-number"
+  | "title"
+  | "pub-date"
+  | "api"
+  | "legacy";
+
+export interface EnrichmentReference {
+  provider: EnrichmentProvider;
+  episodeId: string;
+  episodeUrl?: string;
+  status: "candidate" | "available";
+  matchedBy: EnrichmentMatchMethod;
+}
+
+export type EnrichmentStatus =
+  | "none"
+  | "candidate"
+  | "checking"
+  | "available"
+  | "unavailable"
+  | "error";
+
+export type DetailTab = "overview" | "body" | "digest" | "transcript";
+
+export type NoteSource = DetailTab;
+
+export interface ArticleNote {
+  id: string;
+  articleId: string;
+  source: NoteSource;
+  quote: string;
+  note?: string;
+  /** Present only for transcript excerpts, in milliseconds. */
+  transcriptStartMs?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ContentCapabilities {
+  hasAudio: boolean;
+  hasCover: boolean;
+  hasBody: boolean;
+  hasOverview: boolean;
+  hasDigest: boolean;
+  hasTranscript: boolean;
+  canGenerateOverview: boolean;
+}
+
+export interface DetailTabPresentation {
+  key: DetailTab;
+  label: string;
+}
+
+export interface ArticlePresentation {
+  contentType: ContentType;
+  processingState: ProcessingState;
+  enrichmentStatus: EnrichmentStatus;
+  enrichmentProvider?: EnrichmentProvider;
+  capabilities: ContentCapabilities;
+  tabs: DetailTabPresentation[];
+  defaultTab: DetailTab;
+}
+
+export interface AudioProgress {
+  currentTime: number;
+  duration: number;
+  updatedAt: number;
+}
 
 export interface Article {
   id: string;
@@ -18,10 +121,14 @@ export interface Article {
   starred: boolean;
   savedAt?: string;
   aiSummary?: string;
+  /** Fraction of the article body that the reader has consumed (0..1). */
+  readingProgress?: number;
+  readingProgressUpdatedAt?: number;
   audioUrl?: string;
   duration?: string;
-  bidclubUrl?: string;
-  bidclubSlug?: string;
+  enrichment?: EnrichmentReference;
+  /** Lightweight reference only. Full artifacts remain in NextEcho. */
+  localPodcast?: LocalPodcastProcessing;
 }
 
 export interface Feed {
@@ -35,6 +142,8 @@ export interface Feed {
   unreadCount: number;
   lastUpdated?: string;
   error?: string;
+  lastSyncStatus?: "success" | "error";
+  lastSyncError?: string;
   bidclubFeedUrl?: string;
   bidclubShowSlug?: string;
 }
@@ -51,6 +160,7 @@ export interface RssParseResponse {
   link: string;
   feedUrl: string;
   favicon: string;
+  feedImage?: string;
   itemCount: number;
   items: Array<{
     id: string;
@@ -63,8 +173,7 @@ export interface RssParseResponse {
     thumbnail?: string;
     audioUrl?: string;
     duration?: string;
-    bidclubUrl?: string;
-    bidclubSlug?: string;
+    enrichment?: EnrichmentReference;
   }>;
 }
 
@@ -80,6 +189,7 @@ export interface CuratedFeedOption {
 export interface BidclubEpisode {
   title: string;
   dek: string;
+  dekAlt: string;
   lang: string;
   langAlt: string;
   tldrHtml: string;
@@ -88,6 +198,7 @@ export interface BidclubEpisode {
   tldrAltHtml: string;
   digestAltHtml: string;
   chapters: { id: string; title: string }[];
+  chaptersAlt: { id: string; title: string }[];
   sourceUrl?: string;
   sourceLabel?: string;
   thumbnailUrl?: string;
