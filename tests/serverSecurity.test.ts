@@ -59,11 +59,17 @@ describe("outbound proxy safety", () => {
   it("classifies private, link-local and documentation IP ranges as non-public", () => {
     for (const address of [
       "10.0.0.1", "100.64.0.1", "172.31.255.255", "192.168.1.1",
-      "198.51.100.2", "203.0.113.2", "::1", "fd00::1", "fe80::1",
+      "198.18.0.1", "198.19.255.255", "198.51.100.2", "203.0.113.2", "::1", "fd00::1", "fe80::1",
       "::ffff:127.0.0.1", "::ffff:7f00:1", "::7f00:1", "::c0a8:101",
     ]) expect(isPublicIpAddress(address), address).toBe(false);
     expect(isPublicIpAddress("8.8.8.8")).toBe(true);
     expect(isPublicIpAddress("2606:4700:4700::1111")).toBe(true);
+  });
+
+  it("allows proxy synthetic DNS answers for public hostnames only", async () => {
+    lookupMock.mockResolvedValue([{ address: "198.18.0.116", family: 4 }]);
+    await expect(assertSafeExternalUrl("https://example.com/feed.xml")).resolves.toBeUndefined();
+    expect(isSafeExternalUrl("http://198.18.0.116/feed.xml")).toBe(false);
   });
 
   it("rejects a public-looking hostname when DNS includes a private address", async () => {

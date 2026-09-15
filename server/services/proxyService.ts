@@ -9,13 +9,31 @@ function normalizedHostname(hostname: string): string {
   return hostname.replace(/^\[|\]$/g, "").split("%")[0].toLowerCase();
 }
 
+function parseIpv4Address(rawAddress: string): [number, number, number, number] | null {
+  const address = normalizedHostname(rawAddress);
+  if (isIP(address) !== 4) return null;
+  const octets = address.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return null;
+  return octets as [number, number, number, number];
+}
+
+function isProxySyntheticIpAddress(rawAddress: string): boolean {
+  const octets = parseIpv4Address(rawAddress);
+  if (!octets) return false;
+  const [a, b] = octets;
+  // Some local proxy/VPN DNS modes synthesize public hostnames into 198.18/15.
+  // Keep literal 198.18/15 URL targets blocked; only DNS answers for hostnames
+  // are allowed to pass the outbound proxy preflight.
+  return a === 198 && (b === 18 || b === 19);
+}
+
 /** Only globally routable addresses may be used by the outbound proxy. */
 export function isPublicIpAddress(rawAddress: string): boolean {
   const address = normalizedHostname(rawAddress);
   const family = isIP(address);
   if (family === 4) {
-    const octets = address.split(".").map(Number);
-    if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+    const octets = parseIpv4Address(address);
+    if (!octets) return false;
     const [a, b, c] = octets;
     return !(
       a === 0 || a === 10 || a === 127 ||
@@ -70,7 +88,7 @@ export async function assertSafeExternalUrl(rawUrl: string): Promise<void> {
   const hostname = normalizedHostname(new URL(rawUrl).hostname);
   if (isIP(hostname)) return;
   const addresses = await lookup(hostname, { all: true, verbatim: true });
-  if (addresses.length === 0 || addresses.some(({ address }) => !isPublicIpAddress(address))) {
+  if (addresses.length === 0 || addresses.some(({ address }) => !isPublicIpAddress(address) && !isProxySyntheticIpAddress(address))) {
     throw new Error("Blocked hostname resolving to a non-public address");
   }
 }
