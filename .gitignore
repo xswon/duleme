@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Design prototypes: kept local only, actively iterated
+docs/prototypes/
