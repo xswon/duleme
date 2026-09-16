@@ -38,20 +38,20 @@ function parseMarkup(html: string) {
 }
 
 describe("ArticleInsightTabs", () => {
-  it("offers only an explicit local transcription action for an untouched podcast", () => {
+  it("offers only an explicit cloud transcription action for an untouched podcast", () => {
     const html = renderModel({ article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" }, tab: "transcript" });
-    expect(html).toContain("使用本机生成逐字稿");
-    expect(html).toContain("不会自动调用 AI");
+    expect(html).toContain("生成云端逐字稿");
+    expect(html).toContain("阿里云百炼 API Key");
     expect(html).not.toContain("使用 AI 整理");
   });
 
-  it("offers to reread an existing completed session instead of retranscribing after a fetch error", () => {
+  it("keeps cloud transcription available after an unrelated fetch error", () => {
     const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", localPodcast: { sessionId: "session-1", jobId: "job-1", sourceAudioUrl: "https://cdn.example.com/a.mp3", transcriptionStatus: "completed", insightStatus: "not_started", updatedAt: "now" } },
       tab: "transcript",
       localFetchError: "Failed to fetch",
     });
-    expect(html).toContain("重新读取本机逐字稿");
+    expect(html).toContain("生成云端逐字稿");
     expect(html).toContain("Failed to fetch");
     expect(html).not.toContain("使用本机生成逐字稿");
   });

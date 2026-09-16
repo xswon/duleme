@@ -7,6 +7,7 @@ import { createProxyRouter } from "./server/routes/proxy";
 import { createBidclubRouter } from "./server/routes/bidclub";
 import { createAiRouter } from "./server/routes/ai";
 import { createLocalPodcastRouter } from "./server/routes/localPodcast";
+import { createTranscriptionRouter } from "./server/routes/transcription";
 import { requireLocalAccess, resolveListenHost } from "./server/middleware/localAccess";
 
 export function createApp() {
@@ -24,6 +25,7 @@ export function createApp() {
   app.use("/api/bidclub", createBidclubRouter());
   app.use("/api/ai", createAiRouter());
   app.use("/api/local-podcast", createLocalPodcastRouter());
+  app.use("/api/transcription", createTranscriptionRouter());
   return app;
 }
 

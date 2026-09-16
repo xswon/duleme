@@ -62,7 +62,7 @@ describe("BidClub rich text styles", () => {
     expect(bidClubOverviewMarkerRule).toContain("background: var(--color-violet-500);");
     expect(styles).toContain(".bidclub-overview strong,");
     expect(styles).toContain(".bidclub-overview b {");
-    expect(bidClubOverviewMarkerRule).toContain("font-size: 18px;");
+    expect(bidClubOverviewMarkerRule).toContain("font-size: inherit;");
     expect(bidClubOverviewMarkerRule).toContain("line-height: 1.45;");
 
     expect(styles).not.toContain(".bidclub-overview p::before");

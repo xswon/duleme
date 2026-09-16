@@ -1,184 +1,34 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, KeyRound, Sparkles, AlertCircle } from "lucide-react";
+import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscriptionSettings } from "../services/dbService";
+import { transcriptionApi } from "../services/transcriptionService";
 
-type TranscriptionMode = "cloud" | "local";
-type CloudProvider = "aliyun" | "volcengine" | "openai" | "other";
-
-const CLOUD_PROVIDERS: Array<{
-  id: CloudProvider;
-  name: string;
-  description: string;
-  modelName: string;
-  modelId: string;
-}> = [
-  {
-    id: "aliyun",
-    name: "阿里云百炼",
-    description: "适合中文播客与长音频",
-    modelName: "Qwen Audio 3.0 ASR Flash · 文件转写",
-    modelId: "qwen-audio-3.0-asr-flash-filetrans",
-  },
-  {
-    id: "volcengine",
-    name: "火山引擎",
-    description: "适合中文长音频识别",
-    modelName: "豆包大模型录音文件识别",
-    modelId: "由 duleme 使用推荐版本",
-  },
-  {
-    id: "openai",
-    name: "OpenAI",
-    description: "适合已有 OpenAI API 的用户",
-    modelName: "OpenAI Transcription",
-    modelId: "由 duleme 使用推荐版本",
-  },
-  {
-    id: "other",
-    name: "其他服务",
-    description: "腾讯云或 OpenAI 兼容 API",
-    modelName: "自定义转录模型",
-    modelId: "在高级设置中指定",
-  },
-];
-
-export function LocalAiSettingsPanel() {
-  const [mode, setMode] = useState<TranscriptionMode>("cloud");
-  const [provider, setProvider] = useState<CloudProvider | null>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [message, setMessage] = useState("");
-
-  const selectedProvider = CLOUD_PROVIDERS.find((item) => item.id === provider) || null;
-
-  return (
-    <section aria-labelledby="ai-settings-title" className="space-y-8">
-      <div className="border-b border-slate-200 pb-5">
-        <h2 id="ai-settings-title" className="text-lg font-bold text-slate-900">AI 设置</h2>
-        <p className="mt-1.5 text-sm text-slate-500">配置逐字稿生成和内容整理服务。默认尽量减少需要理解和选择的参数。</p>
+const keyPreview = (key: string) => key.length < 8 ? "已保存" : `${key.slice(0, 3)}••••${key.slice(-4)}`;
+export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view?: "transcription" | "insight"; panelId: string }) {
+  const [apiKey, setApiKey] = useState(""); const [savedKey, setSavedKey] = useState(""); const [showApiKey, setShowApiKey] = useState(false); const [language, setLanguage] = useState("auto"); const [diarization, setDiarization] = useState(true); const [contextEnhancement, setContextEnhancement] = useState(true); const [advanced, setAdvanced] = useState(false); const [busy, setBusy] = useState(false); const [feedback, setFeedback] = useState<{ tone: "success" | "error" | "warning" | "info"; text: string } | null>(null);
+  useEffect(() => { if (view !== "transcription") return; void getTranscriptionSettings().then((value) => { if (!value) return; setSavedKey(value.apiKey); setLanguage(value.language); setDiarization(value.diarization); setContextEnhancement(value.contextEnhancement); }).catch(() => setFeedback({ tone: "error", text: "无法读取浏览器中的转录配置。" })); }, [view]);
+  if (view === "insight") return <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings"><section aria-label="内容整理"><div className="wreader-ai-section-heading"><div className="wreader-ai-section-icon"><Sparkles /></div><p>内容整理的 DeepSeek 配置独立于逐字稿服务。</p></div><p className="text-sm text-slate-500">请继续使用现有内容整理配置；逐字稿 API Key 不会写入其中。</p></section></section>;
+  const saveAndTest = async () => { const nextKey = apiKey.trim() || savedKey; if (!nextKey) { setFeedback({ tone: "warning", text: "请先填写 API Key。" }); return; } setBusy(true); setFeedback({ tone: "info", text: "正在连接阿里云百炼…" }); try { await transcriptionApi.test(nextKey); await saveTranscriptionSettings({ provider: "aliyun", apiKey: nextKey, language, diarization, contextEnhancement }); setSavedKey(nextKey); setApiKey(""); setFeedback({ tone: "success", text: `已连接阿里云百炼 · ${keyPreview(nextKey)}` }); } catch (error: any) { setFeedback({ tone: "error", text: error.message || "连接失败，请检查 API Key。" }); } finally { setBusy(false); } };
+  const clear = async () => { setBusy(true); try { await clearTranscriptionSettings(); setSavedKey(""); setApiKey(""); setFeedback({ tone: "info", text: "已清除当前浏览器中的 API Key。" }); } finally { setBusy(false); } };
+  return <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-transcript" className="wreader-ai-settings"><section aria-label="云端逐字稿">
+    <div className="wreader-ai-form-row"><label htmlFor="ai-provider"><strong>转录服务</strong><span>暂仅支持阿里云百炼</span></label><div className="wreader-ai-control-card"><div className="wreader-ai-select-wrap"><select id="ai-provider" value="aliyun" disabled><option value="aliyun">阿里云百炼</option></select><ChevronDown aria-hidden="true" /></div><p className="wreader-ai-provider-note">更多转录服务将在后续版本提供</p></div></div>
+    <div className="wreader-ai-form-row is-key-row"><label htmlFor="ai-api-key"><strong>API Key</strong><span>{savedKey ? `已连接 · ${keyPreview(savedKey)}` : "仅保存在当前浏览器中"}</span></label><div className="wreader-ai-control-card"><div className="wreader-ai-key-field"><KeyRound aria-hidden="true" /><input id="ai-api-key" type={showApiKey ? "text" : "password"} autoComplete="off" value={apiKey} onChange={(event) => { setApiKey(event.target.value); setFeedback(null); }} placeholder={savedKey ? "输入新 Key 以更换" : "输入阿里云百炼 API Key"} /><button type="button" onClick={() => setShowApiKey(!showApiKey)} aria-label={showApiKey ? "隐藏 API Key" : "显示 API Key"}>{showApiKey ? <EyeOff /> : <Eye />}</button></div></div></div>
+    <div className="wreader-ai-control-card wreader-ai-advanced-card"><button type="button" className="wreader-ai-advanced-toggle" onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}><ChevronDown className={advanced ? "is-open" : ""} />高级设置</button>
+    {advanced && <div className="wreader-ai-advanced-panel">
+      <div className="wreader-ai-setting-row">
+        <span className="wreader-ai-setting-copy"><strong>语言</strong><small>通常无需手动指定</small></span>
+        <span className="wreader-ai-setting-select"><select aria-label="转录语言" value={language} onChange={(event) => setLanguage(event.target.value)}><option value="auto">自动识别</option><option value="zh">中文</option><option value="en">英文</option></select><ChevronDown aria-hidden="true" /></span>
       </div>
-
-      <section aria-labelledby="transcription-settings-title" className="space-y-5">
-        <div>
-          <h3 id="transcription-settings-title" className="text-sm font-bold text-slate-900">逐字稿生成</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-500">先选择生成方式。模型由 duleme 推荐，完整模型 ID 会保留显示。</p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => { setMode("cloud"); setMessage(""); }}
-            className={`rounded-xl border p-4 text-left transition ${mode === "cloud" ? "border-blue-400 bg-blue-50/60 ring-1 ring-blue-200" : "border-slate-200 bg-white hover:border-slate-300"}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <strong className="text-sm text-slate-900">使用云端 API</strong>
-              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">推荐</span>
-            </div>
-            <span className="mt-2 block text-xs leading-5 text-slate-500">无需安装模型，使用自己的 API Key。</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setMode("local"); setMessage(""); }}
-            className={`rounded-xl border p-4 text-left transition ${mode === "local" ? "border-blue-400 bg-blue-50/60 ring-1 ring-blue-200" : "border-slate-200 bg-white hover:border-slate-300"}`}
-          >
-            <strong className="text-sm text-slate-900">在本机生成</strong>
-            <span className="mt-2 block text-xs leading-5 text-slate-500">音频在当前电脑处理，不需要云端 API Key。</span>
-          </button>
-        </div>
-
-        {mode === "cloud" ? (
-          <div className="space-y-5 rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
-            <div>
-              <div className="text-sm font-semibold text-slate-800">选择你的 API 服务商</div>
-              <p className="mt-1 text-xs text-slate-500">只需选择你已经有 API Key 的服务。</p>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-2">
-              {CLOUD_PROVIDERS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => { setProvider(item.id); setMessage(""); }}
-                  className={`rounded-lg border px-3.5 py-3 text-left ${provider === item.id ? "border-blue-400 bg-white ring-1 ring-blue-200" : "border-slate-200 bg-white hover:border-slate-300"}`}
-                >
-                  <strong className="block text-sm text-slate-800">{item.name}</strong>
-                  <span className="mt-1 block text-xs leading-5 text-slate-500">{item.description}</span>
-                </button>
-              ))}
-            </div>
-
-            {selectedProvider && (
-              <div className="space-y-4 border-t border-slate-200 pt-4">
-                <label className="block text-sm font-semibold text-slate-700">
-                  API Key
-                  <input
-                    aria-label={`${selectedProvider.name} API Key`}
-                    type="password"
-                    autoComplete="off"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder="输入你的 API Key"
-                    className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 font-normal text-slate-900 focus:border-blue-500 focus:outline-none"
-                  />
-                </label>
-
-                <div className="rounded-lg border border-slate-200 bg-white px-3.5 py-3">
-                  <div className="text-xs font-medium text-slate-500">转录模型</div>
-                  <div className="mt-1 text-sm font-semibold text-slate-800">{selectedProvider.modelName}</div>
-                  <code className="mt-1 block break-all text-xs text-slate-500">{selectedProvider.modelId}</code>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowAdvanced((value) => !value)}
-                  className="text-xs font-medium text-slate-500 hover:text-slate-800"
-                  aria-expanded={showAdvanced}
-                >
-                  {showAdvanced ? "收起高级设置" : "高级设置"}
-                </button>
-
-                {showAdvanced && (
-                  <div className="grid gap-3 rounded-lg border border-dashed border-slate-200 bg-white p-3 sm:grid-cols-2">
-                    <label className="text-xs font-medium text-slate-600">服务地址<input placeholder="自动" className="mt-1.5 w-full rounded-md border border-slate-200 px-2.5 py-2 font-normal" /></label>
-                    <label className="text-xs font-medium text-slate-600">模型 ID<input value={selectedProvider.modelId.includes("由 duleme") || selectedProvider.modelId.includes("高级设置") ? "" : selectedProvider.modelId} readOnly={selectedProvider.id !== "other"} placeholder="由 duleme 自动选择" className="mt-1.5 w-full rounded-md border border-slate-200 px-2.5 py-2 font-normal" /></label>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => setMessage(apiKey.trim() ? "原型：连接测试成功。" : "请先填写 API Key。") } className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">测试连接</button>
-                  <button type="button" onClick={() => setMessage(apiKey.trim() ? "原型：设置已保存。" : "请先填写 API Key。") } className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">保存设置</button>
-                  <button type="button" className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700">还没有 API Key？查看获取方法 →</button>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 sm:p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <strong className="text-sm text-slate-900">本机转录服务</strong>
-                <p className="mt-1 text-xs leading-5 text-slate-500">推荐安装适合中文播客的本机转录方案。duleme 会自动检测服务，不要求手动配置模型参数。</p>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button type="button" onClick={() => setMessage("原型：打开本机转录安装指南。") } className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">查看安装方法</button>
-                <button type="button" onClick={() => setMessage("原型：未发现本机转录服务。") } className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800">检测本机服务</button>
-              </div>
-            </div>
-            <button type="button" className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-800">已经有自己的本机服务？连接现有服务 →</button>
-          </div>
-        )}
-
-        {message && <p role="status" className="text-xs text-slate-600">{message}</p>}
-      </section>
-
-      <section aria-labelledby="insight-settings-title" className="border-t border-slate-200 pt-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 id="insight-settings-title" className="text-sm font-bold text-slate-900">AI 整理</h3>
-            <p className="mt-1 text-xs leading-5 text-slate-500">用于摘要、章节和内容洞察。与逐字稿服务独立配置。</p>
-          </div>
-          <button type="button" className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">配置 AI 整理</button>
-        </div>
-      </section>
-    </section>
-  );
+      <label className="wreader-ai-setting-row">
+        <span className="wreader-ai-setting-copy"><strong>区分说话人</strong><small>标记访谈中不同发言者</small></span>
+        <span className="wreader-ai-switch"><input type="checkbox" checked={diarization} onChange={(event) => setDiarization(event.target.checked)} /><i aria-hidden="true" /></span>
+      </label>
+      <label className="wreader-ai-setting-row">
+        <span className="wreader-ai-setting-copy"><strong>专有名词增强</strong><small>使用文章标题、播客名和节目简介提升识别</small></span>
+        <span className="wreader-ai-switch"><input type="checkbox" checked={contextEnhancement} onChange={(event) => setContextEnhancement(event.target.checked)} /><i aria-hidden="true" /></span>
+      </label>
+      <div className="wreader-ai-model-summary"><span>转录模型</span><strong>Qwen Audio 3.0 ASR Flash</strong><small>适合中文长音频</small></div>
+    </div>}</div>
+    <div className="wreader-ai-actions"><a href="https://bailian.console.aliyun.com/?tab=model#/api-key" target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a><div>{savedKey && <button type="button" className="secondary" disabled={busy} onClick={() => void clear()}>清除 Key</button>}<button type="button" disabled={busy} onClick={() => void saveAndTest()}>{busy ? "正在测试…" : savedKey && !apiKey ? "测试连接" : "保存并测试"}</button></div></div>
+  {feedback && <p role="status" className={`wreader-ai-feedback is-${feedback.tone}`}>{feedback.tone === "success" ? <CheckCircle2 /> : <AlertCircle />}{feedback.text}</p>}</section></section>;
 }

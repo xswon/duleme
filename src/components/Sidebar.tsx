@@ -355,7 +355,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleSelectCategory(category)}
+                        onClick={() => {
+                          if (isExpanded) {
+                            toggleCategory(category);
+                          } else {
+                            handleSelectCategory(category);
+                          }
+                        }}
                         className="flex min-w-0 flex-1 items-center pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >
                         <span className={`wreader-nav-name truncate ${isSelectedCategory ? "wreader-nav-selected-label" : "font-normal text-slate-800"}`}>

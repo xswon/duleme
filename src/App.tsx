@@ -1299,6 +1299,8 @@ export default function App() {
     if (activeTab === "feeds" && filterType === "starred" && !selectedFeedId && !selectedCategory) return `${totalSaved} 条`;
     return undefined;
   }, [activeTab, filterType, playlistArticles.length, selectedCategory, selectedFeedId, totalSaved, visibleArticleNotes.length]);
+  const effectiveContentType = selectedFeedId ? "all" : contentType;
+  const showTimelineFilters = activeTab === "feeds" && filterType !== "starred" && !selectedFeedId;
 
   // Compute Visible Articles according to current tab & filters
   const visibleArticles = useMemo(() => {
@@ -1333,8 +1335,8 @@ export default function App() {
       if (activeTab === "feeds") {
         if (filterType === "unread" && article.read) return false;
         if (filterType === "starred" && !article.starred) return false;
-        if (filterType !== "starred" && contentType === "podcast" && !article.audioUrl?.trim()) return false;
-        if (filterType !== "starred" && contentType === "article" && article.audioUrl?.trim()) return false;
+        if (filterType !== "starred" && effectiveContentType === "podcast" && !article.audioUrl?.trim()) return false;
+        if (filterType !== "starred" && effectiveContentType === "article" && article.audioUrl?.trim()) return false;
       }
 
       // 4. Quick Header Search
@@ -1347,14 +1349,14 @@ export default function App() {
     if (activeTab !== "feeds") return filteredArticles;
     const sortedArticles = sortArticlesByPubDate(filteredArticles);
     return timelineSortOrder === "newest" ? sortedArticles : [...sortedArticles].reverse();
-  }, [articles, activeTab, selectedFeedId, selectedCategory, filterType, contentType, searchQuery, feeds, historyWindowDays, localDayVersion, searchResultsReady, searchVisibleArticles, timelineSortOrder]);
+  }, [articles, activeTab, selectedFeedId, selectedCategory, filterType, effectiveContentType, searchQuery, feeds, historyWindowDays, localDayVersion, searchResultsReady, searchVisibleArticles, timelineSortOrder]);
 
   visibleArticlesRef.current = visibleArticles;
 
   const olderArticleCount = useMemo(() => {
     if (activeTab !== "feeds") return 0;
-    return countOlderArticles(articles, feeds, selectedFeedId, selectedCategory, { filterType, contentType, searchQuery, historyWindowDays });
-  }, [activeTab, articles, contentType, feeds, filterType, historyWindowDays, localDayVersion, searchQuery, selectedCategory, selectedFeedId]);
+    return countOlderArticles(articles, feeds, selectedFeedId, selectedCategory, { filterType, contentType: effectiveContentType, searchQuery, historyWindowDays });
+  }, [activeTab, articles, effectiveContentType, feeds, filterType, historyWindowDays, localDayVersion, searchQuery, selectedCategory, selectedFeedId]);
 
   useEffect(() => {
     if (activeTab !== "feeds") setFilterType("all");
@@ -1584,8 +1586,8 @@ export default function App() {
             navigateToRoute({ activeTab: "search", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined });
           }}
           unreadCount={visibleArticles.filter((a) => !a.read).length}
-          showTimelineFilters={activeTab === "feeds" && filterType !== "starred"}
-          contentType={contentType}
+          showTimelineFilters={showTimelineFilters}
+          contentType={effectiveContentType}
           onContentTypeChange={(nextContentType) => navigateToRoute({ activeTab: "feeds", contentType: nextContentType, articleId: null })}
           historyWindowDays={historyWindowDays}
           refreshProgress={{

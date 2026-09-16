@@ -19,8 +19,8 @@
 
 #article-reader > [aria-label="阅读工具栏"] > div:first-child {
   min-height: 58px;
-  max-width: none;
-  padding: 0 18px;
+  max-width: 650px;
+  padding: 0;
 }
 
 #article-reader .wreader-reader-nav {
@@ -28,7 +28,7 @@
 }
 
 #article-reader .reader-actions,
-#article-reader .wreader-reader-actions { display:inline-flex; align-items:center; gap:2px; padding:3px 5px; border:1px solid rgba(220,226,235,.88); border-radius:999px; background:rgba(255,255,255,.94); box-shadow:0 3px 12px rgba(15,23,42,.07),0 1px 2px rgba(15,23,42,.04); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); transition:box-shadow .2s ease,border-color .2s ease; pointer-events:auto; }
+#article-reader .wreader-reader-actions { grid-column:3; justify-self:end; display:inline-flex; align-items:center; gap:2px; padding:3px 5px; border:1px solid rgba(220,226,235,.88); border-radius:999px; background:rgba(255,255,255,.94); box-shadow:0 3px 12px rgba(15,23,42,.07),0 1px 2px rgba(15,23,42,.04); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); transition:box-shadow .2s ease,border-color .2s ease; pointer-events:auto; }
 #article-reader .reader-actions:hover { box-shadow:0 6px 18px rgba(15,23,42,.1),0 1px 3px rgba(15,23,42,.05); border-color:rgba(203,213,225,.95); }
 
 #article-reader .reader-action {
@@ -58,7 +58,7 @@
   position: absolute;
   z-index: 60;
   top: 66px;
-  right: 14px;
+  right: max(10px, calc((100% - 650px) / 2));
   width: 268px;
   padding: 14px;
   border: 1px solid rgba(210, 218, 228, .9);

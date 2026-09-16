@@ -200,7 +200,7 @@ describe("navigation chrome", () => {
     container.remove();
   });
 
-  it("organizes settings as a modal with merged subscription management", () => {
+  it("organizes settings as grouped pages with secondary navigation", () => {
     const html = renderToStaticMarkup(
       <SettingsPage
         feeds={[feed()]}
@@ -221,28 +221,29 @@ describe("navigation chrome", () => {
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain('aria-label="关闭设置"');
-    expect(html).toContain("订阅管理");
+    expect(html).toContain("内容");
     expect(html).toContain("AI 设置");
     expect(html).toContain("数据与备份");
-    expect(html).toContain("1 个订阅源");
+    expect(html).toContain("快捷键");
+    expect(html).toContain("逐字稿");
+    expect(html).toContain("内容整理");
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain('aria-labelledby="settings-tab-feeds"');
+    expect(html).not.toContain("个订阅源及其所属文件夹");
     expect(html).toContain("搜索订阅");
     expect(html).toContain("添加订阅");
     expect(html).toContain("订阅源");
     expect(html).toContain("文件夹");
     expect(html).not.toContain("显示与排序");
-    expect(html).toContain('aria-label="订阅排序"');
-    expect(html).toContain('aria-label="文件夹排序"');
-    expect(html).toContain('aria-label="科技订阅源"');
-    expect(html).toContain("1 个订阅源 · 3 篇未读");
+    expect(html).not.toContain('aria-label="订阅排序"');
+    expect(html).toContain('aria-label="编辑科技播客"');
     expect(html).toContain("科技播客");
     expect(html).not.toContain('<span>科技</span><span class="text-blue-600">3 篇未读</span>');
-    expect(html).toContain("自定义");
-    expect(html).toContain("名称 A–Z");
-    expect(html).toContain("未读数量");
+    expect(html).not.toContain("3 篇未读");
     expect(html).not.toContain("https://example.com/feed.xml");
   });
 
-  it("groups local export, recovery, and shortcut help under data settings", async () => {
+  it("separates data management and keyboard shortcuts", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -276,7 +277,15 @@ describe("navigation chrome", () => {
     expect(container.textContent).toContain("导入 OPML");
     expect(container.textContent).toContain("导出完整备份");
     expect(container.textContent).toContain("恢复完整备份");
-    expect(container.textContent).toContain("键盘快捷键");
+    expect(container.querySelector(".wreader-shortcut-list")).toBeNull();
+
+    await act(async () => {
+      Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "快捷键")?.click();
+    });
+
+    expect(container.querySelector(".wreader-shortcut-list")).not.toBeNull();
+    expect(container.textContent).toContain("切换文章");
+    expect(container.textContent).toContain("退出沉浸阅读");
 
     await act(async () => root.unmount());
     container.remove();
@@ -311,10 +320,7 @@ describe("navigation chrome", () => {
     expect(container.querySelector('[aria-label="更改科技播客所属文件夹"]')).toBeNull();
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[aria-label="科技播客更多操作"]')?.click();
-    });
-    await act(async () => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent === "编辑订阅源")?.click();
+      container.querySelector<HTMLButtonElement>('[aria-label="编辑科技播客"]')?.click();
     });
 
     const folderSelect = container.querySelector<HTMLSelectElement>('[aria-label="更改科技播客所属文件夹"]');
@@ -335,7 +341,7 @@ describe("navigation chrome", () => {
     container.remove();
   });
 
-  it("keeps unread and sync status compactly on the feed title row", () => {
+  it("shows the feed address and sync status without unread counts", () => {
     const html = renderToStaticMarkup(
       <SettingsPage
         feeds={[feed({ unreadCount: 2, lastSyncStatus: "error" })]}
@@ -353,9 +359,151 @@ describe("navigation chrome", () => {
       />
     );
 
-    expect(html).toContain("2 篇未读");
+    expect(html).not.toContain("2 篇未读");
     expect(html).toContain("同步失败");
     expect(html).not.toContain('<span>科技</span><span class="text-blue-600">2 篇未读</span>');
+  });
+
+  it("expands a settings folder to reveal its feeds", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <SettingsPage
+          feeds={[feed(), feed({ id: "feed-2", title: "商业播客", category: "商业" })]}
+          categories={["科技", "商业"]}
+          onAddCategory={vi.fn()}
+          onRenameCategory={vi.fn()}
+          onDeleteCategory={vi.fn()}
+          onUpdateFeedCategory={vi.fn()}
+          onUpdateFeedUrls={vi.fn()}
+          onDeleteFeed={vi.fn()}
+          feedSortMode="default"
+          folderSortMode="default"
+          onBack={vi.fn()}
+          onOpenAddFeed={vi.fn()}
+        />
+      );
+    });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "文件夹")?.click();
+    });
+
+    const folderToggles = () => container.querySelectorAll<HTMLButtonElement>(".wreader-settings-folder-toggle");
+    expect(folderToggles().length).toBe(2);
+    expect(folderToggles()[0].getAttribute("aria-expanded")).toBe("false");
+    expect(container.textContent).toContain("1 个订阅源");
+    expect(container.textContent).not.toContain("科技播客");
+
+    await act(async () => folderToggles()[0].click());
+
+    expect(folderToggles()[0].getAttribute("aria-expanded")).toBe("true");
+    expect(container.textContent).toContain("科技播客");
+    expect(container.querySelector('[aria-label="编辑科技播客"]')).toBeNull();
+    expect(container.textContent).not.toContain("example.com");
+    expect(container.querySelector('[aria-label="将科技播客移出文件夹"]')).not.toBeNull();
+
+    await act(async () => folderToggles()[0].click());
+
+    expect(folderToggles()[0].getAttribute("aria-expanded")).toBe("false");
+    expect(container.textContent).not.toContain("科技播客");
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("keeps feed deletion inside the inline editor", async () => {
+    const onDeleteFeed = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <SettingsPage
+          feeds={[feed()]}
+          categories={["科技"]}
+          onAddCategory={vi.fn()}
+          onRenameCategory={vi.fn()}
+          onDeleteCategory={vi.fn()}
+          onUpdateFeedCategory={vi.fn()}
+          onUpdateFeedUrls={vi.fn()}
+          onDeleteFeed={onDeleteFeed}
+          feedSortMode="default"
+          folderSortMode="default"
+          onBack={vi.fn()}
+          onOpenAddFeed={vi.fn()}
+        />
+      );
+    });
+
+    expect(container.querySelector('[aria-label="删除订阅源"]')).toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="编辑科技播客"]')?.click();
+    });
+
+    expect(container.querySelector('[aria-label="删除订阅源"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="删除订阅源"]')?.click();
+    });
+
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(onDeleteFeed).toHaveBeenCalledWith("feed-1");
+    confirm.mockRestore();
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("keeps folder feeds read-only apart from moving them out", async () => {
+    const onUpdateFeedCategory = vi.fn();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <SettingsPage
+          feeds={[feed()]}
+          categories={["科技"]}
+          onAddCategory={vi.fn()}
+          onRenameCategory={vi.fn()}
+          onDeleteCategory={vi.fn()}
+          onUpdateFeedCategory={onUpdateFeedCategory}
+          onUpdateFeedUrls={vi.fn()}
+          onDeleteFeed={vi.fn()}
+          feedSortMode="default"
+          folderSortMode="default"
+          onBack={vi.fn()}
+          onOpenAddFeed={vi.fn()}
+        />
+      );
+    });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.trim() === "文件夹")?.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".wreader-settings-folder-toggle")?.click();
+    });
+
+    expect(container.querySelector('[aria-label="编辑科技播客"]')).toBeNull();
+    expect(container.querySelector('[aria-label="删除订阅源"]')).toBeNull();
+    expect(container.textContent).not.toContain("example.com");
+
+    const moveOut = container.querySelector<HTMLButtonElement>('[aria-label="将科技播客移出文件夹"]');
+    expect(moveOut).not.toBeNull();
+    await act(async () => moveOut?.click());
+
+    expect(onUpdateFeedCategory).toHaveBeenCalledWith("feed-1", "未分类");
+
+    await act(async () => root.unmount());
+    container.remove();
   });
 
   it("applies custom feed order within each sidebar folder", () => {
@@ -478,7 +626,7 @@ describe("navigation chrome", () => {
     expect(html).not.toContain("更多操作");
   });
 
-  it("renders explicit auxiliary counts for tools and favorites", () => {
+  it("keeps auxiliary counts out of list header titles", () => {
     const baseProps = {
       filterType: "all" as const,
       setFilterType: vi.fn(),
@@ -494,12 +642,14 @@ describe("navigation chrome", () => {
     const favoritesHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="feeds" filterType="starred" currentTitle="收藏" currentCountLabel="7 条" />);
 
     for (const html of [audioHtml, notesHtml, favoritesHtml]) {
-      expect(html).toContain('class="wreader-title-count"');
+      expect(html).not.toContain('class="wreader-title-count"');
+      expect(html).not.toContain(">2 条</span>");
+      expect(html).not.toContain(">4 条</span>");
+      expect(html).not.toContain(">7 条</span>");
     }
     expect(audioHtml).toContain("音频");
-    expect(audioHtml).toContain(">2 条</span>");
-    expect(notesHtml).toContain(">4 条</span>");
-    expect(favoritesHtml).toContain(">7 条</span>");
+    expect(notesHtml).toContain("笔记");
+    expect(favoritesHtml).toContain("收藏");
   });
 
   it("keeps favorite sorting beside the clear action and dispatches it", async () => {
@@ -674,7 +824,7 @@ describe("navigation chrome", () => {
         historyWindowDays={30}
       />
     ));
-    expect(container.textContent).toContain("最近 30 天");
+    expect(container.textContent).not.toContain("最近 30 天");
     await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "播客")?.click());
     await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("仅看未读"))?.click());
     expect(onContentTypeChange).toHaveBeenCalledWith("podcast");

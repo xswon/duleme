@@ -1,7 +1,7 @@
 import { Article, ArticleNote, Feed } from "../types";
 
 const DB_NAME = "WReaderDB";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE_ARTICLES = "articles";
 const STORE_FEEDS = "feeds";
 const STORE_NOTES = "notes";
@@ -68,6 +68,18 @@ export interface PersistedAppState {
   feedOrderByFolder?: Record<string, string[]>;
   playlistIds?: string[];
   audioProgressMap?: Record<string, { currentTime: number; duration: number; updatedAt: number }>;
+}
+
+export interface TranscriptionSettings { provider: "aliyun"; apiKey: string; language: string; diarization: boolean; contextEnhancement: boolean; }
+const TRANSCRIPTION_SETTINGS_KEY = "transcription";
+export async function getTranscriptionSettings(): Promise<TranscriptionSettings | null> {
+  const db = await getDB(); return new Promise((resolve, reject) => { const request = db.transaction(STORE_SETTINGS, "readonly").objectStore(STORE_SETTINGS).get(TRANSCRIPTION_SETTINGS_KEY); request.onsuccess = () => resolve(request.result?.value || null); request.onerror = () => reject(request.error); });
+}
+export async function saveTranscriptionSettings(value: TranscriptionSettings): Promise<void> {
+  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).put({ key: TRANSCRIPTION_SETTINGS_KEY, value }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+}
+export async function clearTranscriptionSettings(): Promise<void> {
+  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).delete(TRANSCRIPTION_SETTINGS_KEY); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
 }
 
 export async function getFeedsFromDB(): Promise<Feed[]> {
