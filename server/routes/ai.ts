@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { summarizeArticle } from "../services/aiService";
+import { getInsightSettings, summarizeArticle } from "../services/aiService";
 export function createAiRouter() {
   const router = Router();
+  router.get("/settings", (_req, res) => res.json(getInsightSettings()));
   router.post("/summarize", async (req, res) => {
     const { title, content, snippet } = req.body || {};
     if (!title && !content) return res.status(400).json({ error: "Missing article title or content" });

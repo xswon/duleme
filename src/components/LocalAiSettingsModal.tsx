@@ -1,212 +1,52 @@
 import React, { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, KeyRound, Sparkles } from "lucide-react";
-import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscriptionSettings } from "../services/dbService";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Eye, EyeOff, KeyRound, X } from "lucide-react";
+import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscriptionSettings, type TranscriptionSettings } from "../services/dbService";
+import { getInsightSettingsStatus, type InsightSettingsStatus } from "../services/insightSettingsService";
 import { transcriptionApi } from "../services/transcriptionService";
 
 const TRANSCRIPTION_PROVIDERS = {
-  aliyun: {
-    name: "阿里云百炼",
-    modelName: "Qwen Audio 3.0 ASR Flash Filetrans",
-    modelId: "qwen-audio-3.0-asr-flash-filetrans",
-    modelDescription: "长音频转录",
-  },
+  aliyun: { name: "阿里云百炼", apiKeyUrl: "https://bailian.console.aliyun.com/?tab=model#/api-key", models: [{ id: "qwen-audio-3.0-asr-flash-filetrans", name: "Qwen Audio 3.0 ASR Flash Filetrans", description: "长音频转录" }] },
 } as const;
-type TranscriptionProvider = keyof typeof TRANSCRIPTION_PROVIDERS;
-
+type Feedback = { tone: "success" | "error" | "warning" | "info"; text: string };
 const keyPreview = (key: string) => key.length < 8 ? "已保存" : `${key.slice(0, 3)}••••${key.slice(-4)}`;
 
+function ModelSummaryCard({ title, provider, connected, onClick }: { title: string; provider?: string; connected: boolean; onClick: () => void }) {
+  return <button type="button" className="wreader-model-summary-card" onClick={onClick}><span><strong>{title}</strong><small>{provider ? `${provider} · ${connected ? "已连接" : "未配置"}` : "尚未配置"}</small></span><ChevronRight aria-hidden="true" /></button>;
+}
+
+function ModelConfigModal({ title, children, onClose, onSave, saveLabel = "保存", saving = false }: { title: string; children: React.ReactNode; onClose: () => void; onSave: () => void; saveLabel?: string; saving?: boolean }) {
+  return <div className="wreader-model-modal" role="dialog" aria-modal="true" aria-label={title}><button type="button" className="wreader-model-modal-backdrop" aria-label="关闭" onClick={onClose} /><section className="wreader-model-modal-card"><header><h2>{title}</h2><button type="button" aria-label="关闭" onClick={onClose}><X /></button></header><div className="wreader-model-modal-body">{children}</div><footer><button type="button" className="secondary" onClick={onClose} disabled={saving}>取消</button><button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button></footer></section></div>;
+}
+
+function ConnectionFeedback({ feedback }: { feedback: Feedback | null }) {
+  return feedback ? <p role="status" className={`wreader-model-feedback is-${feedback.tone}`}>{feedback.tone === "success" ? <CheckCircle2 /> : <AlertCircle />}{feedback.text}</p> : null;
+}
+
 export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view?: "transcription" | "insight"; panelId: string }) {
-  const [apiKey, setApiKey] = useState("");
-  const [savedKey, setSavedKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [language, setLanguage] = useState("auto");
-  const [diarization, setDiarization] = useState(true);
-  const [contextEnhancement, setContextEnhancement] = useState(true);
-  const [provider] = useState<TranscriptionProvider>("aliyun");
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ tone: "success" | "error" | "warning" | "info"; text: string } | null>(null);
+  const [settings, setSettings] = useState<TranscriptionSettings | null>(null);
+  const [language, setLanguage] = useState("auto"); const [diarization, setDiarization] = useState(true); const [contextEnhancement, setContextEnhancement] = useState(true);
+  const [transcriptionModalOpen, setTranscriptionModalOpen] = useState(false); const [draftKey, setDraftKey] = useState(""); const [showKey, setShowKey] = useState(false); const [testing, setTesting] = useState(false); const [saving, setSaving] = useState(false); const [transcriptionFeedback, setTranscriptionFeedback] = useState<Feedback | null>(null);
+  const [insight, setInsight] = useState<InsightSettingsStatus | null>(null); const [insightModalOpen, setInsightModalOpen] = useState(false); const [insightFeedback, setInsightFeedback] = useState<Feedback | null>(null); const [insightTesting, setInsightTesting] = useState(false);
 
-  useEffect(() => {
-    if (view !== "transcription") return;
-    void getTranscriptionSettings()
-      .then((value) => {
-        if (!value) return;
-        setSavedKey(value.apiKey);
-        setLanguage(value.language);
-        setDiarization(value.diarization);
-        setContextEnhancement(value.contextEnhancement);
-      })
-      .catch(() => setFeedback({ tone: "error", text: "无法读取浏览器中的转录配置。" }));
-  }, [view]);
+  const loadTranscription = async () => { const value = await getTranscriptionSettings(); setSettings(value); if (value) { setLanguage(value.language); setDiarization(value.diarization); setContextEnhancement(value.contextEnhancement); } };
+  const loadInsight = async () => { try { setInsight(await getInsightSettingsStatus()); } catch { setInsight(null); } };
+  useEffect(() => { if (view === "transcription") void loadTranscription(); else void loadInsight(); }, [view]);
 
-  const selectedProvider = TRANSCRIPTION_PROVIDERS[provider];
-
-  if (view === "insight") {
-    return (
-      <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
-        <section aria-label="内容整理">
-          <div className="wreader-ai-section-heading">
-            <div className="wreader-ai-section-icon"><Sparkles /></div>
-            <p>内容整理的 DeepSeek 配置独立于逐字稿服务。</p>
-          </div>
-          <p className="text-sm text-slate-500">请继续使用现有内容整理配置；逐字稿 API Key 不会写入其中。</p>
-        </section>
-      </section>
-    );
-  }
-
-  const saveAndTest = async () => {
-    const nextKey = apiKey.trim() || savedKey;
-    if (!nextKey) {
-      setFeedback({ tone: "warning", text: "请先填写 API Key。" });
-      return;
-    }
-
-    setBusy(true);
-    setFeedback({ tone: "info", text: "正在验证阿里云百炼连接…" });
-    try {
-      await transcriptionApi.test(nextKey);
-      await saveTranscriptionSettings({ provider: "aliyun", apiKey: nextKey, language, diarization, contextEnhancement });
-      setSavedKey(nextKey);
-      setApiKey("");
-      setFeedback({ tone: "success", text: `API Key 已验证并保存 · ${keyPreview(nextKey)}` });
-    } catch (error: any) {
-      setFeedback({ tone: "error", text: error.message || "连接失败，请检查 API Key。" });
-    } finally {
-      setBusy(false);
-    }
+  const updateOptions = async (next: Partial<Pick<TranscriptionSettings, "language" | "diarization" | "contextEnhancement">>) => {
+    const nextValue = { language, diarization, contextEnhancement, ...next }; setLanguage(nextValue.language); setDiarization(nextValue.diarization); setContextEnhancement(nextValue.contextEnhancement);
+    if (!settings) return;
+    const saved = { ...settings, ...nextValue }; await saveTranscriptionSettings(saved); setSettings(saved);
   };
+  const openTranscriptionModal = () => { setDraftKey(settings?.apiKey || ""); setShowKey(false); setTranscriptionFeedback(null); setTranscriptionModalOpen(true); };
+  const testTranscription = async () => { if (!draftKey.trim()) { setTranscriptionFeedback({ tone: "warning", text: "请先填写 API Key。" }); return; } setTesting(true); setTranscriptionFeedback({ tone: "info", text: "正在测试连接…" }); try { await transcriptionApi.test(draftKey.trim()); setTranscriptionFeedback({ tone: "success", text: "连接成功" }); } catch (error: any) { setTranscriptionFeedback({ tone: "error", text: error.message || "连接失败，请检查 API Key。" }); } finally { setTesting(false); } };
+  const saveTranscription = async () => { if (!draftKey.trim()) { setTranscriptionFeedback({ tone: "warning", text: "请先填写 API Key。" }); return; } setSaving(true); try { const next = { provider: "aliyun" as const, apiKey: draftKey.trim(), language, diarization, contextEnhancement }; await saveTranscriptionSettings(next); setSettings(next); setTranscriptionModalOpen(false); } finally { setSaving(false); } };
+  const clearTranscription = async () => { setSaving(true); try { await clearTranscriptionSettings(); setSettings(null); setDraftKey(""); setTranscriptionFeedback({ tone: "info", text: "已清除当前浏览器中的 API Key。" }); } finally { setSaving(false); } };
+  const testInsight = async () => { setInsightTesting(true); setInsightFeedback({ tone: "info", text: "正在检查服务端配置…" }); try { const status = await getInsightSettingsStatus(); setInsight(status); setInsightFeedback(status.hasApiKey ? { tone: "success", text: "服务端配置可用" } : { tone: "error", text: "服务端尚未配置 GEMINI_API_KEY。" }); } catch (error: any) { setInsightFeedback({ tone: "error", text: error.message || "无法检查服务端配置。" }); } finally { setInsightTesting(false); } };
 
-  const clear = async () => {
-    setBusy(true);
-    try {
-      await clearTranscriptionSettings();
-      setSavedKey("");
-      setApiKey("");
-      setFeedback({ tone: "info", text: "已清除当前浏览器中的 API Key。" });
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (view === "insight") return <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings"><section className="wreader-model-settings-page"><h3>内容整理模型</h3><ModelSummaryCard title={insight?.hasApiKey ? insight.model : "配置内容整理模型"} provider={insight?.hasApiKey ? insight.provider : undefined} connected={Boolean(insight?.hasApiKey)} onClick={() => { setInsightFeedback(null); setInsightModalOpen(true); }} />{insightModalOpen && <ModelConfigModal title="配置内容整理模型" onClose={() => setInsightModalOpen(false)} onSave={() => setInsightModalOpen(false)} saveLabel="完成"><div className="wreader-model-field"><label>服务商</label><div className="wreader-model-static-field">{insight?.provider || "Google Gemini"}</div></div><div className="wreader-model-field"><label>API Key</label><div className="wreader-model-static-field">由服务端环境变量管理</div><p>当前内容整理使用服务端的 GEMINI_API_KEY，不会在浏览器中创建第二份凭据。</p><button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={insightTesting}>{insightTesting ? "正在测试…" : "测试连接"}</button></div><div className="wreader-model-field"><label>模型</label><div className="wreader-model-static-field">{insight?.model || "gemini-2.5-flash"}</div><p>用于文章总结、整理等</p></div><ConnectionFeedback feedback={insightFeedback} /></ModelConfigModal>}</section></section>;
 
-  return (
-    <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-transcript" className="wreader-ai-settings">
-      <section aria-label="云端逐字稿" className="wreader-transcription-form">
-        <section className="wreader-transcription-section" aria-labelledby="transcription-provider-title">
-          <h3 id="transcription-provider-title">转录服务</h3>
-          <div className="wreader-ai-control-card wreader-transcription-provider-card">
-            <div className="wreader-ai-select-wrap">
-              <select id="ai-provider" value={provider} disabled aria-label="转录服务">
-                {Object.entries(TRANSCRIPTION_PROVIDERS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}
-              </select>
-              <ChevronDown aria-hidden="true" />
-            </div>
-            <div className="wreader-transcription-model">
-              <span>当前模型</span>
-              <strong>{selectedProvider.modelName}</strong>
-              <code>{selectedProvider.modelId}</code>
-              <small>{selectedProvider.modelDescription}</small>
-            </div>
-          </div>
-          <p className="wreader-ai-provider-note">更多转录服务将在后续版本提供</p>
-        </section>
-
-        <section className="wreader-transcription-section" aria-labelledby="transcription-key-title">
-          <div className="wreader-transcription-section-heading">
-            <h3 id="transcription-key-title">API Key</h3>
-            <span>{savedKey ? `已连接 · ${keyPreview(savedKey)}` : "仅保存在当前浏览器中"}</span>
-          </div>
-          <div className="wreader-ai-control-card">
-            <div className="wreader-ai-key-field">
-              <KeyRound aria-hidden="true" />
-              <input
-                id="ai-api-key"
-                type={showApiKey ? "text" : "password"}
-                autoComplete="off"
-                value={apiKey}
-                onChange={(event) => {
-                  setApiKey(event.target.value);
-                  setFeedback(null);
-                }}
-                placeholder={savedKey ? "输入新 Key 以更换" : "输入阿里云百炼 API Key"}
-              />
-              <button type="button" onClick={() => setShowApiKey(!showApiKey)} aria-label={showApiKey ? "隐藏 API Key" : "显示 API Key"}>
-                {showApiKey ? <EyeOff /> : <Eye />}
-              </button>
-            </div>
-            <a
-                className="wreader-transcription-key-help"
-                href="https://bailian.console.aliyun.com/?tab=model#/api-key"
-                target="_blank"
-                rel="noreferrer"
-              >
-                获取 API Key <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
-        </section>
-
-        <section className="wreader-transcription-section" aria-labelledby="transcription-options-title">
-          <h3 id="transcription-options-title">转录设置</h3>
-          <div className="wreader-ai-control-card wreader-transcription-options">
-            <div className="wreader-ai-advanced-panel">
-              <div className="wreader-ai-setting-row">
-                <span className="wreader-ai-setting-copy">
-                  <strong>语言</strong>
-                  <small>通常无需手动指定</small>
-                </span>
-                <span className="wreader-ai-setting-select">
-                  <select aria-label="转录语言" value={language} onChange={(event) => setLanguage(event.target.value)}>
-                    <option value="auto">自动识别</option>
-                    <option value="zh">中文</option>
-                    <option value="en">英文</option>
-                  </select>
-                  <ChevronDown aria-hidden="true" />
-                </span>
-              </div>
-              <label className="wreader-ai-setting-row">
-                <span className="wreader-ai-setting-copy">
-                  <strong>区分说话人</strong>
-                  <small>标记访谈中不同发言者</small>
-                </span>
-                <span className="wreader-ai-switch">
-                  <input type="checkbox" checked={diarization} onChange={(event) => setDiarization(event.target.checked)} />
-                  <i aria-hidden="true" />
-                </span>
-              </label>
-              <label className="wreader-ai-setting-row">
-                <span className="wreader-ai-setting-copy">
-                  <strong>专有名词增强</strong>
-                  <small>使用文章标题、播客名和节目简介提升识别</small>
-                </span>
-                <span className="wreader-ai-switch">
-                  <input type="checkbox" checked={contextEnhancement} onChange={(event) => setContextEnhancement(event.target.checked)} />
-                  <i aria-hidden="true" />
-                </span>
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <div className="wreader-ai-actions wreader-transcription-actions">
-          <div className="wreader-transcription-action-row">
-            {savedKey && (
-              <button type="button" className="secondary" disabled={busy} onClick={() => void clear()}>
-                清除 Key
-              </button>
-            )}
-            <button type="button" disabled={busy} onClick={() => void saveAndTest()}>
-              {busy ? "正在验证…" : savedKey && !apiKey ? "验证连接" : "验证并保存"}
-            </button>
-          </div>
-        </div>
-
-        {feedback && (
-          <p role="status" className={`wreader-ai-feedback is-${feedback.tone}`}>
-            {feedback.tone === "success" ? <CheckCircle2 /> : <AlertCircle />}
-            {feedback.text}
-          </p>
-        )}
-      </section>
-    </section>
-  );
+  const provider = TRANSCRIPTION_PROVIDERS.aliyun; const model = provider.models[0];
+  return <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-transcript" className="wreader-ai-settings"><section className="wreader-model-settings-page"><h3>转录模型</h3><ModelSummaryCard title={settings ? model.name : "配置转录模型"} provider={settings ? provider.name : undefined} connected={Boolean(settings?.apiKey)} onClick={openTranscriptionModal} />
+    <section className="wreader-transcription-options-main" aria-labelledby="transcription-options-title"><h3 id="transcription-options-title">转录设置</h3><div className="wreader-ai-control-card wreader-transcription-options"><div className="wreader-ai-setting-row"><span className="wreader-ai-setting-copy"><strong>语言</strong><small>通常无需手动指定</small></span><span className="wreader-ai-setting-select"><select aria-label="转录语言" value={language} onChange={(event) => void updateOptions({ language: event.target.value })}><option value="auto">自动识别</option><option value="zh">中文</option><option value="en">英文</option></select><ChevronDown aria-hidden="true" /></span></div><label className="wreader-ai-setting-row"><span className="wreader-ai-setting-copy"><strong>区分说话人</strong><small>标记访谈中不同发言者</small></span><span className="wreader-ai-switch"><input type="checkbox" checked={diarization} onChange={(event) => void updateOptions({ diarization: event.target.checked })} /><i aria-hidden="true" /></span></label><label className="wreader-ai-setting-row"><span className="wreader-ai-setting-copy"><strong>专有名词增强</strong><small>使用文章标题、播客名和节目简介提升识别</small></span><span className="wreader-ai-switch"><input type="checkbox" checked={contextEnhancement} onChange={(event) => void updateOptions({ contextEnhancement: event.target.checked })} /><i aria-hidden="true" /></span></label></div></section>
+    {transcriptionModalOpen && <ModelConfigModal title="配置转录模型" onClose={() => setTranscriptionModalOpen(false)} onSave={() => void saveTranscription()} saving={saving}><div className="wreader-model-field"><label htmlFor="ai-provider">服务商</label><span className="wreader-ai-select-wrap"><select id="ai-provider" value="aliyun" disabled>{Object.entries(TRANSCRIPTION_PROVIDERS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}</select><ChevronDown aria-hidden="true" /></span></div><div className="wreader-model-field"><label htmlFor="ai-api-key">API Key</label><div className="wreader-ai-key-field"><KeyRound aria-hidden="true" /><input id="ai-api-key" type={showKey ? "text" : "password"} autoComplete="off" value={draftKey} onChange={(event) => { setDraftKey(event.target.value); setTranscriptionFeedback(null); }} placeholder="输入阿里云百炼 API Key" /><button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "隐藏 API Key" : "显示 API Key"}>{showKey ? <EyeOff /> : <Eye />}</button></div><div className="wreader-model-key-actions"><a href={provider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a><button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={testing}>{testing ? "正在测试…" : "测试连接"}</button></div>{settings && <button type="button" className="wreader-model-clear-button" onClick={() => void clearTranscription()} disabled={saving}>清除 Key</button>}</div><div className="wreader-model-field"><label htmlFor="ai-model">模型</label><span className="wreader-ai-select-wrap"><select id="ai-model" value={model.id} disabled>{provider.models.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><ChevronDown aria-hidden="true" /></span><code>{model.id}</code><p>{model.description}</p></div><ConnectionFeedback feedback={transcriptionFeedback} /></ModelConfigModal>}</section></section>;
 }
