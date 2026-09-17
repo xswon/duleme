@@ -1,15 +1,52 @@
 import { GoogleGenAI } from "@google/genai";
 
+export const INSIGHT_PROVIDER_ID = "gemini";
 export const INSIGHT_PROVIDER = "Google Gemini";
 export const INSIGHT_MODEL = "gemini-2.5-flash";
 
-export function getInsightSettings() {
-  return { provider: INSIGHT_PROVIDER, model: INSIGHT_MODEL, hasApiKey: Boolean(process.env.GEMINI_API_KEY), managedBy: "server" as const };
+export type InsightSettingsSource = "browser" | "server" | "none";
+
+export function getInsightSettings(browserApiKey?: string) {
+  const hasBrowserKey = Boolean(browserApiKey?.trim());
+  const hasServerKey = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const source: InsightSettingsSource = hasBrowserKey ? "browser" : hasServerKey ? "server" : "none";
+  return {
+    providerId: INSIGHT_PROVIDER_ID,
+    provider: INSIGHT_PROVIDER,
+    model: INSIGHT_MODEL,
+    hasApiKey: source !== "none",
+    source,
+  };
 }
 
-export async function summarizeArticle(title: string, content?: string, snippet?: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured in secrets.");
+function resolveInsightApiKey(browserApiKey?: string): string {
+  const apiKey = browserApiKey?.trim() || process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new Error("Google Gemini API Key is not configured.");
+  return apiKey;
+}
+
+function assertSupportedModel(model?: string): string {
+  const selected = model?.trim() || INSIGHT_MODEL;
+  if (selected !== INSIGHT_MODEL) throw new Error("Unsupported content-organizing model.");
+  return selected;
+}
+
+export async function testInsightConnection(apiKeyOverride?: string, model?: string): Promise<void> {
+  const apiKey = resolveInsightApiKey(apiKeyOverride);
+  const ai = new GoogleGenAI({ apiKey });
+  await ai.models.generateContent({
+    model: assertSupportedModel(model),
+    contents: "Reply with OK.",
+  });
+}
+
+export async function summarizeArticle(
+  title: string,
+  content?: string,
+  snippet?: string,
+  apiKeyOverride?: string,
+): Promise<string> {
+  const apiKey = resolveInsightApiKey(apiKeyOverride);
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
     model: INSIGHT_MODEL,
