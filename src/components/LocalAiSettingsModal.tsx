@@ -10,6 +10,7 @@ import {
   type InsightSettingsStatus,
 } from "../services/insightSettingsService";
 import { transcriptionApi } from "../services/transcriptionService";
+import "./LocalAiSettingsModal.css";
 
 const TRANSCRIPTION_PROVIDERS = {
   aliyun: {
