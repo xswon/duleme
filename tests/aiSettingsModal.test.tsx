@@ -86,8 +86,9 @@ describe("AI model settings modals", () => {
     db.get.mockResolvedValueOnce(null);
     await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
     await flush();
+    expect(node.textContent).toContain("尚未配置");
     await act(async () => {
-      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("配置转录模型")) as HTMLButtonElement).click();
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
     });
     const provider = node.querySelector("#ai-provider") as HTMLSelectElement;
     const input = node.querySelector("#ai-api-key") as HTMLInputElement;
@@ -175,8 +176,9 @@ describe("AI model settings modals", () => {
     insight.get.mockResolvedValueOnce({ ...serverInsight, hasApiKey: false, source: "none" as const });
     await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
     await flush();
+    expect(node.textContent).toContain("尚未配置");
     await act(async () => {
-      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("配置内容整理模型")) as HTMLButtonElement).click();
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
     });
     const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
     const input = node.querySelector("#insight-api-key") as HTMLInputElement;
