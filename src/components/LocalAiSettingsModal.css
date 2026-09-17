@@ -2,18 +2,18 @@
  * secondary configuration dialog visually light and avoid stacked dividers. */
 
 .wreader-model-settings-page {
-  gap: 10px;
+  gap: 18px;
 }
 
 .wreader-model-settings-page > h3,
 .wreader-transcription-options-main > h3 {
-  margin: 0;
+  margin: 0 0 2px !important;
   line-height: 1.4;
 }
 
 .wreader-transcription-options-main {
-  gap: 10px;
-  margin-top: 14px;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .wreader-model-modal-card {
