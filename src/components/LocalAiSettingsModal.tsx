@@ -31,12 +31,12 @@ const INSIGHT_PROVIDERS = {
 
 type Feedback = { tone: "success" | "error" | "warning" | "info"; text: string };
 
-function ModelSummaryCard({ title, provider, connected, onClick }: { title: string; provider?: string; connected: boolean; onClick: () => void }) {
+function ModelSummaryCard({ title, provider, onClick }: { title: string; provider?: string; onClick: () => void }) {
   return (
     <button type="button" className="wreader-model-summary-card" onClick={onClick}>
       <span>
         <strong>{title}</strong>
-        <small>{provider ? `${provider} · ${connected ? "已连接" : "未配置"}` : "尚未配置"}</small>
+        {provider && <small>{provider} · 已连接</small>}
       </span>
       <ChevronRight aria-hidden="true" />
     </button>
@@ -312,9 +312,8 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
         <section className="wreader-model-settings-page">
           <h3>内容整理模型</h3>
           <ModelSummaryCard
-            title={insight?.hasApiKey ? insightModel.name : "配置内容整理模型"}
+            title={insight?.hasApiKey ? insightModel.name : "尚未配置"}
             provider={insight?.hasApiKey ? insight.provider : undefined}
-            connected={Boolean(insight?.hasApiKey)}
             onClick={openInsightModal}
           />
           {insightModalOpen && (
@@ -386,9 +385,8 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       <section className="wreader-model-settings-page">
         <h3>转录模型</h3>
         <ModelSummaryCard
-          title={settings ? model.name : "配置转录模型"}
+          title={settings ? model.name : "尚未配置"}
           provider={settings ? provider.name : undefined}
-          connected={Boolean(settings?.apiKey)}
           onClick={openTranscriptionModal}
         />
 
