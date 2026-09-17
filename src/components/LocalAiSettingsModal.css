@@ -1,0 +1,126 @@
+/* Local overrides for the AI model settings. Keep the main page and the
+ * secondary configuration dialog visually light and avoid stacked dividers. */
+
+.wreader-model-settings-page {
+  gap: 10px;
+}
+
+.wreader-model-settings-page > h3,
+.wreader-transcription-options-main > h3 {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.wreader-transcription-options-main {
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.wreader-model-modal-card {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(640px, calc(100dvh - 32px));
+  border-radius: 18px;
+  background: #fff;
+}
+
+.wreader-model-modal-card header,
+.wreader-model-modal-card footer,
+.wreader-model-modal-body {
+  background: #fff;
+}
+
+.wreader-model-modal-card header {
+  min-height: 64px;
+  padding: 0 24px;
+  border-bottom: 0;
+}
+
+.wreader-model-modal-card header h2 {
+  font-size: 16px;
+}
+
+.wreader-model-modal-body {
+  gap: 22px;
+  padding: 12px 24px 8px;
+}
+
+.wreader-model-field {
+  gap: 8px;
+}
+
+.wreader-model-field > label {
+  font-size: 13px;
+}
+
+.wreader-model-modal .wreader-ai-select-wrap select,
+.wreader-model-modal .wreader-ai-key-field {
+  min-height: 44px;
+  border-color: #dfe4e8;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.wreader-model-modal .wreader-ai-select-wrap select:focus,
+.wreader-model-modal .wreader-ai-key-field:focus-within {
+  border-color: #b8c8d8;
+  box-shadow: 0 0 0 2px rgba(47, 117, 194, .08);
+}
+
+.wreader-model-modal .wreader-ai-key-field input:disabled {
+  cursor: not-allowed;
+  color: #98a3ad;
+}
+
+.wreader-model-modal .wreader-ai-key-field button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.wreader-model-key-actions {
+  min-height: 32px;
+  align-items: center;
+}
+
+.wreader-model-test-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-color: #dfe4e8;
+  background: #fff;
+  color: #435462;
+}
+
+.wreader-model-test-button:hover:not(:disabled) {
+  background: #f8fafb;
+}
+
+.wreader-model-clear-button {
+  padding-left: 0;
+}
+
+.wreader-model-modal-card footer {
+  min-height: 72px;
+  padding: 10px 24px 20px;
+  border-top: 0;
+}
+
+.wreader-model-modal-card footer button {
+  min-width: 64px;
+}
+
+@media (max-width: 760px) {
+  .wreader-model-modal-card {
+    width: min(640px, calc(100vw - 24px));
+  }
+
+  .wreader-model-modal-card header {
+    padding: 0 18px;
+  }
+
+  .wreader-model-modal-body {
+    padding: 10px 18px 6px;
+  }
+
+  .wreader-model-modal-card footer {
+    padding: 8px 18px 16px;
+  }
+}
