@@ -23,13 +23,12 @@ function browserInsightKey(req: Request): string | undefined {
   return readCookie(req, INSIGHT_KEY_COOKIE)?.trim() || undefined;
 }
 
-function cookieOptions() {
+function cookieBaseOptions() {
   return {
     httpOnly: true,
     sameSite: "strict" as const,
     secure: process.env.NODE_ENV === "production",
     path: COOKIE_PATH,
-    maxAge: 365 * 24 * 60 * 60 * 1000,
   };
 }
 
@@ -52,13 +51,15 @@ export function createAiRouter() {
     if (selectionError) return res.status(400).json({ error: selectionError });
     const nextKey = typeof apiKey === "string" ? apiKey.trim() : "";
     if (!nextKey) return res.status(400).json({ error: "请先填写 API Key。" });
-    res.cookie(INSIGHT_KEY_COOKIE, nextKey, cookieOptions());
+    res.cookie(INSIGHT_KEY_COOKIE, nextKey, {
+      ...cookieBaseOptions(),
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+    });
     return res.json(getInsightSettings(nextKey));
   });
 
   router.delete("/settings", (_req, res) => {
-    const { maxAge: _maxAge, ...options } = cookieOptions();
-    res.clearCookie(INSIGHT_KEY_COOKIE, options);
+    res.clearCookie(INSIGHT_KEY_COOKIE, cookieBaseOptions());
     return res.json(getInsightSettings());
   });
 
