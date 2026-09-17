@@ -60,13 +60,13 @@ function ModelConfigModal({
   return (
     <div className="wreader-model-modal" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="wreader-model-modal-backdrop" aria-label="关闭" onClick={onClose} />
-      <section className="wreader-model-modal-card" style={{ backgroundColor: "#fff" }}>
-        <header style={{ backgroundColor: "#fff" }}>
+      <section className="wreader-model-modal-card">
+        <header>
           <h2>{title}</h2>
           <button type="button" aria-label="关闭" onClick={onClose}><X /></button>
         </header>
-        <div className="wreader-model-modal-body" style={{ backgroundColor: "#fff" }}>{children}</div>
-        <footer style={{ backgroundColor: "#fff" }}>
+        <div className="wreader-model-modal-body">{children}</div>
+        <footer>
           <button type="button" className="secondary" onClick={onClose} disabled={saving}>取消</button>
           <button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button>
         </footer>
@@ -305,6 +305,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     const insightProvider = INSIGHT_PROVIDERS.gemini;
     const insightModel = insightProvider.models.find((item) => item.id === insight?.model) || insightProvider.models[0];
     const draftProvider = draftInsightProvider ? INSIGHT_PROVIDERS[draftInsightProvider] : null;
+    const hasExistingDraftKey = Boolean(insight?.hasApiKey && insight.providerId === draftInsightProvider);
     return (
       <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
         <section className="wreader-model-settings-page">
@@ -332,40 +333,41 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                 </span>
               </div>
 
-              {draftProvider && (
-                <div className="wreader-model-field">
-                  <label htmlFor="insight-api-key">API Key</label>
-                  <div className="wreader-ai-key-field">
-                    <KeyRound aria-hidden="true" />
-                    <input
-                      id="insight-api-key"
-                      type={showInsightKey ? "text" : "password"}
-                      autoComplete="off"
-                      value={draftInsightKey}
-                      onChange={(event) => { setDraftInsightKey(event.target.value); setInsightFeedback(null); }}
-                      placeholder={insight?.source === "browser"
+              <div className="wreader-model-field">
+                <label htmlFor="insight-api-key">API Key</label>
+                <div className="wreader-ai-key-field">
+                  <KeyRound aria-hidden="true" />
+                  <input
+                    id="insight-api-key"
+                    type={showInsightKey ? "text" : "password"}
+                    autoComplete="off"
+                    value={draftInsightKey}
+                    disabled={!draftProvider}
+                    onChange={(event) => { setDraftInsightKey(event.target.value); setInsightFeedback(null); }}
+                    placeholder={!draftProvider
+                      ? "请先选择服务商"
+                      : insight?.source === "browser" && hasExistingDraftKey
                         ? "已保存，如需更换请输入新的 API Key"
-                        : insight?.source === "server"
+                        : insight?.source === "server" && hasExistingDraftKey
                           ? "输入 API Key，留空继续使用服务端默认配置"
                           : `输入${draftProvider.name} API Key`}
-                    />
-                    <button type="button" onClick={() => setShowInsightKey(!showInsightKey)} aria-label={showInsightKey ? "隐藏 API Key" : "显示 API Key"}>
-                      {showInsightKey ? <EyeOff /> : <Eye />}
-                    </button>
-                  </div>
-                  <div className="wreader-model-key-actions">
-                    <a href={draftProvider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a>
-                    <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={insightTesting}>
-                      {insightTesting ? "正在测试…" : "测试连接"}
-                    </button>
-                  </div>
-                  {insight?.source === "server" && <p>当前使用服务端默认配置；输入并保存后将优先使用此浏览器配置。</p>}
-                  {insight?.source === "browser" && <p>当前浏览器已保存 API Key；如需更换，请输入新的 Key 后保存。</p>}
-                  {insight?.source === "browser" && (
-                    <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
-                  )}
+                  />
+                  <button type="button" onClick={() => setShowInsightKey(!showInsightKey)} aria-label={showInsightKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
+                    {showInsightKey ? <EyeOff /> : <Eye />}
+                  </button>
                 </div>
-              )}
+                <div className="wreader-model-key-actions">
+                  {draftProvider ? <a href={draftProvider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a> : <span />}
+                  <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
+                    {insightTesting ? "正在测试…" : "测试连接"}
+                  </button>
+                </div>
+                {draftProvider && insight?.source === "server" && hasExistingDraftKey && <p>当前使用服务端默认配置；输入并保存后将优先使用此浏览器配置。</p>}
+                {draftProvider && insight?.source === "browser" && hasExistingDraftKey && <p>当前浏览器已保存 API Key；如需更换，请输入新的 Key 后保存。</p>}
+                {draftProvider && insight?.source === "browser" && hasExistingDraftKey && (
+                  <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
+                )}
+              </div>
               <ConnectionFeedback feedback={insightFeedback} />
             </ModelConfigModal>
           )}
@@ -431,34 +433,33 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               </span>
             </div>
 
-            {draftProvider && (
-              <div className="wreader-model-field">
-                <label htmlFor="ai-api-key">API Key</label>
-                <div className="wreader-ai-key-field">
-                  <KeyRound aria-hidden="true" />
-                  <input
-                    id="ai-api-key"
-                    type={showKey ? "text" : "password"}
-                    autoComplete="off"
-                    value={draftKey}
-                    onChange={(event) => { setDraftKey(event.target.value); setTranscriptionFeedback(null); }}
-                    placeholder={`输入${draftProvider.name} API Key`}
-                  />
-                  <button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "隐藏 API Key" : "显示 API Key"}>
-                    {showKey ? <EyeOff /> : <Eye />}
-                  </button>
-                </div>
-                <div className="wreader-model-key-actions">
-                  <a href={draftProvider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a>
-                  <button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={testing}>
-                    {testing ? "正在测试…" : "测试连接"}
-                  </button>
-                </div>
-                {settings && draftTranscriptionProvider === settings.provider && (
-                  <button type="button" className="wreader-model-clear-button" onClick={() => void clearTranscription()} disabled={saving}>清除当前配置</button>
-                )}
+            <div className="wreader-model-field">
+              <label htmlFor="ai-api-key">API Key</label>
+              <div className="wreader-ai-key-field">
+                <KeyRound aria-hidden="true" />
+                <input
+                  id="ai-api-key"
+                  type={showKey ? "text" : "password"}
+                  autoComplete="off"
+                  value={draftKey}
+                  disabled={!draftProvider}
+                  onChange={(event) => { setDraftKey(event.target.value); setTranscriptionFeedback(null); }}
+                  placeholder={draftProvider ? `输入${draftProvider.name} API Key` : "请先选择服务商"}
+                />
+                <button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
+                  {showKey ? <EyeOff /> : <Eye />}
+                </button>
               </div>
-            )}
+              <div className="wreader-model-key-actions">
+                {draftProvider ? <a href={draftProvider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a> : <span />}
+                <button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={!draftProvider || testing}>
+                  {testing ? "正在测试…" : "测试连接"}
+                </button>
+              </div>
+              {settings && draftTranscriptionProvider === settings.provider && (
+                <button type="button" className="wreader-model-clear-button" onClick={() => void clearTranscription()} disabled={saving}>清除当前配置</button>
+              )}
+            </div>
             <ConnectionFeedback feedback={transcriptionFeedback} />
           </ModelConfigModal>
         )}
