@@ -82,7 +82,7 @@ describe("AI model settings modals", () => {
     vi.clearAllMocks();
   });
 
-  it("starts an unconfigured transcription draft at the provider prompt", async () => {
+  it("keeps the full transcription form visible before a provider is chosen", async () => {
     db.get.mockResolvedValueOnce(null);
     await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
     await flush();
@@ -90,11 +90,15 @@ describe("AI model settings modals", () => {
       (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("配置转录模型")) as HTMLButtonElement).click();
     });
     const provider = node.querySelector("#ai-provider") as HTMLSelectElement;
+    const input = node.querySelector("#ai-api-key") as HTMLInputElement;
     expect(provider.value).toBe("");
     expect(provider.disabled).toBe(false);
-    expect(node.querySelector("#ai-api-key")).toBeNull();
+    expect(input).not.toBeNull();
+    expect(input.disabled).toBe(true);
+    expect(input.placeholder).toBe("请先选择服务商");
     await choose(provider, "aliyun");
-    expect(node.querySelector("#ai-api-key")).not.toBeNull();
+    expect(input.disabled).toBe(false);
+    expect(input.placeholder).toContain("阿里云百炼");
     expect(node.querySelector('[role="dialog"]')?.textContent).not.toContain("Qwen Audio 3.0 ASR Flash Filetrans");
   });
 
@@ -167,7 +171,7 @@ describe("AI model settings modals", () => {
     expect(node.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it("starts unconfigured content organizing at the provider prompt", async () => {
+  it("keeps the full content-organizing form visible before a provider is chosen", async () => {
     insight.get.mockResolvedValueOnce({ ...serverInsight, hasApiKey: false, source: "none" as const });
     await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
     await flush();
@@ -175,10 +179,14 @@ describe("AI model settings modals", () => {
       (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("配置内容整理模型")) as HTMLButtonElement).click();
     });
     const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
+    const input = node.querySelector("#insight-api-key") as HTMLInputElement;
     expect(provider.value).toBe("");
-    expect(node.querySelector("#insight-api-key")).toBeNull();
+    expect(input).not.toBeNull();
+    expect(input.disabled).toBe(true);
+    expect(input.placeholder).toBe("请先选择服务商");
     await choose(provider, "gemini");
-    expect(node.querySelector("#insight-api-key")).not.toBeNull();
+    expect(input.disabled).toBe(false);
+    expect(input.placeholder).toContain("Google Gemini");
     expect(node.querySelector('[role="dialog"]')?.textContent).not.toContain("Gemini 2.5 Flash");
   });
 });
