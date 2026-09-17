@@ -3060,6 +3060,120 @@ body,
   color: #4c9b67;
 }
 
+/* Transcript settings is one compact form, not a stack of dashboard cards. */
+.wreader-transcription-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.wreader-transcription-section > h3,
+.wreader-transcription-section-heading h3 {
+  margin: 0 0 9px;
+  color: #445361;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wreader-transcription-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.wreader-transcription-section-heading span {
+  color: #7a8793;
+  font-size: 11px;
+}
+
+.wreader-transcription-provider-card {
+  padding: 12px;
+}
+
+.wreader-transcription-provider-card .wreader-ai-select-wrap select:disabled {
+  cursor: default;
+  border-color: #e2e5e8;
+  background: #fff;
+  color: #354554;
+  opacity: 1;
+}
+
+.wreader-transcription-model {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 12px 2px 1px;
+  border-top: 1px solid #edf0f2;
+}
+
+.wreader-transcription-model > span {
+  color: #83909c;
+  font-size: 11px;
+}
+
+.wreader-transcription-model strong {
+  color: #40505e;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wreader-transcription-model code {
+  overflow-wrap: anywhere;
+  color: #7d8994;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+.wreader-transcription-model small {
+  color: #8c98a3;
+  font-size: 11px;
+}
+
+.wreader-ai-provider-note {
+  margin: 6px 2px 0;
+  font-size: 10px;
+}
+
+.wreader-transcription-key-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 9px 2px 0;
+  color: #477fb9;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wreader-transcription-key-help:hover { text-decoration: underline; }
+.wreader-transcription-key-help svg { width: 12px; height: 12px; }
+
+.wreader-transcription-options { padding: 0 14px; }
+.wreader-transcription-options .wreader-ai-setting-row + .wreader-ai-setting-row { border-top: 1px solid #eef1f3; }
+.wreader-transcription-options .wreader-ai-setting-row { min-height: 62px; }
+
+.wreader-transcription-actions {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.wreader-transcription-action-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wreader-transcription-action-row > button:last-child { margin-left: auto; }
+
+.wreader-ai-feedback.is-error { color: #b44d4d; }
+.wreader-ai-feedback.is-warning { color: #a77929; }
+.wreader-ai-feedback.is-info { color: #52718c; }
+.wreader-ai-feedback.is-error svg { color: #d26464; }
+.wreader-ai-feedback.is-warning svg { color: #c18a2d; }
+.wreader-ai-feedback.is-info svg { color: #5a88b0; }
+
 @media (max-width: 760px) {
   .wreader-settings-modal {
     padding: 10px;
@@ -3184,6 +3298,15 @@ body,
   .wreader-ai-actions > div {
     justify-content: flex-end;
   }
+
+  .wreader-transcription-form { gap: 20px; }
+
+  .wreader-transcription-action-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .wreader-transcription-action-row > button:last-child { margin-left: auto; }
 
   .wreader-ai-section-heading {
     grid-template-columns: 36px minmax(0, 1fr);

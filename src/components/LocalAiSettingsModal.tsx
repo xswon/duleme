@@ -1,13 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, KeyRound, Sparkles } from "lucide-react";
 import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscriptionSettings } from "../services/dbService";
 import { transcriptionApi } from "../services/transcriptionService";
 
-const TRANSCRIPTION_MODEL_NAME = "Qwen Audio 3.0 ASR Flash Filetrans";
-const TRANSCRIPTION_MODEL_ID = "qwen-audio-3.0-asr-flash-filetrans";
+const TRANSCRIPTION_PROVIDERS = {
+  aliyun: {
+    name: "阿里云百炼",
+    modelName: "Qwen Audio 3.0 ASR Flash Filetrans",
+    modelId: "qwen-audio-3.0-asr-flash-filetrans",
+    modelDescription: "长音频转录",
+  },
+} as const;
+type TranscriptionProvider = keyof typeof TRANSCRIPTION_PROVIDERS;
 
 const keyPreview = (key: string) => key.length < 8 ? "已保存" : `${key.slice(0, 3)}••••${key.slice(-4)}`;
-const languageLabel = (language: string) => language === "zh" ? "中文" : language === "en" ? "英文" : "自动识别语言";
 
 export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view?: "transcription" | "insight"; panelId: string }) {
   const [apiKey, setApiKey] = useState("");
@@ -16,7 +22,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   const [language, setLanguage] = useState("auto");
   const [diarization, setDiarization] = useState(true);
   const [contextEnhancement, setContextEnhancement] = useState(true);
-  const [advanced, setAdvanced] = useState(false);
+  const [provider] = useState<TranscriptionProvider>("aliyun");
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: "success" | "error" | "warning" | "info"; text: string } | null>(null);
 
@@ -33,11 +39,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       .catch(() => setFeedback({ tone: "error", text: "无法读取浏览器中的转录配置。" }));
   }, [view]);
 
-  const settingsSummary = useMemo(() => [
-    languageLabel(language),
-    diarization ? "区分说话人" : "不区分说话人",
-    contextEnhancement ? "专有名词增强" : "未启用专有名词增强",
-  ].join(" · "), [language, diarization, contextEnhancement]);
+  const selectedProvider = TRANSCRIPTION_PROVIDERS[provider];
 
   if (view === "insight") {
     return (
@@ -89,37 +91,31 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
 
   return (
     <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-transcript" className="wreader-ai-settings">
-      <section aria-label="云端逐字稿">
-        <div className="wreader-ai-form-row">
-          <label htmlFor="ai-provider">
-            <strong>转录服务</strong>
-            <span>暂仅支持阿里云百炼</span>
-          </label>
-          <div className="wreader-ai-control-card">
+      <section aria-label="云端逐字稿" className="wreader-transcription-form">
+        <section className="wreader-transcription-section" aria-labelledby="transcription-provider-title">
+          <h3 id="transcription-provider-title">转录服务</h3>
+          <div className="wreader-ai-control-card wreader-transcription-provider-card">
             <div className="wreader-ai-select-wrap">
-              <select id="ai-provider" value="aliyun" disabled>
-                <option value="aliyun">阿里云百炼</option>
+              <select id="ai-provider" value={provider} disabled aria-label="转录服务">
+                {Object.entries(TRANSCRIPTION_PROVIDERS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}
               </select>
               <ChevronDown aria-hidden="true" />
             </div>
-            <p className="wreader-ai-provider-note">更多转录服务将在后续版本提供</p>
-
-            <div className="wreader-ai-model-summary mt-3 border-t border-slate-100 pt-3">
-              <span>转录模型</span>
-              <strong>{TRANSCRIPTION_MODEL_NAME}</strong>
-              <small>长音频转录</small>
+            <div className="wreader-transcription-model">
+              <span>当前模型</span>
+              <strong>{selectedProvider.modelName}</strong>
+              <code>{selectedProvider.modelId}</code>
+              <small>{selectedProvider.modelDescription}</small>
             </div>
-            <p className="-mt-2 truncate pl-[72px] font-mono text-[10px] text-slate-400" title={TRANSCRIPTION_MODEL_ID}>
-              {TRANSCRIPTION_MODEL_ID}
-            </p>
           </div>
-        </div>
+          <p className="wreader-ai-provider-note">更多转录服务将在后续版本提供</p>
+        </section>
 
-        <div className="wreader-ai-form-row is-key-row">
-          <label htmlFor="ai-api-key">
-            <strong>API Key</strong>
+        <section className="wreader-transcription-section" aria-labelledby="transcription-key-title">
+          <div className="wreader-transcription-section-heading">
+            <h3 id="transcription-key-title">API Key</h3>
             <span>{savedKey ? `已连接 · ${keyPreview(savedKey)}` : "仅保存在当前浏览器中"}</span>
-          </label>
+          </div>
           <div className="wreader-ai-control-card">
             <div className="wreader-ai-key-field">
               <KeyRound aria-hidden="true" />
@@ -138,30 +134,20 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                 {showApiKey ? <EyeOff /> : <Eye />}
               </button>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-3 px-0.5">
-              <a
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#477fb9] hover:underline"
+            <a
+                className="wreader-transcription-key-help"
                 href="https://bailian.console.aliyun.com/?tab=model#/api-key"
                 target="_blank"
                 rel="noreferrer"
               >
                 获取 API Key <ExternalLink className="h-3 w-3" />
-              </a>
-              <span className="text-[10px] text-slate-400">用于连接上方所示转录模型</span>
-            </div>
+            </a>
           </div>
-        </div>
+        </section>
 
-        <div className="wreader-ai-control-card wreader-ai-advanced-card">
-          <button type="button" className="wreader-ai-advanced-toggle" onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
-            <ChevronDown className={advanced ? "is-open" : ""} />
-            <span className="ml-1 flex min-w-0 flex-1 items-center justify-between gap-3">
-              <strong className="shrink-0 text-[12px] font-semibold text-[#445361]">转录设置</strong>
-              <small className="truncate font-normal text-[#8796a5]">{settingsSummary}</small>
-            </span>
-          </button>
-
-          {advanced && (
+        <section className="wreader-transcription-section" aria-labelledby="transcription-options-title">
+          <h3 id="transcription-options-title">转录设置</h3>
+          <div className="wreader-ai-control-card wreader-transcription-options">
             <div className="wreader-ai-advanced-panel">
               <div className="wreader-ai-setting-row">
                 <span className="wreader-ai-setting-copy">
@@ -198,11 +184,11 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                 </span>
               </label>
             </div>
-          )}
-        </div>
+          </div>
+        </section>
 
-        <div className="wreader-ai-actions is-end">
-          <div>
+        <div className="wreader-ai-actions wreader-transcription-actions">
+          <div className="wreader-transcription-action-row">
             {savedKey && (
               <button type="button" className="secondary" disabled={busy} onClick={() => void clear()}>
                 清除 Key

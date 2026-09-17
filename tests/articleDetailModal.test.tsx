@@ -106,7 +106,9 @@ describe("ArticleDetailModal", () => {
     expect(html).toContain("lucide-sparkle");
     expect(html).toContain("lucide-audio-lines");
     expect(html.indexOf("author@example.com")).toBeGreaterThan(html.indexOf("Example"));
-    expect(html.indexOf("天前")).toBeGreaterThan(html.indexOf("author@example.com"));
+    // The relative-time formatter switches to a localized calendar date after
+    // 30 days; retain the metadata ordering assertion without coupling to it.
+    expect(html).toMatch(/author@example\.com<\/span><span>·<\/span><span>/);
     expect(html).not.toContain("已整理");
 
   });
