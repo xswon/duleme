@@ -1787,6 +1787,7 @@ body,
 }
 
 .wreader-feed-row {
+  padding-left: 24px !important;
   font-size: 11.5px !important;
 }
 

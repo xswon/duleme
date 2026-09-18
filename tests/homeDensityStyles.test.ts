@@ -52,6 +52,10 @@ describe("home density styles", () => {
     expect(styles).not.toContain(".wreader-reading-nav button > span:last-child");
   });
 
+  it("indents feeds beneath their folders", () => {
+    expect(styles).toMatch(/\.wreader-feed-row \{\s*padding-left: 24px !important;/);
+  });
+
   it("keeps the settings action anchored while only the navigation area scrolls", () => {
     expect(styles).toMatch(/\.wreader-sidebar \{[\s\S]*?height: 100dvh;[\s\S]*?max-height: 100dvh;[\s\S]*?overflow: hidden;/);
     expect(styles).toMatch(/\.wreader-sidebar-scroll \{[\s\S]*?flex: 1 1 auto;[\s\S]*?overflow-y: auto;/);
