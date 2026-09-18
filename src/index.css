@@ -2160,19 +2160,6 @@ body,
   color: #3477c5;
 }
 
-.wreader-settings-feed-open {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.wreader-settings-feed-chevron {
-  width: 16px;
-  height: 16px;
-  flex: none;
-  color: #98a3ae;
-}
-
 .wreader-feed-edit-modal {
   position: fixed;
   z-index: 90;
@@ -2204,24 +2191,19 @@ body,
 
 .wreader-feed-edit-card header {
   display: flex;
-  min-height: 72px;
+  min-height: 64px;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 24px 10px;
+  padding: 16px 24px 8px;
 }
 
 .wreader-feed-edit-card header h2 {
   margin: 0;
   color: #344452;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
-}
-
-.wreader-feed-edit-card header p {
-  margin: 4px 0 0;
-  color: #7e8a95;
-  font-size: 12px;
+  letter-spacing: -.01em;
 }
 
 .wreader-feed-edit-card header > button {
@@ -2245,8 +2227,44 @@ body,
 .wreader-feed-edit-body {
   display: grid;
   gap: 20px;
-  padding: 12px 24px 18px;
+  padding: 10px 24px 18px;
   overflow-y: auto;
+}
+
+.wreader-feed-edit-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 0 6px;
+}
+
+.wreader-feed-edit-cover {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 11px;
+  object-fit: cover;
+  background: #eef3f7;
+}
+
+.wreader-feed-edit-cover.is-fallback {
+  display: grid;
+  place-items: center;
+  background: #3477c5;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.wreader-feed-edit-identity strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #3c4d5d;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wreader-feed-edit-body label {
@@ -2484,6 +2502,12 @@ body,
   width: 25px;
   height: 25px;
   border-radius: 7px;
+}
+
+.wreader-settings-groups > .wreader-settings-feed-row .wreader-settings-feed-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
 }
 
 .wreader-settings-feed-copy {
