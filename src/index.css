@@ -2160,6 +2160,211 @@ body,
   color: #3477c5;
 }
 
+.wreader-settings-feed-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wreader-settings-feed-chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: #98a3ae;
+}
+
+.wreader-feed-edit-modal {
+  position: fixed;
+  z-index: 90;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.wreader-feed-edit-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(27, 39, 52, .28);
+  backdrop-filter: blur(2px);
+}
+
+.wreader-feed-edit-card {
+  position: relative;
+  display: flex;
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(650px, calc(100dvh - 32px));
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(31, 41, 55, .25);
+}
+
+.wreader-feed-edit-card header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px 10px;
+}
+
+.wreader-feed-edit-card header h2 {
+  margin: 0;
+  color: #344452;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.wreader-feed-edit-card header p {
+  margin: 4px 0 0;
+  color: #7e8a95;
+  font-size: 12px;
+}
+
+.wreader-feed-edit-card header > button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  color: #75828e;
+}
+
+.wreader-feed-edit-card header > button:hover {
+  background: #f3f6f8;
+}
+
+.wreader-feed-edit-card header svg {
+  width: 17px;
+  height: 17px;
+}
+
+.wreader-feed-edit-body {
+  display: grid;
+  gap: 20px;
+  padding: 12px 24px 18px;
+  overflow-y: auto;
+}
+
+.wreader-feed-edit-body label {
+  display: grid;
+  gap: 8px;
+}
+
+.wreader-feed-edit-body label > span {
+  color: #536271;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.wreader-feed-edit-body input,
+.wreader-feed-edit-body select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #dfe4e8;
+  border-radius: 10px;
+  background: #fff;
+  color: #354554;
+  font-size: 13px;
+  outline: none;
+}
+
+.wreader-feed-edit-body input:focus,
+.wreader-feed-edit-body select:focus {
+  border-color: #b8c8d8;
+  box-shadow: 0 0 0 2px rgba(47, 117, 194, .08);
+}
+
+.wreader-feed-edit-body small {
+  color: #8a96a1;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.wreader-feed-edit-card footer {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px 20px;
+}
+
+.wreader-feed-edit-card footer > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wreader-feed-edit-card footer button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #2f75c2;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wreader-feed-edit-card footer button.secondary {
+  background: transparent;
+  color: #62717d;
+}
+
+.wreader-feed-edit-card footer button.danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 0;
+  background: transparent;
+  color: #b55353;
+}
+
+.wreader-feed-edit-card footer button.danger:hover {
+  color: #9f3f3f;
+}
+
+.wreader-feed-edit-card footer button.danger svg {
+  width: 15px;
+  height: 15px;
+}
+
+.wreader-feed-edit-card footer button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+@media (max-width: 760px) {
+  .wreader-feed-edit-modal {
+    padding: 12px;
+  }
+
+  .wreader-feed-edit-card {
+    width: min(620px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+  }
+
+  .wreader-feed-edit-card header,
+  .wreader-feed-edit-body,
+  .wreader-feed-edit-card footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .wreader-feed-edit-card footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .wreader-feed-edit-card footer > div {
+    justify-content: flex-end;
+  }
+}
+
 .wreader-settings-row-actions .wreader-settings-danger-button {
   display: grid;
   width: 30px;
