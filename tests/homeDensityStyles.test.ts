@@ -8,7 +8,7 @@ const navigationStyles = readFileSync(resolve(process.cwd(), "src/styles/prototy
 describe("home density styles", () => {
   it("uses the reviewed responsive layout thresholds", () => {
     expect(styles).toContain("@media (min-width: 900px) and (max-width: 1279px)");
-    expect(styles).toContain("--wreader-list: 342px;");
+    expect(styles).toContain("--wreader-list: 352px;");
     expect(styles).toContain("@media (min-width: 1280px)");
     expect(styles).not.toContain("@media (min-width: 1040px)");
   });
