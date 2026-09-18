@@ -325,6 +325,9 @@ describe("navigation chrome", () => {
 
     const folderSelect = container.querySelector<HTMLSelectElement>('[aria-label="更改科技播客所属文件夹"]');
     expect(folderSelect).not.toBeNull();
+    expect(container.querySelector(".wreader-feed-edit-card header p")).toBeNull();
+    expect(container.querySelector(".wreader-feed-edit-identity strong")?.textContent).toBe("科技播客");
+    expect(container.querySelector(".wreader-feed-edit-cover")).not.toBeNull();
     await act(async () => {
       if (!folderSelect) return;
       folderSelect.value = "商业";
@@ -341,7 +344,7 @@ describe("navigation chrome", () => {
     container.remove();
   });
 
-  it("shows the feed address and sync status without unread counts", () => {
+  it("keeps primary feed rows limited to cover, name and folder", () => {
     const html = renderToStaticMarkup(
       <SettingsPage
         feeds={[feed({ unreadCount: 2, lastSyncStatus: "error" })]}
@@ -359,9 +362,13 @@ describe("navigation chrome", () => {
       />
     );
 
+    expect(html).toContain("科技播客");
+    expect(html).toContain("科技");
+    expect(html).not.toContain("https://example.com/feed.xml");
+    expect(html).not.toContain("example.com");
+    expect(html).not.toContain("同步失败");
     expect(html).not.toContain("2 篇未读");
-    expect(html).toContain("同步失败");
-    expect(html).not.toContain('<span>科技</span><span class="text-blue-600">2 篇未读</span>');
+    expect(html).not.toContain("wreader-settings-feed-chevron");
   });
 
   it("expands a settings folder to reveal its feeds", async () => {
@@ -415,7 +422,7 @@ describe("navigation chrome", () => {
     container.remove();
   });
 
-  it("keeps feed deletion inside the inline editor", async () => {
+  it("keeps feed deletion inside the secondary editor", async () => {
     const onDeleteFeed = vi.fn();
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const container = document.createElement("div");
