@@ -302,8 +302,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     handleCancelEditFeed();
   };
 
+  const editingFeed = editingFeedId ? feeds.find((feed) => feed.id === editingFeedId) || null : null;
+
   const renderFeedRow = (feed: Feed, category: string, options: { draggable: boolean; showDragHandle: boolean; showCategory: boolean; editable: boolean }) => {
-    const isEditingFeed = editingFeedId === feed.id;
     const isDragTarget = options.draggable && dragOverFeedId === feed.id && draggedFeedId !== feed.id;
     const draggedFeed = draggedFeedId
       ? feeds.find((candidate) => candidate.id === draggedFeedId)
@@ -325,10 +326,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           }
         }}
         onDrop={() => moveFeed(feed.id)}
-        className={`wreader-settings-feed-row${isEditingFeed ? " is-editing" : ""} ${draggedFeedId === feed.id ? "opacity-50" : ""} ${isDragTarget ? "ring-2 ring-blue-300" : ""}`}
+        className={`wreader-settings-feed-row ${draggedFeedId === feed.id ? "opacity-50" : ""} ${isDragTarget ? "ring-2 ring-blue-300" : ""}`}
       >
         <div className="wreader-settings-feed-head">
-          {options.showDragHandle && !isEditingFeed && (
+          {options.showDragHandle && (
             <span
               className="wreader-settings-drag"
               draggable={options.draggable}
@@ -355,48 +356,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               {feed.title.slice(0, 2).toUpperCase()}
             </div>
           )}
-          {isEditingFeed ? (
-            <h4 className="wreader-settings-feed-title">{feed.title}</h4>
-          ) : options.editable ? (
+          {options.editable ? (
             <button type="button" onClick={() => handleStartEditFeed(feed)} aria-label={`编辑${feed.title}`} className="wreader-settings-feed-open">
               <span className="wreader-settings-feed-copy">
                 <strong>{feed.title}</strong>
                 <small>{options.showCategory ? `${category} · ` : ""}{feedHost}{feed.lastSyncStatus === "error" ? " · 同步失败" : ""}</small>
               </span>
+              <ChevronRight aria-hidden="true" className="wreader-settings-feed-chevron" />
             </button>
           ) : (
             <span className="wreader-settings-feed-copy"><strong>{feed.title}</strong></span>
           )}
-          {isEditingFeed && (
-            <div className="wreader-settings-row-actions">
-              <button type="button" className="wreader-settings-danger-button" title="删除订阅源" aria-label="删除订阅源" onClick={() => { if (confirm(`确定要删除订阅"${feed.title}"吗？`)) { handleCancelEditFeed(); onDeleteFeed(feed.id); } }}><Trash2 /></button>
-              <button type="button" onClick={() => handleSaveFeedUrls(feed)} disabled={!editFeedUrlInput.trim()} title="保存订阅设置" aria-label="保存订阅设置"><Check /></button>
-              <button type="button" onClick={handleCancelEditFeed} title="取消" aria-label="取消编辑订阅源"><X /></button>
-            </div>
-          )}
-          {!isEditingFeed && !options.editable && category !== "未分类" && (
+          {!options.editable && category !== "未分类" && (
             <div className="wreader-settings-row-actions">
               <button type="button" onClick={() => onUpdateFeedCategory(feed.id, "未分类")} title="移出文件夹" aria-label={`将${feed.title}移出文件夹`}><FolderMinus /></button>
             </div>
           )}
         </div>
-        {isEditingFeed && (
-          <div className="wreader-settings-feed-fields grid gap-2">
-            <label className="grid gap-1">
-              <span className="text-[10px] font-semibold text-slate-500">所属文件夹</span>
-              <select
-                value={editFeedCategoryInput}
-                onChange={(event) => setEditFeedCategoryInput(event.target.value)}
-                aria-label={`更改${feed.title}所属文件夹`}
-                className="wreader-settings-field"
-              >
-                {feedCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-1"><span className="text-[10px] font-semibold text-slate-500">RSS 链接</span><input type="url" value={editFeedUrlInput} onChange={(e) => setEditFeedUrlInput(e.target.value)} className="wreader-settings-field" placeholder="https://example.com/feed.xml" /></label>
-            <label className="grid gap-1"><span className="text-[10px] font-semibold text-slate-500">BidClub 辅助 Feed</span><input type="url" value={editBidclubFeedUrlInput} onChange={(e) => setEditBidclubFeedUrlInput(e.target.value)} className="wreader-settings-field" placeholder="https://bidclub.ai/feeds/example.xml" /></label>
-          </div>
-        )}
       </div>
     );
   };
@@ -551,6 +527,95 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
         </div>
       </section>
+
+      {editingFeed && (
+        <div
+          className="wreader-feed-edit-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="feed-edit-title"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              handleCancelEditFeed();
+            }
+          }}
+        >
+          <button type="button" className="wreader-feed-edit-backdrop" aria-label="关闭编辑订阅源" onClick={handleCancelEditFeed} />
+          <form
+            className="wreader-feed-edit-card"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSaveFeedUrls(editingFeed);
+            }}
+          >
+            <header>
+              <div>
+                <h2 id="feed-edit-title">编辑订阅源</h2>
+                <p>{editingFeed.title}</p>
+              </div>
+              <button type="button" aria-label="关闭编辑订阅源" onClick={handleCancelEditFeed}><X /></button>
+            </header>
+
+            <div className="wreader-feed-edit-body">
+              <label>
+                <span>所属文件夹</span>
+                <select
+                  autoFocus
+                  value={editFeedCategoryInput}
+                  onChange={(event) => setEditFeedCategoryInput(event.target.value)}
+                  aria-label={`更改${editingFeed.title}所属文件夹`}
+                >
+                  {feedCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </label>
+
+              <label>
+                <span>RSS 链接</span>
+                <input
+                  type="url"
+                  value={editFeedUrlInput}
+                  onChange={(event) => setEditFeedUrlInput(event.target.value)}
+                  placeholder="https://example.com/feed.xml"
+                />
+              </label>
+
+              <label>
+                <span>BidClub 辅助 Feed</span>
+                <input
+                  type="url"
+                  value={editBidclubFeedUrlInput}
+                  onChange={(event) => setEditBidclubFeedUrlInput(event.target.value)}
+                  placeholder="https://bidclub.ai/feeds/example.xml"
+                />
+                <small>可选，仅在需要为当前订阅补充 BidClub 音频源时填写。</small>
+              </label>
+            </div>
+
+            <footer>
+              <button
+                type="button"
+                className="danger"
+                aria-label="删除订阅源"
+                onClick={() => {
+                  if (confirm(`确定要删除订阅"${editingFeed.title}"吗？`)) {
+                    handleCancelEditFeed();
+                    onDeleteFeed(editingFeed.id);
+                  }
+                }}
+              >
+                <Trash2 />
+                删除订阅源
+              </button>
+              <div>
+                <button type="button" className="secondary" onClick={handleCancelEditFeed}>取消</button>
+                <button type="submit" disabled={!editFeedUrlInput.trim()} title="保存订阅设置" aria-label="保存订阅设置">保存</button>
+              </div>
+            </footer>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
