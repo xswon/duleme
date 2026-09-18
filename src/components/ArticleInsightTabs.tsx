@@ -199,7 +199,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             {p.digestHtml && <BidclubRichTextContent html={p.digestHtml} emptyText="暂无深度精华" className="bidclub-digest" />}
           </section>
         </>}
-        {p.sourceUrl && (
+        {p.sourceUrl && p.sourceUrl !== p.article.link && (
           <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
             <span>摘要依据：</span>
             <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
