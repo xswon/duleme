@@ -64,7 +64,7 @@ describe("ArticleDetailModal", () => {
     expect(html).not.toContain(">原文</span>");
     expect(html).not.toContain(">更多</span>");
     expect(html).not.toContain("复制原文链接");
-    expect(html).toContain("原文来源");
+    expect(html).not.toContain("原文来源");
     expect(html).not.toContain("<img");
   });
 
