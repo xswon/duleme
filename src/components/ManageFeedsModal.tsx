@@ -315,12 +315,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       ? feeds.find((candidate) => candidate.id === draggedFeedId)
       : undefined;
     const isSameFolderDrag = !!draggedFeed && feedCategory(draggedFeed) === category;
-    let feedHost = feed.feedUrl;
-    try {
-      feedHost = new URL(feed.feedUrl).hostname.replace(/^www\./, "");
-    } catch {
-      // Preserve the stored URL when legacy data is not a complete URL.
-    }
     return (
       <div
         key={feed.id}
@@ -365,9 +359,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <button type="button" onClick={() => handleStartEditFeed(feed)} aria-label={`编辑${feed.title}`} className="wreader-settings-feed-open">
               <span className="wreader-settings-feed-copy">
                 <strong>{feed.title}</strong>
-                <small>{options.showCategory ? `${category} · ` : ""}{feedHost}{feed.lastSyncStatus === "error" ? " · 同步失败" : ""}</small>
+                {options.showCategory && <small>{category}</small>}
               </span>
-              <ChevronRight aria-hidden="true" className="wreader-settings-feed-chevron" />
             </button>
           ) : (
             <span className="wreader-settings-feed-copy"><strong>{feed.title}</strong></span>
@@ -556,14 +549,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             }}
           >
             <header>
-              <div>
-                <h2 id="feed-edit-title">编辑订阅源</h2>
-                <p>{editingFeed.title}</p>
-              </div>
+              <h2 id="feed-edit-title">编辑订阅源</h2>
               <button type="button" aria-label="关闭编辑订阅源" onClick={handleCancelEditFeed}><X /></button>
             </header>
 
             <div className="wreader-feed-edit-body">
+              <div className="wreader-feed-edit-identity" aria-label={`当前订阅源：${editingFeed.title}`}>
+                {editingFeed.favicon ? (
+                  <img
+                    src={editingFeed.favicon}
+                    alt=""
+                    className="wreader-feed-edit-cover"
+                    onError={(event) => { (event.currentTarget as HTMLElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="wreader-feed-edit-cover is-fallback" aria-hidden="true">
+                    {editingFeed.title.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <strong>{editingFeed.title}</strong>
+              </div>
               <label>
                 <span>所属文件夹</span>
                 <select
