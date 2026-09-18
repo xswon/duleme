@@ -123,13 +123,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   useEffect(() => {
     const dialog = settingsDialogRef.current;
     if (!dialog) return undefined;
-    const getFocusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
-      "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
-    ));
+    const getFocusable = () => {
+      const scope = dialog.querySelector<HTMLElement>(".wreader-feed-edit-card") || dialog;
+      return Array.from(scope.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      ));
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onBack();
+        const nestedClose = dialog.querySelector<HTMLButtonElement>('.wreader-feed-edit-card button[aria-label="关闭编辑订阅源"]');
+        if (nestedClose) nestedClose.click();
+        else onBack();
         return;
       }
       if (event.key !== "Tab") return;
