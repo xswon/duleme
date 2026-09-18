@@ -1034,7 +1034,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {/* Tab Content */}
             <div
               ref={selectableContentRef}
-              className="pt-5"
+              className="pt-3"
               onPointerUp={detailTab === "notes" ? undefined : captureSelection}
               onKeyUp={detailTab === "notes" ? undefined : captureSelection}
               onClick={detailTab === "notes" ? undefined : handleHighlightClick}
@@ -1047,13 +1047,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}
 
-            {/* Universal source footer */}
-            <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-400">
-              <span>原文来源：</span>
-              <a href={article.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                {article.feedTitle || article.link}
-              </a>
-            </div>
           </div>
         </div>
         {selectionAction && (
