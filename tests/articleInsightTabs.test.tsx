@@ -89,6 +89,25 @@ describe("ArticleInsightTabs", () => {
     expect(local).toContain("Local summary");
   });
 
+  it("labels distinct AI evidence clearly and hides duplicate article links", () => {
+    const distinct = renderModel({
+      tab: "overview",
+      overviewHtml: "<p>Prepared highlights</p>",
+      sourceUrl: "https://youtube.com/watch?v=1",
+      sourceLabel: "YouTube",
+    });
+    const duplicate = renderModel({
+      tab: "overview",
+      overviewHtml: "<p>Prepared highlights</p>",
+      sourceUrl: article.link,
+      sourceLabel: "Example",
+    });
+
+    expect(distinct).toContain("摘要依据");
+    expect(distinct).toContain("YouTube");
+    expect(duplicate).not.toContain("摘要依据");
+  });
+
   it("keeps the body available when BidClub enrichment fails", () => {
     const html = renderModel({ tab: "body", enrichmentError: "BidClub unavailable" });
     expect(html).toContain("Readable body");
