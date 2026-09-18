@@ -27,12 +27,24 @@
 .wreader-model-modal-card footer,
 .wreader-model-modal-body {
   background: #fff;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* The modal is one continuous white surface. Remove inherited section dividers
+ * from the base settings styles; only form controls keep their own outlines. */
+.wreader-model-modal-card > header,
+.wreader-model-modal-card > .wreader-model-modal-body,
+.wreader-model-modal-card > footer,
+.wreader-model-modal-card > * + * {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
 }
 
 .wreader-model-modal-card header {
   min-height: 64px;
   padding: 0 24px;
-  border-bottom: 0;
+  border-bottom: 0 !important;
 }
 
 .wreader-model-modal-card header h2 {
@@ -100,7 +112,7 @@
 .wreader-model-modal-card footer {
   min-height: 72px;
   padding: 10px 24px 20px;
-  border-top: 0;
+  border-top: 0 !important;
 }
 
 .wreader-model-modal-card footer button {
