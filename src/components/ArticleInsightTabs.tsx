@@ -138,12 +138,12 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   const action = (kind: "transcript" | "insight") => {
     const status = kind === "transcript" ? cloudTask?.status || "not_started" : task?.insightStatus || "not_started";
     const error = kind === "transcript" ? cloudTask?.error : task?.insightError;
-    if (status === "processing") return <div className="py-8 text-center text-sm text-slate-500" role="status">云端正在生成逐字稿，请保持此页面打开或稍后回来查看…</div>;
+    if (status === "processing") return <div className="py-8 text-center text-sm text-slate-500" role="status">正在生成逐字稿…</div>;
     return (
       <div className="flex flex-col items-center py-10 text-center">
-        <p className="mb-4 max-w-sm text-sm text-slate-500">{kind === "transcript" ? "只在你点击后使用自己的阿里云百炼 API Key 生成逐字稿。" : "基于已完成的逐字稿生成 AI 摘要。"}</p>
+        <p className="mb-4 max-w-sm text-sm text-slate-500">{kind === "transcript" ? "使用已配置的转录服务生成逐字稿。" : "基于已完成的逐字稿生成 AI 摘要。"}</p>
         <button type="button" onClick={kind === "transcript" ? p.onStartTranscription : p.onCreateInsight} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-          {status === "failed" ? "重试" : kind === "transcript" ? "生成云端逐字稿" : "使用 AI 整理"}
+          {status === "failed" ? "重试" : kind === "transcript" ? "生成逐字稿" : "使用 AI 整理"}
         </button>
         {(p.localFetchError || error) && <p className="mt-3 text-xs text-rose-600">{p.localFetchError || error}</p>}
       </div>
@@ -201,20 +201,19 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         </>}
         {p.sourceUrl && (
           <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
-            <span>整理来源：</span>
+            <span>摘要依据：</span>
             <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
               {p.sourceLabel || p.sourceUrl}
             </a>
           </div>
         )}
-        {!p.sourceUrl && <p className="mt-4 text-xs text-slate-400">来源：BidClub</p>}
       </div>
     );
   }
 
   if (p.transcriptHtml) return <><HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" /><p className="reader-attribution">来源：BidClub</p></>;
   if (cloudTask?.segments?.length) return (
-    <div className="audio-tab-panel audio-transcript-panel"><p className="reader-attribution">来源：阿里云百炼</p>{cloudTask.segments.map((segment, index) => <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}><button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button><span>{segment.speaker && <small className="mr-2 text-slate-400">{segment.speaker}</small>}{segment.text}</span></p>)}</div>
+    <div className="audio-tab-panel audio-transcript-panel"><p className="reader-attribution">转录服务：阿里云百炼</p>{cloudTask.segments.map((segment, index) => <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}><button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button><span>{segment.speaker && <small className="mr-2 text-slate-400">{segment.speaker}</small>}{segment.text}</span></p>)}</div>
   );
   if (p.localArtifacts?.transcript?.length) return (
     <div className="audio-tab-panel audio-transcript-panel">
