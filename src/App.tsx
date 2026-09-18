@@ -1575,7 +1575,7 @@ export default function App() {
           favoritesEmpty={totalSaved === 0}
           isRefreshing={isRefreshing}
           onToggleMobileMenu={() => {
-            if (window.matchMedia("(min-width: 1040px)").matches) {
+            if (window.matchMedia("(min-width: 1280px)").matches) {
               setIsSidebarCollapsed(false);
               return;
             }

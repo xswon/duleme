@@ -287,8 +287,8 @@
 
 /* Production shell follows the reviewed range-list-detail prototype. */
 :root {
-  --wreader-sidebar: 248px;
-  --wreader-list: 342px;
+  --wreader-sidebar: 236px;
+  --wreader-list: 352px;
   --wreader-hit: 32px;
   --wreader-selected: #e7effa;
   color: #202a35;
@@ -3533,7 +3533,7 @@ body,
 
 @media (min-width: 900px) and (max-width: 1279px) {
   :root {
-    --wreader-list: 342px;
+    --wreader-list: 352px;
   }
 
   .wreader-sidebar:not(.translate-x-0) {
