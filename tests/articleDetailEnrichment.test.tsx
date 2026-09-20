@@ -79,12 +79,11 @@ describe("ArticleDetailModal enrichment timing", () => {
     expect(html).toContain("正文");
     expect(html).toContain("Original show notes");
     expect(html).toContain("正在检查整理内容");
-    expect(html).toContain("AI 摘要");
+    expect(html).not.toContain("AI 摘要");
     expect(html).toContain("逐字稿");
     expect(html).not.toContain("已整理");
     expect((html.match(/lucide-(?:file-text|sparkle|audio-lines)/g) || [])).toEqual([
       "lucide-file-text",
-      "lucide-sparkle",
       "lucide-audio-lines",
     ]);
     expect(html).not.toContain("text-violet-500");
@@ -95,7 +94,7 @@ describe("ArticleDetailModal enrichment timing", () => {
     const html = renderDetail();
 
     expect(html).toContain("正文");
-    expect(html).toContain("AI 摘要");
+    expect(html).not.toContain("AI 摘要");
     expect(html).toContain("逐字稿");
     expect(html).not.toContain("已整理");
   });
@@ -129,12 +128,14 @@ describe("ArticleDetailModal enrichment timing", () => {
       enrichment: { ...article.enrichment!, status: "available", matchedBy: "api" },
     });
 
-    expect(html).toContain("AI 摘要");
     expect(html).toContain("逐字稿");
-    expect(html).toContain("lucide-sparkle");
     if (_kind === "digest") {
+      expect(html).toContain("AI 摘要");
+      expect(html).toContain("lucide-sparkle");
       expect(html).toContain("text-violet-500");
     } else {
+      expect(html).not.toContain("AI 摘要");
+      expect(html).not.toContain("lucide-sparkle");
       expect(html).not.toContain("text-violet-500");
       expect(html).toContain("text-slate-400");
     }
