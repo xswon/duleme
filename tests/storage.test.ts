@@ -10,6 +10,7 @@ import {
   getFeedsFromDB,
   getAllArticleNotesFromDB,
   getArticleNotesFromDB,
+  getSecretFromDB,
   migrateArticleNoteIdsInDB,
   migrateFromLocalStorageIfNeeded,
   replaceArticlesForFeedsInDB,
@@ -17,6 +18,7 @@ import {
   restoreDataBackup,
   saveAppStateToDB,
   saveArticlesToDB,
+  saveSecretToDB,
   saveArticleNoteToDB,
   updateArticleInDB,
   updateArticlesInDB,
@@ -285,6 +287,27 @@ describe("article IndexedDB persistence", () => {
     expect(localStorage.getItem("inoreader_articles_v2_migrated")).toBeNull();
 
     put.mockRestore();
+  });
+
+  it("excludes AI secrets from backups and preserves them across restore", async () => {
+    await saveAppStateToDB({
+      aiConfig: {
+        enabled: true,
+        providerPreset: "custom",
+        baseURL: "https://api.example.com/v1",
+        model: "model-1",
+      },
+    });
+    await saveSecretToDB("ai", { apiKey: "super-secret-key" });
+
+    const backup = await createDataBackup();
+    expect(JSON.stringify(backup)).toContain("https://api.example.com/v1");
+    expect(JSON.stringify(backup)).not.toContain("super-secret-key");
+
+    await restoreDataBackup(JSON.stringify(backup));
+    await expect(getSecretFromDB<{ apiKey: string }>("ai")).resolves.toEqual({
+      apiKey: "super-secret-key",
+    });
   });
 
   it("exports and restores a checksummed business-data backup", async () => {
