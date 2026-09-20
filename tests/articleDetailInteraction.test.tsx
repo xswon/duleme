@@ -310,6 +310,34 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await act(async () => root.unmount());
   });
 
+  it("keeps AI summary visible for an audio item even when no service is configured", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const audioItem: Article = {
+      ...baseArticle,
+      id: "audio-unconfigured",
+      enrichment: undefined,
+      aiSummary: undefined,
+      localPodcast: undefined,
+      transcription: undefined,
+    };
+
+    await act(async () => renderDetail(root, audioItem));
+    await waitForNotesToLoad(container);
+
+    const tabs = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'));
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["正文", "AI 摘要"]);
+
+    const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
+    await act(async () => aiTab?.click());
+
+    expect(container.textContent).toContain("AI 摘要尚未生成");
+    expect(container.textContent).toContain("完成逐字稿后");
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it("opens on show notes while enrichment loads, then exposes highlights in the fixed order", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
