@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   AiServiceError,
+  getResolvedAiConfig,
   summarizeArticle,
   testAiConnection,
   type AiRequestConfig,
@@ -30,6 +31,22 @@ function sendAiError(res: any, error: unknown) {
 
 export function createAiRouter() {
   const router = Router();
+
+  router.get("/status", (_req, res) => {
+    try {
+      const config = getResolvedAiConfig();
+      return res.json({
+        configured: true,
+        baseURL: config.baseURL,
+        model: config.model,
+      });
+    } catch (error) {
+      if (error instanceof AiServiceError && (error.code === "not_configured" || error.code === "invalid_config")) {
+        return res.json({ configured: false });
+      }
+      return sendAiError(res, error);
+    }
+  });
 
   router.post("/test", async (req, res) => {
     const config = (req.body?.config || req.body) as Partial<AiRequestConfig> | undefined;
