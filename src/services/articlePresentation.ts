@@ -3,6 +3,7 @@ import type {
   ArticlePresentation,
   DetailTabPresentation,
   EnrichmentStatus,
+  RuntimeCapabilities,
 } from "../types";
 import { isVerifiedBidclubEnrichment } from "./bidclubEpisodeCache";
 
@@ -13,17 +14,19 @@ export interface ArticleEnrichmentAvailability {
   transcript?: string | null;
 }
 
+const DEFAULT_RUNTIME_CAPABILITIES: RuntimeCapabilities = {
+  aiConfigured: false,
+  transcriptionAvailable: false,
+};
+
 function hasText(value?: string | null): boolean {
   return !!value?.trim();
 }
 
-/**
- * Derives display behavior from the canonical reference plus the current detail
- * payload. Persistent availability and transient loading/error state stay separate.
- */
 export function resolveArticlePresentation(
   article: Article,
-  enrichment: ArticleEnrichmentAvailability = {}
+  enrichment: ArticleEnrichmentAvailability = {},
+  runtime: RuntimeCapabilities = DEFAULT_RUNTIME_CAPABILITIES,
 ): ArticlePresentation {
   const hasAudio = hasText(article.audioUrl);
   const hasProviderReference = article.enrichment?.provider === "bidclub";
@@ -31,6 +34,11 @@ export function resolveArticlePresentation(
   const hasProviderDigest = hasProviderReference && hasText(enrichment.digest);
   const hasProviderTranscript = hasProviderReference && hasText(enrichment.transcript);
   const hasProviderContent = hasProviderOverview || hasProviderDigest || hasProviderTranscript;
+  const hasCloudTranscript = article.transcription?.status === "completed" && Boolean(article.transcription.segments?.length);
+  const hasLocalTranscript = article.localPodcast?.transcriptionStatus === "completed";
+  const hasLocalInsight = article.localPodcast?.insightStatus === "completed";
+  const hasStoredArticleSummary = !hasAudio && hasText(article.aiSummary);
+
   const storedStatus = !hasProviderReference
     ? "none"
     : isVerifiedBidclubEnrichment(article.enrichment)
@@ -52,19 +60,14 @@ export function resolveArticlePresentation(
     isVerifiedBidclubEnrichment(article.enrichment) || hasProviderContent
   );
 
-  const hasOverview = isDigested
-    ? hasProviderOverview
-    : !hasAudio || (!hasProviderReference && hasText(enrichment.overview));
+  const hasOverview = hasStoredArticleSummary || hasProviderOverview || (hasAudio && hasProviderDigest) || hasLocalInsight;
   const hasDigest = hasProviderDigest;
-  const hasTranscript = hasProviderTranscript;
-
-  // Phase one only summarizes article bodies. Show notes are not a transcript.
-  const canGenerateOverview = !hasAudio && !isDigested;
+  const hasTranscript = hasProviderTranscript || hasCloudTranscript || hasLocalTranscript;
+  const canGenerateOverview = !hasAudio && !isDigested && runtime.aiConfigured;
 
   const capabilities = {
     hasAudio,
     hasCover: hasText(article.thumbnail),
-    // Body/show notes are the universal fallback, even if only the snippet is available.
     hasBody: true,
     hasOverview,
     hasDigest,
@@ -76,14 +79,14 @@ export function resolveArticlePresentation(
     key: "body",
     label: hasAudio ? "节目介绍" : "正文",
   };
-  const overviewTab: DetailTabPresentation = { key: "overview", label: "AI 摘要" };
-  // Articles keep the same tab structure as podcasts: the body is always first,
-  // and the overview tab appears whenever it has content or can still be generated.
-  const tabs: DetailTabPresentation[] = hasAudio
-    ? [bodyTab, overviewTab, { key: "transcript", label: "逐字稿" }]
-    : canGenerateOverview || hasOverview
-      ? [bodyTab, overviewTab]
-      : [bodyTab];
+  const tabs: DetailTabPresentation[] = [bodyTab];
+
+  if (hasOverview || canGenerateOverview) {
+    tabs.push({ key: "overview", label: "AI 摘要" });
+  }
+  if (hasAudio && (hasTranscript || runtime.transcriptionAvailable)) {
+    tabs.push({ key: "transcript", label: "逐字稿" });
+  }
 
   return {
     contentType: hasAudio ? "podcast" : "article",
