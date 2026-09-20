@@ -77,6 +77,7 @@ export function LocalAiSettingsPanel() {
   const updatePreset = (id: ProviderPreset) => {
     const next = PROVIDER_PRESETS.find((item) => item.id === id)!;
     setMessage("");
+    setApiKey("");
     setConfig((current) => ({
       ...current,
       providerPreset: id,
@@ -127,7 +128,7 @@ export function LocalAiSettingsPanel() {
     try {
       await Promise.all([
         saveAiConfig({ ...config, enabled: true, baseURL: config.baseURL.trim(), model: config.model.trim() }),
-        saveAiSecret({ apiKey: apiKey.trim() }),
+        saveAiSecret({ apiKey: apiKey.trim(), baseURL: config.baseURL.trim() }),
       ]);
       setConfig((current) => ({ ...current, enabled: true }));
       await refreshStatus();
