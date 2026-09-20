@@ -10,6 +10,7 @@ import {
   getFeedsFromDB,
   getAllArticleNotesFromDB,
   getArticleNotesFromDB,
+  getSecretFromDB,
   migrateArticleNoteIdsInDB,
   migrateFromLocalStorageIfNeeded,
   replaceArticlesForFeedsInDB,
@@ -17,6 +18,7 @@ import {
   restoreDataBackup,
   saveAppStateToDB,
   saveArticlesToDB,
+  saveSecretToDB,
   saveArticleNoteToDB,
   updateArticleInDB,
   updateArticlesInDB,
@@ -285,6 +287,96 @@ describe("article IndexedDB persistence", () => {
     expect(localStorage.getItem("inoreader_articles_v2_migrated")).toBeNull();
 
     put.mockRestore();
+  });
+
+  it("preserves AI config when unrelated app state is saved", async () => {
+    await saveAppStateToDB({
+      aiConfig: {
+        enabled: true,
+        providerPreset: "custom",
+        baseURL: "https://api.example.com/v1",
+        model: "model-1",
+      },
+    });
+    await saveAppStateToDB({ categories: ["未分类"], playlistIds: ["a"] });
+
+    const backup = await createDataBackup();
+    expect(backup.data.appState).toMatchObject({
+      categories: ["未分类"],
+      playlistIds: ["a"],
+      aiConfig: {
+        enabled: true,
+        baseURL: "https://api.example.com/v1",
+        model: "model-1",
+      },
+    });
+  });
+
+  it("excludes AI secrets from backups and preserves them across same-endpoint restore", async () => {
+    await saveAppStateToDB({
+      aiConfig: {
+        enabled: true,
+        providerPreset: "custom",
+        baseURL: "https://api.example.com/v1",
+        model: "model-1",
+      },
+    });
+    await saveSecretToDB("ai", {
+      apiKey: "super-secret-key",
+      baseURL: "https://api.example.com/v1",
+    });
+
+    const backup = await createDataBackup();
+    expect(JSON.stringify(backup)).toContain("https://api.example.com/v1");
+    expect(JSON.stringify(backup)).not.toContain("super-secret-key");
+
+    await restoreDataBackup(JSON.stringify(backup));
+    await expect(getSecretFromDB("ai")).resolves.toEqual({
+      apiKey: "super-secret-key",
+      baseURL: "https://api.example.com/v1",
+    });
+  });
+
+  it("clears a saved API key when a backup switches to a different AI endpoint", async () => {
+    await saveAppStateToDB({
+      aiConfig: {
+        enabled: true,
+        providerPreset: "custom",
+        baseURL: "https://old.example.com/v1",
+        model: "old-model",
+      },
+    });
+    await saveSecretToDB("ai", {
+      apiKey: "old-secret",
+      baseURL: "https://old.example.com/v1",
+    });
+
+    const cleanBackup = await createDataBackup();
+    const changed = {
+      ...cleanBackup,
+      data: {
+        ...cleanBackup.data,
+        appState: {
+          ...(cleanBackup.data.appState || {}),
+          aiConfig: {
+            enabled: true,
+            providerPreset: "custom",
+            baseURL: "https://new.example.com/v1",
+            model: "new-model",
+          },
+        },
+      },
+    };
+    const payload = JSON.stringify(changed.data);
+    let hash = 2166136261;
+    for (let index = 0; index < payload.length; index += 1) {
+      hash ^= payload.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    changed.checksum = (hash >>> 0).toString(16).padStart(8, "0");
+
+    await restoreDataBackup(JSON.stringify(changed));
+    await expect(getSecretFromDB("ai")).resolves.toBeNull();
   });
 
   it("exports and restores a checksummed business-data backup", async () => {
