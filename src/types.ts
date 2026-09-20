@@ -17,6 +17,7 @@ export interface AiConfig {
 
 export interface AiSecret {
   apiKey: string;
+  baseURL?: string;
 }
 
 export interface LocalPodcastProcessing {
