@@ -141,6 +141,45 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await act(async () => root.unmount());
   });
 
+  it("uses action-oriented mail icons for read state changes", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <ArticleDetailModal
+          article={baseArticle}
+          onClose={vi.fn()}
+          onToggleRead={vi.fn()}
+          onToggleStar={vi.fn()}
+        />
+      );
+    });
+    await waitForNotesToLoad(container);
+
+    const markReadButton = container.querySelector<HTMLButtonElement>('[aria-label="标记为已读"]');
+    expect(markReadButton?.querySelector(".lucide-mail-open")).not.toBeNull();
+    expect(markReadButton?.querySelector(".lucide-mail")).toBeNull();
+
+    await act(async () => {
+      root.render(
+        <ArticleDetailModal
+          article={{ ...baseArticle, read: true }}
+          onClose={vi.fn()}
+          onToggleRead={vi.fn()}
+          onToggleStar={vi.fn()}
+        />
+      );
+    });
+
+    const markUnreadButton = container.querySelector<HTMLButtonElement>('[aria-label="标记为未读"]');
+    expect(markUnreadButton?.querySelector(".lucide-mail")).not.toBeNull();
+    expect(markUnreadButton?.querySelector(".lucide-mail-open")).toBeNull();
+
+    await act(async () => root.unmount());
+  });
+
   it("honors an explicit initial notes target from the global notes page", async () => {
     const note: ArticleNote = { id: "open-note", articleId: baseArticle.id, source: "body", quote: "Open directly", createdAt: 1, updatedAt: 1 };
     await saveArticleNoteToDB(note);
