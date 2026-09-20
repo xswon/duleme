@@ -858,7 +858,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               title={article.read ? "标记为未读" : "标记为已读"}
               aria-label={article.read ? "标记为未读" : "标记为已读"}
             >
-              {article.read ? <MailOpen className="h-4 w-4 text-slate-400" /> : <Mail className="h-4 w-4 text-blue-600" />}
+              {article.read ? <Mail className="h-4 w-4 text-slate-400" /> : <MailOpen className="h-4 w-4 text-blue-600" />}
             </button>
             <button
               type="button"
