@@ -213,13 +213,20 @@ export async function restoreDataBackup(raw: string): Promise<{ feeds: Feed[]; a
   if (checksum(serialized) !== backup.checksum) throw new Error("备份校验失败，文件可能已损坏");
   const data = backup.data as DataBackupPayload;
   if (!Array.isArray(data.feeds) || !Array.isArray(data.articles) || !Array.isArray(data.notes)) throw new Error("备份内容不完整");
+  const currentAppState = await getAppStateFromDB();
+  const normalizeEndpoint = (value?: string) => (value || "").trim().replace(/\/+$/, "");
+  const currentEndpoint = normalizeEndpoint(currentAppState?.aiConfig?.baseURL);
+  const restoredEndpoint = normalizeEndpoint(data.appState?.aiConfig?.baseURL);
+  const canReuseCurrentAiSecret = Boolean(currentEndpoint && restoredEndpoint && currentEndpoint === restoredEndpoint);
+
   const db = await getDB();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS], "readwrite");
+    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS, STORE_SECRETS], "readwrite");
     tx.objectStore(STORE_FEEDS).clear();
     tx.objectStore(STORE_ARTICLES).clear();
     tx.objectStore(STORE_NOTES).clear();
     tx.objectStore(STORE_SETTINGS).clear();
+    if (!canReuseCurrentAiSecret) tx.objectStore(STORE_SECRETS).delete("ai");
     data.feeds.forEach((feed) => tx.objectStore(STORE_FEEDS).put(feed));
     data.articles.forEach((article) => tx.objectStore(STORE_ARTICLES).put(article));
     data.notes.forEach((note) => tx.objectStore(STORE_NOTES).put(note));
