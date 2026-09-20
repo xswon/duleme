@@ -1,0 +1,83 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const service = vi.hoisted(() => ({
+  summarize: vi.fn(),
+  test: vi.fn(),
+  resolve: vi.fn(),
+}));
+
+vi.mock("../server/services/aiService", async () => {
+  class AiServiceError extends Error {
+    constructor(public code: string, message: string, public status?: number) {
+      super(message);
+    }
+  }
+  return {
+    AiServiceError,
+    getResolvedAiConfig: service.resolve,
+    summarizeArticle: service.summarize,
+    testAiConnection: service.test,
+  };
+});
+
+import { createAiRouter } from "../server/routes/ai";
+
+function handler(path: string, method: "get" | "post") {
+  const router: any = createAiRouter();
+  return router.stack.find((layer: any) => layer.route?.path === path && layer.route.methods[method])
+    .route.stack[0].handle;
+}
+
+function response() {
+  const json = vi.fn();
+  const status = vi.fn().mockReturnValue({ json });
+  return { json, status };
+}
+
+describe("AI routes", () => {
+  beforeEach(() => {
+    service.summarize.mockReset();
+    service.test.mockReset();
+    service.resolve.mockReset();
+  });
+
+  it("reports environment capability without exposing the API key", async () => {
+    service.resolve.mockReturnValue({
+      baseURL: "https://api.example.com/v1",
+      apiKey: "sk-secret",
+      model: "model-1",
+    });
+    const res = response();
+    await handler("/status", "get")({}, res as any);
+
+    expect(res.json).toHaveBeenCalledWith({
+      configured: true,
+      baseURL: "https://api.example.com/v1",
+      model: "model-1",
+    });
+    expect(JSON.stringify(res.json.mock.calls)).not.toContain("sk-secret");
+  });
+
+  it("tests pending form config and returns latency", async () => {
+    service.test.mockResolvedValue(undefined);
+    const res = response();
+    await handler("/test", "post")({
+      body: { config: { baseURL: "http://127.0.0.1:11434/v1", model: "local" } },
+    }, res as any);
+
+    expect(service.test).toHaveBeenCalledWith(expect.objectContaining({ model: "local" }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, latencyMs: expect.any(Number) }));
+  });
+
+  it("passes user endpoint config to article summarization", async () => {
+    service.summarize.mockResolvedValue("Summary");
+    const res = response();
+    const config = { baseURL: "https://api.example.com/v1", apiKey: "sk-secret", model: "model-1" };
+    await handler("/summarize", "post")({
+      body: { title: "Title", content: "Body", snippet: "", config },
+    }, res as any);
+
+    expect(service.summarize).toHaveBeenCalledWith("Title", "Body", "", config);
+    expect(res.json).toHaveBeenCalledWith({ summary: "Summary" });
+  });
+});
