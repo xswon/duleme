@@ -128,7 +128,15 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     );
   }
 
-  if (p.tab === "overview" && !p.article.audioUrl && !p.overviewHtml && !p.digestHtml) {
+  if (p.tab === "overview" && !p.overviewHtml && !p.digestHtml) {
+    if (p.article.audioUrl) {
+      return (
+        <div className="flex flex-col items-center py-10 text-center">
+          <p className="text-sm text-slate-500">AI 摘要尚未生成</p>
+          <p className="mt-1 max-w-xs text-xs leading-5 text-slate-400">完成逐字稿后，可基于节目内容生成摘要。</p>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col items-center py-10 text-center">
         <p className="text-sm text-slate-500">智能长文提炼</p>
