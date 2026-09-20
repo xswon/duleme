@@ -1,11 +1,12 @@
-import { Article, ArticleNote, Feed } from "../types";
+import { AiConfig, Article, ArticleNote, Feed } from "../types";
 
 const DB_NAME = "WReaderDB";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const STORE_ARTICLES = "articles";
 const STORE_FEEDS = "feeds";
 const STORE_NOTES = "notes";
 const STORE_SETTINGS = "settings";
+const STORE_SECRETS = "secrets";
 export const NOTES_CHANGED_EVENT = "wreader:notes-changed";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -47,6 +48,9 @@ export function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_SETTINGS)) {
         db.createObjectStore(STORE_SETTINGS, { keyPath: "key" });
       }
+      if (!db.objectStoreNames.contains(STORE_SECRETS)) {
+        db.createObjectStore(STORE_SECRETS, { keyPath: "key" });
+      }
     };
 
     request.onsuccess = () => {
@@ -68,6 +72,7 @@ export interface PersistedAppState {
   feedOrderByFolder?: Record<string, string[]>;
   playlistIds?: string[];
   audioProgressMap?: Record<string, { currentTime: number; duration: number; updatedAt: number }>;
+  aiConfig?: AiConfig;
 }
 
 export async function getFeedsFromDB(): Promise<Feed[]> {
@@ -109,6 +114,37 @@ export async function saveAppStateToDB(value: PersistedAppState): Promise<void> 
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Failed to save app state"));
+  });
+}
+
+export async function getSecretFromDB<T>(key: string): Promise<T | null> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE_SECRETS, "readonly").objectStore(STORE_SECRETS).get(key);
+    request.onsuccess = () => resolve((request.result?.value as T | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function saveSecretToDB<T>(key: string, value: T): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_SECRETS, "readwrite");
+    tx.objectStore(STORE_SECRETS).put({ key, value });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Failed to save secret"));
+  });
+}
+
+export async function deleteSecretFromDB(key: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_SECRETS, "readwrite");
+    tx.objectStore(STORE_SECRETS).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Failed to delete secret"));
   });
 }
 
