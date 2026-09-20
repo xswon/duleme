@@ -103,8 +103,8 @@ describe("ArticleDetailModal", () => {
 
     expect(html).not.toContain("lucide-sparkles");
     expect(html).toContain("lucide-file-text");
-    expect(html).toContain("lucide-sparkle");
     expect(html).toContain("lucide-audio-lines");
+    expect(html).not.toContain("AI 摘要</button>");
     expect(html.indexOf("author@example.com")).toBeGreaterThan(html.indexOf("Example"));
     expect(html.indexOf("天前")).toBeGreaterThan(html.indexOf("author@example.com"));
     expect(html).not.toContain("已整理");
