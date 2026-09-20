@@ -8,6 +8,7 @@ const STORE_NOTES = "notes";
 const STORE_SETTINGS = "settings";
 const STORE_SECRETS = "secrets";
 export const NOTES_CHANGED_EVENT = "wreader:notes-changed";
+export const TRANSCRIPTION_SETTINGS_CHANGED_EVENT = "wreader:transcription-settings-changed";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -81,10 +82,10 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings 
   const db = await getDB(); return new Promise((resolve, reject) => { const request = db.transaction(STORE_SETTINGS, "readonly").objectStore(STORE_SETTINGS).get(TRANSCRIPTION_SETTINGS_KEY); request.onsuccess = () => resolve(request.result?.value || null); request.onerror = () => reject(request.error); });
 }
 export async function saveTranscriptionSettings(value: TranscriptionSettings): Promise<void> {
-  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).put({ key: TRANSCRIPTION_SETTINGS_KEY, value }); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).put({ key: TRANSCRIPTION_SETTINGS_KEY, value }); tx.oncomplete = () => { if (typeof window !== "undefined") window.dispatchEvent(new Event(TRANSCRIPTION_SETTINGS_CHANGED_EVENT)); resolve(); }; tx.onerror = () => reject(tx.error); });
 }
 export async function clearTranscriptionSettings(): Promise<void> {
-  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).delete(TRANSCRIPTION_SETTINGS_KEY); tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
+  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).delete(TRANSCRIPTION_SETTINGS_KEY); tx.oncomplete = () => { if (typeof window !== "undefined") window.dispatchEvent(new Event(TRANSCRIPTION_SETTINGS_CHANGED_EVENT)); resolve(); }; tx.onerror = () => reject(tx.error); });
 }
 
 export async function getFeedsFromDB(): Promise<Feed[]> {
