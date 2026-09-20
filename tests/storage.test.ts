@@ -289,6 +289,29 @@ describe("article IndexedDB persistence", () => {
     put.mockRestore();
   });
 
+  it("preserves AI config when unrelated app state is saved", async () => {
+    await saveAppStateToDB({
+      aiConfig: {
+        enabled: true,
+        providerPreset: "custom",
+        baseURL: "https://api.example.com/v1",
+        model: "model-1",
+      },
+    });
+    await saveAppStateToDB({ categories: ["未分类"], playlistIds: ["a"] });
+
+    const backup = await createDataBackup();
+    expect(backup.data.appState).toMatchObject({
+      categories: ["未分类"],
+      playlistIds: ["a"],
+      aiConfig: {
+        enabled: true,
+        baseURL: "https://api.example.com/v1",
+        model: "model-1",
+      },
+    });
+  });
+
   it("excludes AI secrets from backups and preserves them across restore", async () => {
     await saveAppStateToDB({
       aiConfig: {
