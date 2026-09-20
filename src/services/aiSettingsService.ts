@@ -35,6 +35,10 @@ function notifyChanged() {
   }
 }
 
+function normalizeEndpoint(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
 function isLoopbackUrl(value: string): boolean {
   try {
     const host = new URL(value).hostname.toLowerCase();
@@ -79,10 +83,14 @@ export async function clearAiSecret(): Promise<void> {
 export async function getAiRequestConfig(): Promise<AiRequestConfig | undefined> {
   const [config, secret] = await Promise.all([getAiConfig(), getAiSecret()]);
   if (!config.enabled) return undefined;
+  const baseURL = config.baseURL.trim();
+  const secretMatchesEndpoint = Boolean(
+    secret.baseURL && normalizeEndpoint(secret.baseURL) === normalizeEndpoint(baseURL),
+  );
   return {
-    baseURL: config.baseURL.trim(),
+    baseURL,
     model: config.model.trim(),
-    apiKey: secret.apiKey.trim() || undefined,
+    apiKey: secretMatchesEndpoint ? secret.apiKey.trim() || undefined : undefined,
   };
 }
 
@@ -107,8 +115,12 @@ export async function getAiCapability(): Promise<AiCapability> {
   const model = config.model.trim();
 
   if (config.enabled) {
+    const secretMatchesEndpoint = Boolean(
+      secret.baseURL && normalizeEndpoint(secret.baseURL) === normalizeEndpoint(baseURL),
+    );
+    const hasUsableKey = secretMatchesEndpoint && Boolean(secret.apiKey.trim());
     return {
-      configured: Boolean(baseURL && model && (secret.apiKey.trim() || isLoopbackUrl(baseURL))),
+      configured: Boolean(baseURL && model && (hasUsableKey || isLoopbackUrl(baseURL))),
       baseURL: baseURL || undefined,
       model: model || undefined,
     };
