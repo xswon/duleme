@@ -83,6 +83,7 @@ interface SettingsPageProps {
   onOpenAddFeed: () => void;
   onExportBackup?: () => void;
   onImportBackup?: (file: File) => void;
+  initialTab?: SettingsTab;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -107,6 +108,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onOpenAddFeed,
   onExportBackup,
   onImportBackup,
+  initialTab = "feeds",
 }) => {
   const settingsDialogRef = useRef<HTMLDivElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(
@@ -157,7 +159,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     };
   }, [onBack]);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>("feeds");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
   const [isFolderComposerOpen, setIsFolderComposerOpen] = useState(false);
   const [newFolderInput, setNewFolderInput] = useState("");
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
