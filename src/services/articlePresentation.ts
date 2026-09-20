@@ -81,12 +81,9 @@ export function resolveArticlePresentation(
   };
   const tabs: DetailTabPresentation[] = [bodyTab];
 
-  // Keep the AI summary entry discoverable for ordinary articles even when
-  // no model is configured. The overview panel itself renders a muted setup
-  // state until generation becomes available.
-  if (!hasAudio || hasOverview || canGenerateOverview) {
-    tabs.push({ key: "overview", label: "AI 摘要" });
-  }
+  // AI summary is a stable navigation entry. Availability affects the
+  // panel state, not whether the entry exists.
+  tabs.push({ key: "overview", label: "AI 摘要" });
   if (hasAudio && (hasTranscript || runtime.transcriptionAvailable)) {
     tabs.push({ key: "transcript", label: "逐字稿" });
   }

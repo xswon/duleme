@@ -55,9 +55,12 @@ describe("article presentation resolver", () => {
     expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview"]);
   });
 
-  it("hides generation-only podcast tabs when neither service is configured", () => {
+  it("keeps the AI summary entry visible for audio items when services are unconfigured", () => {
     const result = resolveArticlePresentation(article({ audioUrl: "https://cdn.example.com/e.mp3" }));
-    expect(result.tabs).toEqual([{ key: "body", label: "节目介绍" }]);
+    expect(result.tabs).toEqual([
+      { key: "body", label: "节目介绍" },
+      { key: "overview", label: "AI 摘要" },
+    ]);
   });
 
   it("shows podcast transcript generation independently from article AI", () => {
@@ -68,6 +71,7 @@ describe("article presentation resolver", () => {
     );
     expect(result.tabs).toEqual([
       { key: "body", label: "节目介绍" },
+      { key: "overview", label: "AI 摘要" },
       { key: "transcript", label: "逐字稿" },
     ]);
   });
@@ -88,7 +92,7 @@ describe("article presentation resolver", () => {
       runtime(),
     );
     expect(result.capabilities.hasTranscript).toBe(true);
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "transcript"]);
+    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
   });
 
   it("keeps completed local transcripts visible without current transcription config", () => {
@@ -106,7 +110,7 @@ describe("article presentation resolver", () => {
       runtime(),
     );
     expect(result.capabilities.hasTranscript).toBe(true);
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "transcript"]);
+    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
   });
 
   it("does not treat legacy podcast show-note aiSummary as a reliable overview", () => {
@@ -116,7 +120,7 @@ describe("article presentation resolver", () => {
       runtime({ transcriptionAvailable: true }),
     );
     expect(result.capabilities.hasOverview).toBe(false);
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "transcript"]);
+    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
   });
 
   it("shows reliable provider digest independently from user AI configuration", () => {
@@ -136,7 +140,7 @@ describe("article presentation resolver", () => {
       runtime(),
     );
     expect(result.capabilities).toMatchObject({ hasOverview: false, hasTranscript: true });
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "transcript"]);
+    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
   });
 
   it("does not surface digest-only enrichment as an article overview", () => {
