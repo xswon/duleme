@@ -63,8 +63,10 @@ async function choose(select: HTMLSelectElement, value: string) {
 
 async function typeInto(input: HTMLInputElement, value: string) {
   await act(async () => {
-    input.value = value;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
 
