@@ -22,7 +22,8 @@ function renderModel(patch: Partial<InsightModel> = {}) {
     article,
     tab: "body",
     summary: null,
-    canGenerateSummary: false,
+    overviewState: "needs_ai_config",
+    transcriptState: undefined,
     enrichmentLoading: false,
     enrichmentError: null,
     onSummarize: vi.fn(),
@@ -38,23 +39,87 @@ function parseMarkup(html: string) {
 }
 
 describe("ArticleInsightTabs", () => {
-  it("offers only an explicit cloud transcription action for an untouched podcast", () => {
-    const html = renderModel({ article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" }, tab: "transcript" });
-    expect(html).toContain("生成逐字稿");
-    expect(html).toContain("使用已配置的转录服务生成逐字稿");
-    expect(html).not.toContain("阿里云百炼 API Key");
-    expect(html).not.toContain("使用 AI 整理");
+  it("keeps an unconfigured transcript tab actionable instead of hiding it", () => {
+    const html = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      tab: "transcript",
+      transcriptState: "needs_config",
+      onConfigureTranscription: vi.fn(),
+    });
+    expect(html).toContain("还没有逐字稿");
+    expect(html).toContain("配置逐字稿");
+    expect(html).not.toContain("API Key");
   });
 
-  it("keeps cloud transcription available after an unrelated fetch error", () => {
+  it("offers explicit transcript generation when transcription is configured", () => {
     const html = renderModel({
-      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", localPodcast: { sessionId: "session-1", jobId: "job-1", sourceAudioUrl: "https://cdn.example.com/a.mp3", transcriptionStatus: "completed", insightStatus: "not_started", updatedAt: "now" } },
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
       tab: "transcript",
-      localFetchError: "Failed to fetch",
+      transcriptState: "can_generate",
+      onStartTranscription: vi.fn(),
     });
     expect(html).toContain("生成逐字稿");
-    expect(html).toContain("Failed to fetch");
-    expect(html).not.toContain("使用本机生成逐字稿");
+    expect(html).toContain("音频只会在你主动操作后开始处理");
+  });
+
+  it("keeps retry and error context in the same transcript state", () => {
+    const html = renderModel({
+      article: {
+        ...article,
+        audioUrl: "https://cdn.example.com/a.mp3",
+        transcription: {
+          provider: "aliyun",
+          sourceAudioUrl: "https://cdn.example.com/a.mp3",
+          status: "failed",
+          updatedAt: "now",
+          error: "转录请求失败",
+        },
+      },
+      tab: "transcript",
+      transcriptState: "can_generate",
+      onRetryTranscription: vi.fn(),
+    });
+    expect(html).toContain("重试生成");
+    expect(html).toContain("转录请求失败");
+  });
+
+  it("maps audio summary prerequisites to clear next actions", () => {
+    const audio = { ...article, audioUrl: "https://cdn.example.com/a.mp3" };
+
+    const needsConfig = renderModel({
+      article: audio,
+      tab: "overview",
+      overviewState: "needs_transcription_config",
+      onConfigureTranscription: vi.fn(),
+    });
+    expect(needsConfig).toContain("需要先启用逐字稿");
+    expect(needsConfig).toContain("配置逐字稿");
+
+    const needsTranscript = renderModel({
+      article: audio,
+      tab: "overview",
+      overviewState: "needs_transcript",
+      onStartTranscription: vi.fn(),
+    });
+    expect(needsTranscript).toContain("先生成逐字稿");
+    expect(needsTranscript).toContain("生成逐字稿");
+
+    const needsAi = renderModel({
+      article: audio,
+      tab: "overview",
+      overviewState: "needs_ai_config",
+      onConfigureAi: vi.fn(),
+    });
+    expect(needsAi).toContain("逐字稿已就绪");
+    expect(needsAi).toContain("配置模型");
+
+    const canGenerate = renderModel({
+      article: audio,
+      tab: "overview",
+      overviewState: "can_generate",
+    });
+    expect(canGenerate).toContain("可以生成 AI 摘要了");
+    expect(canGenerate).toContain("生成 AI 摘要");
   });
 
   it("shows local transcript timestamps only to the minute", () => {
