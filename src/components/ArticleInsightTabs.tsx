@@ -88,6 +88,8 @@ function InsightEmptyState({
   onAction,
   primary = false,
   progress,
+  error,
+  disabled = false,
 }: {
   title: string;
   description: string;
@@ -95,6 +97,8 @@ function InsightEmptyState({
   onAction?: () => void;
   primary?: boolean;
   progress?: number;
+  error?: string | null;
+  disabled?: boolean;
 }) {
   return (
     <div className="py-7">
@@ -106,13 +110,15 @@ function InsightEmptyState({
             <div className="h-full rounded-full bg-slate-400 transition-[width]" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
           </div>
         )}
+        {error && <p className="mt-3 text-xs text-rose-600" role="alert">{error}</p>}
         {actionLabel && onAction && (
           <button
             type="button"
             onClick={onAction}
+            disabled={disabled}
             className={primary
-              ? "mt-4 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700"
-              : "mt-4 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"}
+              ? "mt-4 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              : "mt-4 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"}
           >
             {actionLabel}
           </button>
@@ -151,7 +157,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     );
   }
 
-  const task = p.article.localPodcast;
   const cloudTask = p.article.transcription;
   const localDigest = p.localArtifacts?.digest;
   const hasPreparedOverview = Boolean(
@@ -180,7 +185,9 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
               ? "将基于完整逐字稿提取核心内容，而不是只根据节目介绍。"
               : "提取核心摘要、关键观点和阅读时间。"}
             actionLabel={p.summarizing ? "正在生成…" : "生成 AI 摘要"}
-            onAction={p.summarizing ? undefined : p.onSummarize}
+            onAction={p.onSummarize}
+            disabled={p.summarizing}
+            error={p.summaryError}
             primary
           />
         );
@@ -200,8 +207,9 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <InsightEmptyState
             title="先生成逐字稿"
             description="AI 摘要会基于完整节目内容生成，而不是只根据节目介绍。"
-            actionLabel="生成逐字稿"
-            onAction={p.onStartTranscription}
+            actionLabel={cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
+            onAction={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}
+            error={p.localFetchError || cloudTask?.error}
             primary
           />
         );
@@ -325,6 +333,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           description="音频只会在你主动操作后开始处理。"
           actionLabel={cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
           onAction={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}
+          error={p.localFetchError || cloudTask?.error}
           primary
         />
       );
