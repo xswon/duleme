@@ -31,10 +31,13 @@ const enrichment = (status: "candidate" | "available" = "candidate") => ({
 });
 
 describe("article presentation resolver", () => {
-  it("keeps an unconfigured article body-only", () => {
+  it("keeps the AI summary entry visible when an article has no configured model", () => {
     const result = resolveArticlePresentation(article());
     expect(result.capabilities).toMatchObject({ hasOverview: false, canGenerateOverview: false });
-    expect(result.tabs).toEqual([{ key: "body", label: "正文" }]);
+    expect(result.tabs).toEqual([
+      { key: "body", label: "正文" },
+      { key: "overview", label: "AI 摘要" },
+    ]);
   });
 
   it("adds article AI summary generation only when AI is configured", () => {
@@ -143,7 +146,10 @@ describe("article presentation resolver", () => {
       runtime({ aiConfigured: true }),
     );
     expect(result.capabilities).toMatchObject({ hasOverview: false, canGenerateOverview: false });
-    expect(result.tabs).toEqual([{ key: "body", label: "正文" }]);
+    expect(result.tabs).toEqual([
+      { key: "body", label: "正文" },
+      { key: "overview", label: "AI 摘要" },
+    ]);
   });
 
   it("does not infer podcast state from titles", () => {

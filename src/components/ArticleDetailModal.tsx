@@ -364,6 +364,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           overview: bidclubTldrHtml,
           digest: bidclubDigestHtml,
           transcript: bidclub?.transcriptHtml,
+        }, {
+          aiConfigured,
+          transcriptionAvailable,
         }))
       : null,
     [article, enrichmentStatus, bidclub, bidclubTldrHtml, bidclubDigestHtml, aiConfigured, transcriptionAvailable]
@@ -985,8 +988,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-slate-700"
-                      title={aiConfigured ? "查看 AI 摘要" : "配置模型即可开启智能提炼"}
-                      onClick={() => aiConfigured ? handleDetailTabChange("overview") : onOpenAiSettings?.()}
+                      title={aiConfigured ? "查看 AI 摘要" : "查看 AI 摘要并配置模型"}
+                      onClick={() => handleDetailTabChange("overview")}
                     >
                       <Sparkle className="h-3 w-3" aria-hidden="true" />
                       AI 速读

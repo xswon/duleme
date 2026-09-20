@@ -67,6 +67,7 @@ function renderDetail(
     initialOpenTarget?: { tab: "notes" } | { tab: "transcript"; note: ArticleNote };
     initialDetailTab?: "body" | "overview" | "transcript";
     onDetailTabChange?: (tab: "body" | "overview" | "transcript") => void;
+    onOpenAiSettings?: () => void;
   } = {},
 ) {
   root.render(
@@ -409,6 +410,41 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     expect(container.querySelector('[aria-label="更多操作"]')).toBeNull();
     expect(container.querySelector('[aria-label="复制原文链接"]')).toBeNull();
     await act(async () => root.unmount());
+  });
+
+  it("keeps the AI summary tab visible without a configured model and offers setup", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onOpenAiSettings = vi.fn();
+    const plainArticle: Article = {
+      ...baseArticle,
+      id: "plain-unconfigured",
+      audioUrl: undefined,
+      enrichment: undefined,
+      thumbnail: undefined,
+      aiSummary: undefined,
+    };
+
+    await act(async () => renderDetail(root, plainArticle, { onOpenAiSettings }));
+    await waitForNotesToLoad(container);
+
+    const tabs = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'));
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["正文", "AI 摘要"]);
+
+    const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
+    await act(async () => aiTab?.click());
+
+    expect(container.textContent).toContain("智能长文提炼");
+    const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "配置模型");
+    expect(configureButton).toBeTruthy();
+
+    await act(async () => configureButton?.click());
+    expect(onOpenAiSettings).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    container.remove();
   });
 
   it("switches a regular article between its body and AI summary tabs", async () => {
