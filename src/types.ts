@@ -85,6 +85,11 @@ export interface ArticleNote {
   updatedAt: number;
 }
 
+export interface RuntimeCapabilities {
+  aiConfigured: boolean;
+  transcriptionAvailable: boolean;
+}
+
 export interface ContentCapabilities {
   hasAudio: boolean;
   hasCover: boolean;
