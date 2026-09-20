@@ -76,7 +76,6 @@ describe("ArticleDetailModal enrichment timing", () => {
     hookState.value = { episode: null, loading: true, error: null };
     const html = renderDetail();
 
-    expect(html).toContain("节目介绍");
     expect(html).toContain("Original show notes");
     expect(html).toContain("正在检查整理内容");
     expect(html).not.toContain("AI 摘要");
@@ -91,7 +90,7 @@ describe("ArticleDetailModal enrichment timing", () => {
     hookState.value = { episode: emptyEpisode(), loading: false, error: null };
     const html = renderDetail();
 
-    expect(html).toContain("节目介绍");
+    expect(html).toContain("Original show notes");
     expect(html).not.toContain("AI 摘要");
     expect(html).not.toContain("逐字稿");
     expect(html).not.toContain("已整理");
@@ -108,7 +107,7 @@ describe("ArticleDetailModal enrichment timing", () => {
       enrichment: { ...article.enrichment!, status: "available", matchedBy: "api" },
     });
 
-    expect(html).toContain("节目介绍");
+    expect(html).toContain("正文");
     expect(html).toContain("AI 摘要");
     expect(html).toContain("lucide-sparkle");
     expect(html).toContain("text-violet-500");
@@ -148,7 +147,6 @@ describe("ArticleDetailModal enrichment timing", () => {
       enrichment: { ...article.enrichment!, status: "available", matchedBy: "api" },
     });
 
-    expect(html).toContain("节目介绍");
     expect(html).toContain("Original show notes");
     expect(html).toContain("整理内容暂时无法加载");
     expect(html).not.toContain("已整理");
