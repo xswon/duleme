@@ -300,6 +300,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         .then((capability) => {
           if (!cancelled) setAiConfigured(capability.configured);
         })
+        .catch(() => {
+          if (!cancelled) setAiConfigured(false);
+        })
         .finally(() => {
           if (!cancelled) setAiCapabilityLoaded(true);
         });
