@@ -68,6 +68,7 @@ function renderDetail(
     initialDetailTab?: "body" | "overview" | "transcript";
     onDetailTabChange?: (tab: "body" | "overview" | "transcript") => void;
     onOpenAiSettings?: () => void;
+    onOpenTranscriptionSettings?: () => void;
   } = {},
 ) {
   root.render(
@@ -310,10 +311,11 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await act(async () => root.unmount());
   });
 
-  it("keeps AI summary visible for an audio item even when no service is configured", async () => {
+  it("keeps audio insight tabs visible and routes missing transcription setup", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
+    const onOpenTranscriptionSettings = vi.fn();
     const audioItem: Article = {
       ...baseArticle,
       id: "audio-unconfigured",
@@ -323,17 +325,22 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
       transcription: undefined,
     };
 
-    await act(async () => renderDetail(root, audioItem));
+    await act(async () => renderDetail(root, audioItem, { onOpenTranscriptionSettings }));
     await waitForNotesToLoad(container);
 
     const tabs = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'));
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["正文", "AI 摘要"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["正文", "AI 摘要", "逐字稿"]);
 
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("AI 摘要尚未生成");
-    expect(container.textContent).toContain("完成逐字稿后");
+    expect(container.textContent).toContain("需要先启用逐字稿");
+    const configure = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "配置逐字稿");
+    expect(configure).toBeTruthy();
+    await act(async () => configure?.click());
+    expect(onOpenTranscriptionSettings).toHaveBeenCalledTimes(1);
+
     await act(async () => root.unmount());
     container.remove();
   });
@@ -463,7 +470,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("智能长文提炼");
+    expect(container.textContent).toContain("使用 AI 提炼这篇文章");
     const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent === "配置模型");
     expect(configureButton).toBeTruthy();
