@@ -1,3 +1,4 @@
+import { getAiErrorMessage, getAiRequestConfig } from "./aiSettingsService";
 import {
   Article,
   AudioProgress,
@@ -1037,21 +1038,24 @@ export async function fetchBidclubEpisode(episodeUrl: string): Promise<BidclubEp
   return await response.json();
 }
 
-// Summarize article via server Gemini AI
+// Summarize an article with the user's configured OpenAI-compatible endpoint.
 export async function summarizeArticleWithAI(
   title: string,
   content: string,
   snippet: string
 ): Promise<string> {
+  const config = await getAiRequestConfig();
   const response = await fetch("/api/ai/summarize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, content, snippet }),
+    body: JSON.stringify({ title, content, snippet, ...(config ? { config } : {}) }),
   });
 
   if (!response.ok) {
     const errJson = await response.json().catch(() => ({}));
-    throw new Error(errJson.error || "Failed to generate AI summary.");
+    const error = new Error(errJson.error || "Failed to generate AI summary.") as Error & { code?: string };
+    error.code = errJson.code;
+    throw new Error(getAiErrorMessage(error));
   }
 
   const data = await response.json();
