@@ -34,6 +34,28 @@ describe("OpenAI-compatible AI client", () => {
     );
   });
 
+  it("keeps environment credentials out of an explicit local endpoint", async () => {
+    const previous = process.env.AI_API_KEY;
+    process.env.AI_API_KEY = "test-env-key";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: "OK" } }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await createChatCompletion(
+        { baseURL: "http://127.0.0.1:11434/v1", model: "local-model" },
+        [{ role: "user", content: "hello" }],
+      );
+      const init = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(init.headers).not.toHaveProperty("Authorization");
+      expect(JSON.stringify(init)).not.toContain("test-env-key");
+    } finally {
+      if (previous === undefined) delete process.env.AI_API_KEY;
+      else process.env.AI_API_KEY = previous;
+    }
+  });
+
   it("allows loopback endpoints without manufacturing an API key", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: "OK" } }],
