@@ -1389,6 +1389,13 @@ export default function App() {
     setIsSettingsOpen(true);
   }, []);
 
+  const handleOpenTranscriptionSettings = useCallback(() => {
+    readerScrollTopBeforeSettings.current = mainScrollRef.current?.scrollTop || 0;
+    setSettingsInitialTab("transcript");
+    setIsMobileMenuOpen(false);
+    setIsSettingsOpen(true);
+  }, []);
+
   const handleCloseSettings = useCallback(() => {
     setIsSettingsOpen(false);
     setIsMobileMenuOpen(false);
@@ -1509,6 +1516,7 @@ export default function App() {
       isImmersive={isImmersive}
       onToggleImmersive={() => setIsImmersive((immersive) => !immersive)}
       onOpenAiSettings={handleOpenAiSettings}
+      onOpenTranscriptionSettings={handleOpenTranscriptionSettings}
     />
   ) : invalidArticleId ? (
     <div className="flex h-full items-center justify-center px-6 text-center"><div className="max-w-sm"><h2 className="text-base font-semibold text-slate-700">这篇文章暂时不可用</h2><p className="mt-2 text-sm leading-6 text-slate-500">文章可能已被删除或所属订阅源已取消。</p><button type="button" onClick={closeArticle} className="mt-4 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">返回列表</button></div></div>
