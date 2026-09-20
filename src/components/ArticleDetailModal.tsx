@@ -231,6 +231,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiCapabilityLoaded, setAiCapabilityLoaded] = useState(false);
   const [readingProgress, setReadingProgress] = useState(() => (
     Number.isFinite(savedReadingProgress) ? Math.min(1, Math.max(0, savedReadingProgress as number)) : 0
   ));
@@ -294,9 +295,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   useEffect(() => {
     let cancelled = false;
     const refreshAiCapability = () => {
-      void getAiCapability().then((capability) => {
-        if (!cancelled) setAiConfigured(capability.configured);
-      });
+      setAiCapabilityLoaded(false);
+      void getAiCapability()
+        .then((capability) => {
+          if (!cancelled) setAiConfigured(capability.configured);
+        })
+        .finally(() => {
+          if (!cancelled) setAiCapabilityLoaded(true);
+        });
     };
     refreshAiCapability();
     window.addEventListener(AI_SETTINGS_CHANGED_EVENT, refreshAiCapability);
@@ -388,12 +394,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (!presentation) return;
     setDetailTab((current) => {
       if (current === "notes" && (!notesLoaded || notes.length > 0)) return current;
+      // Keep an explicit article overview route stable until the async AI capability check resolves.
+      if (!aiCapabilityLoaded && current === "overview" && !article?.audioUrl) return current;
       if (!userInteractedRef.current && presentation.processingState === "digested") {
         return presentation.defaultTab;
       }
       return resolveDetailTab(current as DetailTab, presentation, false);
     });
-  }, [presentation, notes.length, notesLoaded]);
+  }, [presentation, notes.length, notesLoaded, aiCapabilityLoaded, article?.audioUrl]);
 
   useEffect(() => {
     if (!article || initialOpenTarget?.tab !== "transcript") return;
