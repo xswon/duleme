@@ -8,6 +8,23 @@ export type ProcessingState = "raw" | "digested";
 
 export type LocalTaskStatus = "not_started" | "processing" | "completed" | "failed";
 
+export interface AiConfig {
+  enabled: boolean;
+  providerPreset?: string;
+  baseURL: string;
+  model: string;
+}
+
+export interface AiSecret {
+  apiKey: string;
+  baseURL?: string;
+}
+
+export interface RuntimeCapabilities {
+  aiConfigured: boolean;
+  transcriptionAvailable: boolean;
+}
+
 export interface LocalPodcastProcessing {
   sessionId?: string;
   jobId?: string;
