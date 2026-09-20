@@ -110,7 +110,13 @@ export async function saveAppStateToDB(value: PersistedAppState): Promise<void> 
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_SETTINGS, "readwrite");
-    tx.objectStore(STORE_SETTINGS).put({ key: "app", value });
+    const store = tx.objectStore(STORE_SETTINGS);
+    const request = store.get("app");
+    request.onsuccess = () => {
+      const existing = (request.result?.value || {}) as PersistedAppState;
+      store.put({ key: "app", value: { ...existing, ...value } });
+    };
+    request.onerror = () => tx.abort();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Failed to save app state"));
