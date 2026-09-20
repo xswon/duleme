@@ -182,7 +182,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <InsightEmptyState
             title={p.article.audioUrl ? "可以生成 AI 摘要了" : "生成 AI 摘要"}
             description={p.article.audioUrl
-              ? "将基于完整逐字稿提取核心内容，而不是只根据节目介绍。"
+              ? "将基于逐字稿内容提取核心信息，而不是只根据节目介绍。"
               : "提取核心摘要、关键观点和阅读时间。"}
             actionLabel={p.summarizing ? "正在生成…" : "生成 AI 摘要"}
             onAction={p.onSummarize}
@@ -196,7 +196,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <InsightEmptyState
             title={p.article.audioUrl ? "逐字稿已就绪" : "使用 AI 提炼这篇文章"}
             description={p.article.audioUrl
-              ? "配置内容整理模型后，即可基于完整逐字稿生成摘要。"
+              ? "配置内容整理模型后，即可基于逐字稿内容生成摘要。"
               : "配置内容整理模型后，可以生成核心摘要和关键观点。"}
             actionLabel="配置模型"
             onAction={p.onConfigureAi}
@@ -206,7 +206,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         return (
           <InsightEmptyState
             title="先生成逐字稿"
-            description="AI 摘要会基于完整节目内容生成，而不是只根据节目介绍。"
+            description="AI 摘要会基于逐字稿内容生成，而不是只根据节目介绍。"
             actionLabel={cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
             onAction={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}
             error={p.localFetchError || cloudTask?.error}
@@ -217,7 +217,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         return (
           <InsightEmptyState
             title="正在生成逐字稿…"
-            description="完成后即可基于完整节目内容生成 AI 摘要。"
+            description="完成后即可基于逐字稿内容生成 AI 摘要。"
             progress={p.localProgress}
           />
         );
