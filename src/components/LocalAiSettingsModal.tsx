@@ -21,13 +21,23 @@ const TRANSCRIPTION_PROVIDERS = {
 } as const;
 type TranscriptionProviderId = keyof typeof TRANSCRIPTION_PROVIDERS;
 
-const INSIGHT_PROVIDERS = {
-  gemini: {
-    name: "Google Gemini",
-    apiKeyUrl: "https://aistudio.google.com/apikey",
-    models: [{ id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", description: "文章总结与内容整理" }],
-  },
-} as const;
+const INSIGHT_PROVIDERS: Record<InsightProviderId, { name: string; baseURL: string; suggestedModel: string }> = {
+  openai: { name: "OpenAI", baseURL: "https://api.openai.com/v1", suggestedModel: "" },
+  deepseek: { name: "DeepSeek", baseURL: "https://api.deepseek.com", suggestedModel: "" },
+  qwen: { name: "通义千问", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", suggestedModel: "" },
+  kimi: { name: "Kimi", baseURL: "https://api.moonshot.cn/v1", suggestedModel: "" },
+  ollama: { name: "Ollama", baseURL: "http://127.0.0.1:11434/v1", suggestedModel: "" },
+  custom: { name: "自定义", baseURL: "", suggestedModel: "" },
+};
+
+function isLoopbackUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
 
 type Feedback = { tone: "success" | "error" | "warning" | "info"; text: string };
 
@@ -103,6 +113,8 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   const [insightModalOpen, setInsightModalOpen] = useState(false);
   const [draftInsightProvider, setDraftInsightProvider] = useState<"" | InsightProviderId>("");
   const [draftInsightKey, setDraftInsightKey] = useState("");
+  const [draftInsightBaseURL, setDraftInsightBaseURL] = useState("");
+  const [draftInsightModel, setDraftInsightModel] = useState("");
   const [showInsightKey, setShowInsightKey] = useState(false);
   const [insightFeedback, setInsightFeedback] = useState<Feedback | null>(null);
   const [insightTesting, setInsightTesting] = useState(false);
@@ -214,7 +226,9 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   };
 
   const openInsightModal = () => {
-    setDraftInsightProvider(insight?.hasApiKey ? insight.providerId : "");
+    setDraftInsightProvider(insight?.source === "browser" ? insight.providerId : insight?.configured ? "custom" : "");
+    setDraftInsightBaseURL(insight?.baseURL || "");
+    setDraftInsightModel(insight?.model || "");
     setDraftInsightKey("");
     setShowInsightKey(false);
     setInsightFeedback(null);
@@ -225,56 +239,72 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     setDraftInsightProvider(value);
     setDraftInsightKey("");
     setInsightFeedback(null);
+    if (!value) {
+      setDraftInsightBaseURL("");
+      setDraftInsightModel("");
+      return;
+    }
+    const preset = INSIGHT_PROVIDERS[value];
+    if (value !== "custom") setDraftInsightBaseURL(preset.baseURL);
+    setDraftInsightModel(preset.suggestedModel);
+  };
+
+  const hasExistingInsightKey = Boolean(
+    insight?.source === "browser" &&
+    insight.hasApiKey &&
+    insight.baseURL.trim().replace(/\/+$/, "") === draftInsightBaseURL.trim().replace(/\/+$/, ""),
+  );
+
+  const validateInsight = () => {
+    if (!draftInsightProvider) return "请先选择服务商。";
+    if (!draftInsightBaseURL.trim()) return "请填写 Base URL。";
+    try {
+      const url = new URL(draftInsightBaseURL.trim());
+      if (url.protocol !== "http:" && url.protocol !== "https:") return "Base URL 仅支持 HTTP / HTTPS。";
+    } catch {
+      return "Base URL 格式不正确。";
+    }
+    if (!draftInsightModel.trim()) return "请填写模型名称。";
+    if (!isLoopbackUrl(draftInsightBaseURL) && !draftInsightKey.trim() && !hasExistingInsightKey) return "请填写 API Key。";
+    return "";
   };
 
   const testInsight = async () => {
-    if (!draftInsightProvider) {
-      setInsightFeedback({ tone: "warning", text: "请先选择服务商。" });
+    const invalid = validateInsight();
+    if (invalid) {
+      setInsightFeedback({ tone: "warning", text: invalid });
       return;
     }
-    const hasExistingKey = Boolean(insight?.hasApiKey && insight.providerId === draftInsightProvider);
-    if (!draftInsightKey.trim() && !hasExistingKey) {
-      setInsightFeedback({ tone: "warning", text: "请先填写 API Key。" });
-      return;
-    }
-    const provider = INSIGHT_PROVIDERS[draftInsightProvider];
     setInsightTesting(true);
     setInsightFeedback({ tone: "info", text: "正在测试连接…" });
     try {
-      await testInsightSettings({
-        provider: draftInsightProvider,
+      const latencyMs = await testInsightSettings({
+        provider: draftInsightProvider as InsightProviderId,
+        baseURL: draftInsightBaseURL.trim(),
         apiKey: draftInsightKey.trim() || undefined,
-        model: provider.models[0].id,
+        model: draftInsightModel.trim(),
       });
-      setInsightFeedback({ tone: "success", text: "连接成功" });
+      setInsightFeedback({ tone: "success", text: `连接成功 · ${latencyMs} ms` });
     } catch (error: any) {
-      setInsightFeedback({ tone: "error", text: error.message || "连接失败，请检查 API Key。" });
+      setInsightFeedback({ tone: "error", text: error.message || "连接失败，请检查模型配置。" });
     } finally {
       setInsightTesting(false);
     }
   };
 
   const saveInsight = async () => {
-    if (!draftInsightProvider) {
-      setInsightFeedback({ tone: "warning", text: "请先选择服务商。" });
-      return;
-    }
-    const provider = INSIGHT_PROVIDERS[draftInsightProvider];
-    const nextKey = draftInsightKey.trim();
-    if (!nextKey) {
-      if (insight?.hasApiKey && insight.providerId === draftInsightProvider) {
-        setInsightModalOpen(false);
-        return;
-      }
-      setInsightFeedback({ tone: "warning", text: "请先填写 API Key。" });
+    const invalid = validateInsight();
+    if (invalid) {
+      setInsightFeedback({ tone: "warning", text: invalid });
       return;
     }
     setInsightSaving(true);
     try {
       const status = await saveInsightSettings({
-        provider: draftInsightProvider,
-        apiKey: nextKey,
-        model: provider.models[0].id,
+        provider: draftInsightProvider as InsightProviderId,
+        baseURL: draftInsightBaseURL.trim(),
+        apiKey: draftInsightKey.trim() || undefined,
+        model: draftInsightModel.trim(),
       });
       setInsight(status);
       setInsightModalOpen(false);
@@ -291,9 +321,11 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       const status = await clearInsightSettings();
       setInsight(status);
       setDraftInsightKey("");
-      setDraftInsightProvider(status.hasApiKey ? status.providerId : "");
+      setDraftInsightProvider(status.configured ? "custom" : "");
+      setDraftInsightBaseURL(status.baseURL || "");
+      setDraftInsightModel(status.model || "");
       setInsightFeedback(status.source === "server"
-        ? { tone: "info", text: "已清除浏览器配置，当前使用服务端默认配置。" }
+        ? { tone: "info", text: "已清除浏览器配置，当前使用环境变量配置。" }
         : { tone: "info", text: "已清除当前浏览器中的内容整理配置。" });
     } catch (error: any) {
       setInsightFeedback({ tone: "error", text: error.message || "无法清除内容整理模型配置。" });
@@ -303,17 +335,14 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   };
 
   if (view === "insight") {
-    const insightProvider = INSIGHT_PROVIDERS.gemini;
-    const insightModel = insightProvider.models.find((item) => item.id === insight?.model) || insightProvider.models[0];
     const draftProvider = draftInsightProvider ? INSIGHT_PROVIDERS[draftInsightProvider] : null;
-    const hasExistingDraftKey = Boolean(insight?.hasApiKey && insight.providerId === draftInsightProvider);
     return (
       <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
         <section className="wreader-model-settings-page">
           <h3>内容整理模型</h3>
           <ModelSummaryCard
-            title={insight?.hasApiKey ? insightModel.name : "尚未配置"}
-            provider={insight?.hasApiKey ? insight.provider : undefined}
+            title={insight?.configured ? insight.model || "已配置" : "尚未配置"}
+            provider={insight?.configured ? insight.provider : undefined}
             onClick={openInsightModal}
           />
           {insightModalOpen && (
@@ -334,6 +363,18 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               </div>
 
               <div className="wreader-model-field">
+                <label htmlFor="insight-base-url">Base URL</label>
+                <input
+                  id="insight-base-url"
+                  value={draftInsightBaseURL}
+                  disabled={!draftProvider}
+                  spellCheck={false}
+                  placeholder={draftProvider ? "输入 OpenAI-compatible API 地址" : "请先选择服务商"}
+                  onChange={(event) => { setDraftInsightBaseURL(event.target.value); setInsightFeedback(null); }}
+                />
+              </div>
+
+              <div className="wreader-model-field">
                 <label htmlFor="insight-api-key">API Key</label>
                 <div className="wreader-ai-key-field">
                   <KeyRound aria-hidden="true" />
@@ -346,25 +387,36 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                     onChange={(event) => { setDraftInsightKey(event.target.value); setInsightFeedback(null); }}
                     placeholder={!draftProvider
                       ? "请先选择服务商"
-                      : insight?.source === "browser" && hasExistingDraftKey
-                        ? "已保存，如需更换请输入新的 API Key"
-                        : insight?.source === "server" && hasExistingDraftKey
-                          ? "输入 API Key，留空继续使用服务端默认配置"
-                          : `输入${draftProvider.name} API Key`}
+                      : isLoopbackUrl(draftInsightBaseURL)
+                        ? "本机服务可留空"
+                        : hasExistingInsightKey
+                          ? "已保存，如需更换请输入新的 API Key"
+                          : "输入 API Key"}
                   />
                   <button type="button" onClick={() => setShowInsightKey(!showInsightKey)} aria-label={showInsightKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
                     {showInsightKey ? <EyeOff /> : <Eye />}
                   </button>
                 </div>
+              </div>
+
+              <div className="wreader-model-field">
+                <label htmlFor="insight-model">Model</label>
+                <input
+                  id="insight-model"
+                  value={draftInsightModel}
+                  disabled={!draftProvider}
+                  spellCheck={false}
+                  placeholder="输入服务商提供的模型名称"
+                  onChange={(event) => { setDraftInsightModel(event.target.value); setInsightFeedback(null); }}
+                />
                 <div className="wreader-model-key-actions">
-                  {draftProvider ? <a href={draftProvider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a> : <span />}
+                  <span />
                   <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
                     {insightTesting ? "正在测试…" : "测试连接"}
                   </button>
                 </div>
-                {draftProvider && insight?.source === "server" && hasExistingDraftKey && <p>当前使用服务端默认配置；输入并保存后将优先使用此浏览器配置。</p>}
-                {draftProvider && insight?.source === "browser" && hasExistingDraftKey && <p>当前浏览器已保存 API Key；如需更换，请输入新的 Key 后保存。</p>}
-                {draftProvider && insight?.source === "browser" && hasExistingDraftKey && (
+                {insight?.source === "server" && <p>当前使用环境变量配置；保存后将优先使用此浏览器配置。</p>}
+                {insight?.source === "browser" && (
                   <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
                 )}
               </div>
