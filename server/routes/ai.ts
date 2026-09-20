@@ -1,12 +1,77 @@
 import { Router } from "express";
-import { summarizeArticle } from "../services/aiService";
+import {
+  AiServiceError,
+  getResolvedAiConfig,
+  summarizeArticle,
+  testAiConnection,
+  type AiRequestConfig,
+} from "../services/aiService";
+
+function statusForAiError(error: AiServiceError): number {
+  if (error.status && error.status >= 400 && error.status < 600) return error.status;
+  if (error.code === "not_configured" || error.code === "invalid_config") return 400;
+  if (error.code === "timeout") return 504;
+  if (error.code === "connection_refused") return 502;
+  return 502;
+}
+
+function sendAiError(res: any, error: unknown) {
+  if (error instanceof AiServiceError) {
+    return res.status(statusForAiError(error)).json({
+      error: error.message,
+      code: error.code,
+      ...(error.status ? { upstreamStatus: error.status } : {}),
+    });
+  }
+  return res.status(500).json({
+    error: "AI request failed.",
+    code: "upstream_error",
+  });
+}
+
 export function createAiRouter() {
   const router = Router();
-  router.post("/summarize", async (req, res) => {
-    const { title, content, snippet } = req.body || {};
-    if (!title && !content) return res.status(400).json({ error: "Missing article title or content" });
-    try { return res.json({ summary: await summarizeArticle(title, content, snippet) }); }
-    catch (error: any) { return res.status(500).json({ error: `AI Generation failed: ${error.message || "Unknown error"}` }); }
+
+  router.get("/status", (_req, res) => {
+    try {
+      const config = getResolvedAiConfig();
+      return res.json({
+        configured: true,
+        baseURL: config.baseURL,
+        model: config.model,
+      });
+    } catch (error) {
+      if (error instanceof AiServiceError && (error.code === "not_configured" || error.code === "invalid_config")) {
+        return res.json({ configured: false });
+      }
+      return sendAiError(res, error);
+    }
   });
+
+  router.post("/test", async (req, res) => {
+    const config = (req.body?.config || req.body) as Partial<AiRequestConfig> | undefined;
+    const startedAt = Date.now();
+    try {
+      await testAiConnection(config);
+      return res.json({ ok: true, latencyMs: Date.now() - startedAt });
+    } catch (error) {
+      return sendAiError(res, error);
+    }
+  });
+
+  router.post("/summarize", async (req, res) => {
+    const { title, content, snippet, config } = req.body || {};
+    if (!title && !content && !snippet) {
+      return res.status(400).json({ error: "Missing article title or content", code: "invalid_request" });
+    }
+    try {
+      return res.json({
+        summary: await summarizeArticle(title, content, snippet, config),
+      });
+    } catch (error) {
+      return sendAiError(res, error);
+    }
+  });
+
   return router;
 }

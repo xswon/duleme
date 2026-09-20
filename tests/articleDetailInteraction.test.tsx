@@ -355,7 +355,8 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
 
     expect(container.textContent).toContain("Original show notes");
     expect(container.textContent).not.toContain("Verified overview");
-    expect(container.textContent).toContain("AI 摘要");
+    expect(container.textContent).not.toContain("AI 摘要");
+    expect(container.textContent).toContain("逐字稿");
     await act(async () => root.unmount());
   });
 

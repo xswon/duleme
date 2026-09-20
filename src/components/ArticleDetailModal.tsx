@@ -18,6 +18,7 @@ import {
 import { Article, ArticleNote, DetailTab } from "../types";
 import { resolveImageUrl } from "./ArticleList";
 import { summarizeArticleWithAI } from "../services/rssService";
+import { AI_SETTINGS_CHANGED_EVENT, getAiCapability } from "../services/aiSettingsService";
 import { useBidclubEpisode } from "../hooks/useBidclubEpisode";
 import type { SharedAudioPlayer } from "../hooks/useAudioPlayer";
 import { useLocalPodcast } from "../hooks/useLocalPodcast";
@@ -197,6 +198,7 @@ interface ArticleDetailModalProps {
   onDetailTabChange?: (tab: DetailViewTab) => void;
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
+  onOpenAiSettings?: () => void;
 }
 
 export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
@@ -223,10 +225,13 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   onDetailTabChange,
   isImmersive = false,
   onToggleImmersive,
+  onOpenAiSettings,
 }) => {
   const [aiSummary, setAiSummary] = useState<string | null>(() => article?.aiSummary || null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiCapabilityLoaded, setAiCapabilityLoaded] = useState(false);
   const [readingProgress, setReadingProgress] = useState(() => (
     Number.isFinite(savedReadingProgress) ? Math.min(1, Math.max(0, savedReadingProgress as number)) : 0
   ));
@@ -288,6 +293,29 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const localPodcast = useLocalPodcast(article, onArticlePatch);
 
   useEffect(() => {
+    let cancelled = false;
+    const refreshAiCapability = () => {
+      setAiCapabilityLoaded(false);
+      void getAiCapability()
+        .then((capability) => {
+          if (!cancelled) setAiConfigured(capability.configured);
+        })
+        .catch(() => {
+          if (!cancelled) setAiConfigured(false);
+        })
+        .finally(() => {
+          if (!cancelled) setAiCapabilityLoaded(true);
+        });
+    };
+    refreshAiCapability();
+    window.addEventListener(AI_SETTINGS_CHANGED_EVENT, refreshAiCapability);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(AI_SETTINGS_CHANGED_EVENT, refreshAiCapability);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!article?.audioUrl || !autoPlay || autoPlayStartedRef.current === article.id) return;
     autoPlayStartedRef.current = article.id;
     const timer = window.setTimeout(() => {
@@ -317,7 +345,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           transcript: bidclub?.transcriptHtml,
         }))
       : null,
-    [article, enrichmentStatus, bidclub, bidclubTldrHtml, bidclubDigestHtml]
+    [article, enrichmentStatus, bidclub, bidclubTldrHtml, bidclubDigestHtml, aiConfigured]
   );
 
   const isInPlaylist = article ? playlistIds.includes(article.id) : false;
@@ -369,12 +397,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (!presentation) return;
     setDetailTab((current) => {
       if (current === "notes" && (!notesLoaded || notes.length > 0)) return current;
+      // Keep an explicit article overview route stable until the async AI capability check resolves.
+      if (!aiCapabilityLoaded && current === "overview" && !article?.audioUrl) return current;
       if (!userInteractedRef.current && presentation.processingState === "digested") {
         return presentation.defaultTab;
       }
       return resolveDetailTab(current as DetailTab, presentation, false);
     });
-  }, [presentation, notes.length, notesLoaded]);
+  }, [presentation, notes.length, notesLoaded, aiCapabilityLoaded, article?.audioUrl]);
 
   useEffect(() => {
     if (!article || initialOpenTarget?.tab !== "transcript") return;
@@ -927,6 +957,20 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                 )}
                 <span>·</span>
                 <span>{timeAgo}</span>
+                {!hasAudio && (
+                  <>
+                    <span>·</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-slate-700"
+                      title={aiConfigured ? "查看 AI 摘要" : "配置模型即可开启智能提炼"}
+                      onClick={() => aiConfigured ? handleDetailTabChange("overview") : onOpenAiSettings?.()}
+                    >
+                      <Sparkle className="h-3 w-3" aria-hidden="true" />
+                      AI 速读
+                    </button>
+                  </>
+                )}
             </div>
 
             {/* Audio Card (仅真实播客音频) */}
@@ -1028,7 +1072,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, canGenerateSummary: !!presentation?.capabilities.canGenerateOverview, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localPodcast.fetchError, localRestoring: localPodcast.restoring, onStartTranscription: localPodcast.startTranscription, onRetryTranscription: localPodcast.retryTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, canGenerateSummary: !!presentation?.capabilities.canGenerateOverview, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onConfigureAi: onOpenAiSettings, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localPodcast.fetchError, localRestoring: localPodcast.restoring, onStartTranscription: localPodcast.startTranscription, onRetryTranscription: localPodcast.retryTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}

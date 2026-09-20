@@ -18,6 +18,7 @@ export interface InsightModel {
   sourceUrl?: string;
   sourceLabel?: string;
   onSummarize: () => void;
+  onConfigureAi?: () => void;
   summarizing: boolean;
   summaryError: string | null;
   localArtifacts?: LocalPodcastArtifacts | null;
@@ -101,16 +102,17 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     );
   }
 
+  if (p.tab === "overview" && p.summary) {
+    return (
+      <div className="audio-insight-layout wreader-ai-summary-layout">
+        <section className="audio-highlight-body">
+          <div className="reader-content bidclub-overview whitespace-pre-wrap">{p.summary}</div>
+        </section>
+      </div>
+    );
+  }
+
   if (p.tab === "overview" && p.canGenerateSummary) {
-    if (p.summary) {
-      return (
-        <div className="audio-insight-layout wreader-ai-summary-layout">
-          <section className="audio-highlight-body">
-            <div className="reader-content bidclub-overview whitespace-pre-wrap">{p.summary}</div>
-          </section>
-        </div>
-      );
-    }
     return (
       <div className="flex flex-col items-center py-10 text-center">
         <p className="text-sm text-slate-500 mb-4 max-w-xs">基于文章标题与正文生成核心观点概要</p>
@@ -122,6 +124,20 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           {p.summarizing ? "正在生成…" : "生成文章概要"}
         </button>
         {p.summaryError && <p className="text-xs text-rose-600 mt-3">{p.summaryError}</p>}
+      </div>
+    );
+  }
+
+  if (p.tab === "overview" && !p.article.audioUrl && !p.overviewHtml && !p.digestHtml) {
+    return (
+      <div className="flex flex-col items-center py-10 text-center">
+        <p className="text-sm text-slate-500">智能长文提炼</p>
+        <p className="mt-1 max-w-xs text-xs leading-5 text-slate-400">提取核心摘要、关键观点和阅读时间。</p>
+        {p.onConfigureAi && (
+          <button type="button" onClick={p.onConfigureAi} className="mt-4 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+            配置模型
+          </button>
+        )}
       </div>
     );
   }
