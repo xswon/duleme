@@ -1,11 +1,12 @@
-import { Article, ArticleNote, Feed } from "../types";
+import { AiConfig, Article, ArticleNote, Feed } from "../types";
 
 const DB_NAME = "WReaderDB";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const STORE_ARTICLES = "articles";
 const STORE_FEEDS = "feeds";
 const STORE_NOTES = "notes";
 const STORE_SETTINGS = "settings";
+const STORE_SECRETS = "secrets";
 export const NOTES_CHANGED_EVENT = "wreader:notes-changed";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -47,6 +48,9 @@ export function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_SETTINGS)) {
         db.createObjectStore(STORE_SETTINGS, { keyPath: "key" });
       }
+      if (!db.objectStoreNames.contains(STORE_SECRETS)) {
+        db.createObjectStore(STORE_SECRETS, { keyPath: "key" });
+      }
     };
 
     request.onsuccess = () => {
@@ -68,6 +72,7 @@ export interface PersistedAppState {
   feedOrderByFolder?: Record<string, string[]>;
   playlistIds?: string[];
   audioProgressMap?: Record<string, { currentTime: number; duration: number; updatedAt: number }>;
+  aiConfig?: AiConfig;
 }
 
 export interface TranscriptionSettings { provider: "aliyun"; apiKey: string; language: string; diarization: boolean; contextEnhancement: boolean; }
@@ -117,10 +122,47 @@ export async function saveAppStateToDB(value: PersistedAppState): Promise<void> 
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_SETTINGS, "readwrite");
-    tx.objectStore(STORE_SETTINGS).put({ key: "app", value });
+    const store = tx.objectStore(STORE_SETTINGS);
+    const request = store.get("app");
+    request.onsuccess = () => {
+      const existing = (request.result?.value || {}) as PersistedAppState;
+      store.put({ key: "app", value: { ...existing, ...value } });
+    };
+    request.onerror = () => tx.abort();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("Failed to save app state"));
+  });
+}
+
+export async function getSecretFromDB<T>(key: string): Promise<T | null> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE_SECRETS, "readonly").objectStore(STORE_SECRETS).get(key);
+    request.onsuccess = () => resolve((request.result?.value as T | undefined) ?? null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function saveSecretToDB<T>(key: string, value: T): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_SECRETS, "readwrite");
+    tx.objectStore(STORE_SECRETS).put({ key, value });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Failed to save secret"));
+  });
+}
+
+export async function deleteSecretFromDB(key: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_SECRETS, "readwrite");
+    tx.objectStore(STORE_SECRETS).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Failed to delete secret"));
   });
 }
 
@@ -189,13 +231,19 @@ export async function restoreDataBackup(raw: string): Promise<{ feeds: Feed[]; a
   if (checksum(serialized) !== backup.checksum) throw new Error("备份校验失败，文件可能已损坏");
   const data = backup.data as DataBackupPayload;
   if (!Array.isArray(data.feeds) || !Array.isArray(data.articles) || !Array.isArray(data.notes)) throw new Error("备份内容不完整");
+  const currentAppState = await getAppStateFromDB();
+  const normalizeEndpoint = (value?: string) => (value || "").trim().replace(/\/+$/, "");
+  const currentEndpoint = normalizeEndpoint(currentAppState?.aiConfig?.baseURL);
+  const restoredEndpoint = normalizeEndpoint(data.appState?.aiConfig?.baseURL);
+  const canReuseCurrentAiSecret = Boolean(currentEndpoint && restoredEndpoint && currentEndpoint === restoredEndpoint);
   const db = await getDB();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS], "readwrite");
+    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS, STORE_SECRETS], "readwrite");
     tx.objectStore(STORE_FEEDS).clear();
     tx.objectStore(STORE_ARTICLES).clear();
     tx.objectStore(STORE_NOTES).clear();
     tx.objectStore(STORE_SETTINGS).clear();
+    if (!canReuseCurrentAiSecret) tx.objectStore(STORE_SECRETS).delete("ai");
     data.feeds.forEach((feed) => tx.objectStore(STORE_FEEDS).put(feed));
     data.articles.forEach((article) => tx.objectStore(STORE_ARTICLES).put(article));
     data.notes.forEach((note) => tx.objectStore(STORE_NOTES).put(note));
