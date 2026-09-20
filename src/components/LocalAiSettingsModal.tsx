@@ -19,11 +19,11 @@ const PROVIDER_PRESETS: Array<{
   baseURL: string;
   suggestedModel: string;
 }> = [
-  { id: "openai", name: "OpenAI", baseURL: "https://api.openai.com/v1", suggestedModel: "gpt-4o-mini" },
-  { id: "deepseek", name: "DeepSeek", baseURL: "https://api.deepseek.com/v1", suggestedModel: "deepseek-chat" },
+  { id: "openai", name: "OpenAI", baseURL: "https://api.openai.com/v1", suggestedModel: "gpt-5.2" },
+  { id: "deepseek", name: "DeepSeek", baseURL: "https://api.deepseek.com", suggestedModel: "deepseek-flash" },
   { id: "qwen", name: "通义千问", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", suggestedModel: "qwen-plus" },
-  { id: "kimi", name: "Kimi", baseURL: "https://api.moonshot.cn/v1", suggestedModel: "moonshot-v1-8k" },
-  { id: "ollama", name: "Ollama", baseURL: "http://127.0.0.1:11434/v1", suggestedModel: "qwen2.5:7b" },
+  { id: "kimi", name: "Kimi", baseURL: "https://api.moonshot.cn/v1", suggestedModel: "" },
+  { id: "ollama", name: "Ollama", baseURL: "http://127.0.0.1:11434/v1", suggestedModel: "" },
   { id: "custom", name: "自定义", baseURL: "", suggestedModel: "" },
 ];
 
@@ -80,8 +80,8 @@ export function LocalAiSettingsPanel() {
     setConfig((current) => ({
       ...current,
       providerPreset: id,
-      baseURL: next.baseURL || current.baseURL,
-      model: next.suggestedModel || current.model,
+      baseURL: id === "custom" ? current.baseURL : next.baseURL,
+      model: id === "custom" ? current.model : next.suggestedModel,
     }));
   };
 
