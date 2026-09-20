@@ -6,6 +6,10 @@ on:
   push:
     branches: [main, integration/latest-ui-ai]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
