@@ -41,7 +41,7 @@ export function resolveArticlePresentation(
   const hasProviderContent = hasProviderOverview || hasProviderDigest || hasProviderTranscript;
   const hasLocalTranscript = article.localPodcast?.transcriptionStatus === "completed";
   const hasLocalInsight = article.localPodcast?.insightStatus === "completed";
-  const hasStoredArticleSummary = hasText(article.aiSummary);
+  const hasStoredArticleSummary = !hasAudio && hasText(article.aiSummary);
 
   const storedStatus = !hasProviderReference
     ? "none"
@@ -64,7 +64,7 @@ export function resolveArticlePresentation(
     isVerifiedBidclubEnrichment(article.enrichment) || hasProviderContent
   );
 
-  const hasOverview = hasStoredArticleSummary || hasProviderOverview || hasProviderDigest || hasLocalInsight;
+  const hasOverview = hasStoredArticleSummary || hasProviderOverview || (hasAudio && hasProviderDigest) || hasLocalInsight;
   const hasDigest = hasProviderDigest;
   const hasTranscript = hasProviderTranscript || hasLocalTranscript;
 
