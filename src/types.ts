@@ -20,6 +20,11 @@ export interface AiSecret {
   baseURL?: string;
 }
 
+export interface RuntimeCapabilities {
+  aiConfigured: boolean;
+  transcriptionAvailable: boolean;
+}
+
 export interface LocalPodcastProcessing {
   sessionId?: string;
   jobId?: string;
@@ -36,6 +41,17 @@ export interface TranscriptSegment {
   endMs?: number;
   text: string;
   timestamp?: string;
+  speaker?: string;
+}
+
+export interface CloudTranscriptionTask {
+  provider: "aliyun";
+  taskId?: string;
+  sourceAudioUrl: string;
+  status: LocalTaskStatus;
+  segments?: TranscriptSegment[];
+  updatedAt: string;
+  error?: string;
 }
 
 export interface LocalPodcastArtifacts {
@@ -84,11 +100,6 @@ export interface ArticleNote {
   transcriptStartMs?: number;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface RuntimeCapabilities {
-  aiConfigured: boolean;
-  transcriptionAvailable: boolean;
 }
 
 export interface ContentCapabilities {
@@ -146,6 +157,8 @@ export interface Article {
   enrichment?: EnrichmentReference;
   /** Lightweight reference only. Full artifacts remain in NextEcho. */
   localPodcast?: LocalPodcastProcessing;
+  /** Non-sensitive cloud task metadata and the completed normalized transcript. */
+  transcription?: CloudTranscriptionTask;
 }
 
 export interface Feed {

@@ -22,13 +22,16 @@ import { AI_SETTINGS_CHANGED_EVENT, getAiCapability } from "../services/aiSettin
 import { useBidclubEpisode } from "../hooks/useBidclubEpisode";
 import type { SharedAudioPlayer } from "../hooks/useAudioPlayer";
 import { useLocalPodcast } from "../hooks/useLocalPodcast";
+import { useCloudTranscription } from "../hooks/useCloudTranscription";
 import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
 import { ArticleNotesTab } from "./ArticleNotesTab";
 import {
   deleteArticleNoteFromDB,
   getArticleNotesFromDB,
+  getTranscriptionSettings,
   saveArticleNoteToDB,
+  TRANSCRIPTION_SETTINGS_CHANGED_EVENT,
 } from "../services/dbService";
 import { resolveArticlePresentation } from "../services/articlePresentation";
 import {
@@ -54,9 +57,19 @@ interface SelectionActionState {
   endOffset: number;
   left: number;
   top: number;
+  placement: "above" | "below";
   transcriptStartMs?: number;
   writing: boolean;
   noteId?: string;
+}
+
+function getSelectionToolbarPosition(rect: DOMRect): Pick<SelectionActionState, "left" | "top" | "placement"> {
+  const left = Math.min(window.innerWidth - 16, Math.max(16, rect.left + rect.width / 2));
+  const belowTop = rect.bottom + 12;
+  if (belowTop + 58 < window.innerHeight) {
+    return { left, top: belowTop, placement: "below" };
+  }
+  return { left, top: Math.max(12, rect.top - 12), placement: "above" };
 }
 
 function getContentTextNodes(container: HTMLElement): Text[] {
@@ -157,10 +170,9 @@ function showSelectionPreview(container: HTMLElement, start: number, end: number
   removeSelectionPreview(container);
   const range = createRangeFromOffsets(container, start, end);
   if (!range) return;
-  const mark = document.createElement("mark");
-  mark.dataset.selectionPreview = "true";
-  mark.className = "wreader-selection-preview rounded-sm";
-  wrapRange(range, mark);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
 }
 
 function removeHighlight(container: HTMLElement | null, noteId: string) {
@@ -231,7 +243,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
-  const [aiCapabilityLoaded, setAiCapabilityLoaded] = useState(false);
+  const [transcriptionAvailable, setTranscriptionAvailable] = useState(false);
+  const [runtimeCapabilitiesLoaded, setRuntimeCapabilitiesLoaded] = useState(false);
   const [readingProgress, setReadingProgress] = useState(() => (
     Number.isFinite(savedReadingProgress) ? Math.min(1, Math.max(0, savedReadingProgress as number)) : 0
   ));
@@ -261,6 +274,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const readerSettingsPopoverRef = useRef<HTMLDivElement | null>(null);
   const autoPlayStartedRef = useRef<string | null>(null);
   const appliedOpenTargetRef = useRef<string | null>(null);
+  const activeArticleIdRef = useRef<string | null>(null);
 
   // BidClub episode state (TL;DR + digest + full transcript)
   const { episode: bidclub, loading: bidclubLoading, error: bidclubError, retry: retryBidclub } = useBidclubEpisode(
@@ -291,27 +305,34 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     else audioPlayer.loadArticle(article.id, article.audioUrl, { currentTime: seconds, duration: savedProgress?.duration || 0 });
   }, [article, audioPlayer, savedProgress?.duration]);
   const localPodcast = useLocalPodcast(article, onArticlePatch);
+  const cloudTranscription = useCloudTranscription(article, onArticlePatch);
 
   useEffect(() => {
     let cancelled = false;
-    const refreshAiCapability = () => {
-      setAiCapabilityLoaded(false);
-      void getAiCapability()
-        .then((capability) => {
-          if (!cancelled) setAiConfigured(capability.configured);
+    const refreshCapabilities = () => {
+      setRuntimeCapabilitiesLoaded(false);
+      void Promise.all([getAiCapability(), getTranscriptionSettings()])
+        .then(([ai, transcription]) => {
+          if (cancelled) return;
+          setAiConfigured(ai.configured);
+          setTranscriptionAvailable(Boolean(transcription?.apiKey));
         })
         .catch(() => {
-          if (!cancelled) setAiConfigured(false);
+          if (cancelled) return;
+          setAiConfigured(false);
+          setTranscriptionAvailable(false);
         })
         .finally(() => {
-          if (!cancelled) setAiCapabilityLoaded(true);
+          if (!cancelled) setRuntimeCapabilitiesLoaded(true);
         });
     };
-    refreshAiCapability();
-    window.addEventListener(AI_SETTINGS_CHANGED_EVENT, refreshAiCapability);
+    refreshCapabilities();
+    window.addEventListener(AI_SETTINGS_CHANGED_EVENT, refreshCapabilities);
+    window.addEventListener(TRANSCRIPTION_SETTINGS_CHANGED_EVENT, refreshCapabilities);
     return () => {
       cancelled = true;
-      window.removeEventListener(AI_SETTINGS_CHANGED_EVENT, refreshAiCapability);
+      window.removeEventListener(AI_SETTINGS_CHANGED_EVENT, refreshCapabilities);
+      window.removeEventListener(TRANSCRIPTION_SETTINGS_CHANGED_EVENT, refreshCapabilities);
     };
   }, []);
 
@@ -345,19 +366,21 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           transcript: bidclub?.transcriptHtml,
         }))
       : null,
-    [article, enrichmentStatus, bidclub, bidclubTldrHtml, bidclubDigestHtml, aiConfigured]
+    [article, enrichmentStatus, bidclub, bidclubTldrHtml, bidclubDigestHtml, aiConfigured, transcriptionAvailable]
   );
 
   const isInPlaylist = article ? playlistIds.includes(article.id) : false;
 
   // Sync detail state when article changes
   useEffect(() => {
-    if (article) {
+    if (!article) return;
+    const isNewArticle = activeArticleIdRef.current !== article.id;
+    activeArticleIdRef.current = article.id;
+    if (isNewArticle) {
       setDetachedCurrentTime(savedProgress?.currentTime || 0);
       setAiSummary(article.aiSummary || null);
       setSummaryError(null);
-      userInteractedRef.current = !!initialOpenTarget;
-      setDetailTab(initialDetailTab || initialOpenTarget?.tab || resolveArticleDefaultTab(article));
+      userInteractedRef.current = !!initialOpenTarget || !!initialDetailTab;
       setNotes([]);
       setNotesLoaded(false);
       setNotesError(null);
@@ -365,6 +388,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       setSelectionAction(null);
       setSessionHighlights([]);
       appliedOpenTargetRef.current = null;
+    }
+    if (initialDetailTab || initialOpenTarget?.tab || isNewArticle) {
+      setDetailTab(initialDetailTab || initialOpenTarget?.tab || resolveArticleDefaultTab(article));
     }
   }, [article?.id, initialDetailTab, initialOpenTarget]);
 
@@ -397,14 +423,13 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (!presentation) return;
     setDetailTab((current) => {
       if (current === "notes" && (!notesLoaded || notes.length > 0)) return current;
-      // Keep an explicit article overview route stable until the async AI capability check resolves.
-      if (!aiCapabilityLoaded && current === "overview" && !article?.audioUrl) return current;
+      if (!runtimeCapabilitiesLoaded && current === "overview" && !article?.audioUrl) return current;
       if (!userInteractedRef.current && presentation.processingState === "digested") {
         return presentation.defaultTab;
       }
       return resolveDetailTab(current as DetailTab, presentation, false);
     });
-  }, [presentation, notes.length, notesLoaded, aiCapabilityLoaded, article?.audioUrl]);
+  }, [presentation, notes.length, notesLoaded, runtimeCapabilitiesLoaded, article?.audioUrl]);
 
   useEffect(() => {
     if (!article || initialOpenTarget?.tab !== "transcript") return;
@@ -748,8 +773,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               startOffset: highlight.startOffset,
               endOffset: highlight.endOffset,
               transcriptStartMs: item.transcriptStartMs,
-              left: Math.min(window.innerWidth - 16, Math.max(16, rect.left + rect.width / 2)),
-              top: Math.max(12, rect.top - 8),
+              ...getSelectionToolbarPosition(rect),
               writing: false,
               noteId: item.id,
             });
@@ -778,8 +802,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         transcriptStartMs: detailTab === "transcript" && Number.isFinite(segmentStartMs)
           ? segmentStartMs
           : undefined,
-        left: Math.min(window.innerWidth - 16, Math.max(16, rect.left + rect.width / 2)),
-        top: Math.max(12, rect.top - 8),
+        ...getSelectionToolbarPosition(rect),
         writing: false,
       });
     }, 0);
@@ -801,8 +824,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       startOffset: highlight.startOffset,
       endOffset: highlight.endOffset,
       transcriptStartMs: item.transcriptStartMs,
-      left: Math.min(window.innerWidth - 16, Math.max(16, rect.left + rect.width / 2)),
-      top: Math.max(12, rect.top - 8),
+      ...getSelectionToolbarPosition(rect),
       writing: false,
       noteId,
     });
@@ -1064,7 +1086,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {/* Tab Content */}
             <div
               ref={selectableContentRef}
-              className="pt-5"
+              className="pt-3"
               onPointerUp={detailTab === "notes" ? undefined : captureSelection}
               onKeyUp={detailTab === "notes" ? undefined : captureSelection}
               onClick={detailTab === "notes" ? undefined : handleHighlightClick}
@@ -1072,23 +1094,16 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, canGenerateSummary: !!presentation?.capabilities.canGenerateOverview, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onConfigureAi: onOpenAiSettings, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localPodcast.fetchError, localRestoring: localPodcast.restoring, onStartTranscription: localPodcast.startTranscription, onRetryTranscription: localPodcast.retryTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, canGenerateSummary: !!presentation?.capabilities.canGenerateOverview, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onConfigureAi: onOpenAiSettings, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: cloudTranscription.missingKey ? "请先配置转录服务。" : localPodcast.fetchError, localRestoring: false, onStartTranscription: cloudTranscription.start, onRetryTranscription: cloudTranscription.start, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}
 
-            {/* Universal source footer */}
-            <div className="mt-8 border-t border-slate-100 pt-4 text-xs text-slate-400">
-              <span>原文来源：</span>
-              <a href={article.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                {article.feedTitle || article.link}
-              </a>
-            </div>
           </div>
         </div>
         {selectionAction && (
           <div
-            className="fixed z-[70] -translate-x-1/2 -translate-y-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"
+            className={`fixed z-[70] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${selectionAction.placement === "above" ? "-translate-y-full" : ""}`}
             style={{ left: selectionAction.left, top: selectionAction.top }}
             role="toolbar"
             aria-label="文本标注"

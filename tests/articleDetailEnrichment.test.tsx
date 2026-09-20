@@ -72,20 +72,17 @@ beforeEach(() => {
 });
 
 describe("ArticleDetailModal enrichment timing", () => {
-  it("keeps a checking candidate on show notes with merged podcast tabs and no badge", () => {
+  it("keeps a checking candidate on show notes without unavailable AI tabs", () => {
     hookState.value = { episode: null, loading: true, error: null };
     const html = renderDetail();
 
-    expect(html).toContain("正文");
     expect(html).toContain("Original show notes");
     expect(html).toContain("正在检查整理内容");
     expect(html).not.toContain("AI 摘要");
-    expect(html).toContain("逐字稿");
+    expect(html).not.toContain("逐字稿");
     expect(html).not.toContain("已整理");
-    expect((html.match(/lucide-(?:file-text|sparkle|audio-lines)/g) || [])).toEqual([
-      "lucide-file-text",
-      "lucide-audio-lines",
-    ]);
+    expect(html).not.toContain("lucide-sparkle");
+    expect(html).not.toContain("lucide-audio-lines");
     expect(html).not.toContain("text-violet-500");
   });
 
@@ -93,9 +90,9 @@ describe("ArticleDetailModal enrichment timing", () => {
     hookState.value = { episode: emptyEpisode(), loading: false, error: null };
     const html = renderDetail();
 
-    expect(html).toContain("正文");
+    expect(html).toContain("Original show notes");
     expect(html).not.toContain("AI 摘要");
-    expect(html).toContain("逐字稿");
+    expect(html).not.toContain("逐字稿");
     expect(html).not.toContain("已整理");
   });
 
@@ -115,7 +112,7 @@ describe("ArticleDetailModal enrichment timing", () => {
     expect(html).toContain("lucide-sparkle");
     expect(html).toContain("text-violet-500");
     expect(html).not.toContain("已整理");
-    expect(html).toContain("逐字稿");
+    expect(html).not.toContain("逐字稿");
   });
 
   it.each([
@@ -128,16 +125,17 @@ describe("ArticleDetailModal enrichment timing", () => {
       enrichment: { ...article.enrichment!, status: "available", matchedBy: "api" },
     });
 
-    expect(html).toContain("逐字稿");
     if (_kind === "digest") {
       expect(html).toContain("AI 摘要");
+      expect(html).not.toContain("逐字稿");
       expect(html).toContain("lucide-sparkle");
       expect(html).toContain("text-violet-500");
     } else {
       expect(html).not.toContain("AI 摘要");
+      expect(html).toContain("逐字稿");
       expect(html).not.toContain("lucide-sparkle");
+      expect(html).toContain("lucide-audio-lines");
       expect(html).not.toContain("text-violet-500");
-      expect(html).toContain("text-slate-400");
     }
     expect(html).not.toContain("已整理");
   });
@@ -149,7 +147,6 @@ describe("ArticleDetailModal enrichment timing", () => {
       enrichment: { ...article.enrichment!, status: "available", matchedBy: "api" },
     });
 
-    expect(html).toContain("正文");
     expect(html).toContain("Original show notes");
     expect(html).toContain("整理内容暂时无法加载");
     expect(html).not.toContain("已整理");

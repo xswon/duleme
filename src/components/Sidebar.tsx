@@ -355,7 +355,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleSelectCategory(category)}
+                        onClick={() => {
+                          if (isExpanded) {
+                            toggleCategory(category);
+                          } else {
+                            handleSelectCategory(category);
+                          }
+                        }}
                         className="flex min-w-0 flex-1 items-center pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >
                         <span className={`wreader-nav-name truncate ${isSelectedCategory ? "wreader-nav-selected-label" : "font-normal text-slate-800"}`}>
@@ -379,7 +385,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               type="button"
                               key={feed.id}
                               onClick={() => handleSelectFeed(feed.id)}
-                              className={`wreader-feed-row flex w-full items-center rounded-lg text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                              className={`wreader-feed-row flex w-full items-center rounded-lg py-1.5 pr-2.5 pl-6 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                                 isFeedSelected
                                   ? "bg-slate-200/90 font-bold text-blue-700"
                                   : "text-slate-800 hover:bg-slate-200/50"

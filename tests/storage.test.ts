@@ -312,7 +312,7 @@ describe("article IndexedDB persistence", () => {
     });
   });
 
-  it("excludes AI secrets from backups and preserves them across restore", async () => {
+  it("excludes AI secrets from backups and preserves them across same-endpoint restore", async () => {
     await saveAppStateToDB({
       aiConfig: {
         enabled: true,
@@ -321,15 +321,19 @@ describe("article IndexedDB persistence", () => {
         model: "model-1",
       },
     });
-    await saveSecretToDB("ai", { apiKey: "super-secret-key" });
+    await saveSecretToDB("ai", {
+      apiKey: "super-secret-key",
+      baseURL: "https://api.example.com/v1",
+    });
 
     const backup = await createDataBackup();
     expect(JSON.stringify(backup)).toContain("https://api.example.com/v1");
     expect(JSON.stringify(backup)).not.toContain("super-secret-key");
 
     await restoreDataBackup(JSON.stringify(backup));
-    await expect(getSecretFromDB<{ apiKey: string }>("ai")).resolves.toEqual({
+    await expect(getSecretFromDB("ai")).resolves.toEqual({
       apiKey: "super-secret-key",
+      baseURL: "https://api.example.com/v1",
     });
   });
 
@@ -342,7 +346,10 @@ describe("article IndexedDB persistence", () => {
         model: "old-model",
       },
     });
-    await saveSecretToDB("ai", { apiKey: "old-secret" });
+    await saveSecretToDB("ai", {
+      apiKey: "old-secret",
+      baseURL: "https://old.example.com/v1",
+    });
 
     const cleanBackup = await createDataBackup();
     const changed = {

@@ -1,4 +1,4 @@
-import { getAiRequestConfig, getAiErrorMessage } from "./aiSettingsService";
+import { getAiErrorMessage, getAiRequestConfig } from "./aiSettingsService";
 import {
   Article,
   AudioProgress,
@@ -1038,7 +1038,7 @@ export async function fetchBidclubEpisode(episodeUrl: string): Promise<BidclubEp
   return await response.json();
 }
 
-// Summarize an article with the user's generic OpenAI-compatible endpoint.
+// Summarize an article with the user's configured OpenAI-compatible endpoint.
 export async function summarizeArticleWithAI(
   title: string,
   content: string,

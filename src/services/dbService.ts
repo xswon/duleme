@@ -1,13 +1,14 @@
 import { AiConfig, Article, ArticleNote, Feed } from "../types";
 
 const DB_NAME = "WReaderDB";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const STORE_ARTICLES = "articles";
 const STORE_FEEDS = "feeds";
 const STORE_NOTES = "notes";
 const STORE_SETTINGS = "settings";
 const STORE_SECRETS = "secrets";
 export const NOTES_CHANGED_EVENT = "wreader:notes-changed";
+export const TRANSCRIPTION_SETTINGS_CHANGED_EVENT = "wreader:transcription-settings-changed";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -73,6 +74,18 @@ export interface PersistedAppState {
   playlistIds?: string[];
   audioProgressMap?: Record<string, { currentTime: number; duration: number; updatedAt: number }>;
   aiConfig?: AiConfig;
+}
+
+export interface TranscriptionSettings { provider: "aliyun"; apiKey: string; language: string; diarization: boolean; contextEnhancement: boolean; }
+const TRANSCRIPTION_SETTINGS_KEY = "transcription";
+export async function getTranscriptionSettings(): Promise<TranscriptionSettings | null> {
+  const db = await getDB(); return new Promise((resolve, reject) => { const request = db.transaction(STORE_SETTINGS, "readonly").objectStore(STORE_SETTINGS).get(TRANSCRIPTION_SETTINGS_KEY); request.onsuccess = () => resolve(request.result?.value || null); request.onerror = () => reject(request.error); });
+}
+export async function saveTranscriptionSettings(value: TranscriptionSettings): Promise<void> {
+  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).put({ key: TRANSCRIPTION_SETTINGS_KEY, value }); tx.oncomplete = () => { if (typeof window !== "undefined") window.dispatchEvent(new Event(TRANSCRIPTION_SETTINGS_CHANGED_EVENT)); resolve(); }; tx.onerror = () => reject(tx.error); });
+}
+export async function clearTranscriptionSettings(): Promise<void> {
+  const db = await getDB(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE_SETTINGS, "readwrite"); tx.objectStore(STORE_SETTINGS).delete(TRANSCRIPTION_SETTINGS_KEY); tx.oncomplete = () => { if (typeof window !== "undefined") window.dispatchEvent(new Event(TRANSCRIPTION_SETTINGS_CHANGED_EVENT)); resolve(); }; tx.onerror = () => reject(tx.error); });
 }
 
 export async function getFeedsFromDB(): Promise<Feed[]> {
@@ -224,7 +237,6 @@ export async function restoreDataBackup(raw: string): Promise<{ feeds: Feed[]; a
   const currentEndpoint = normalizeEndpoint(currentAppState?.aiConfig?.baseURL);
   const restoredEndpoint = normalizeEndpoint(data.appState?.aiConfig?.baseURL);
   const canReuseCurrentAiSecret = Boolean(currentEndpoint && restoredEndpoint && currentEndpoint === restoredEndpoint);
-
   const db = await getDB();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS, STORE_SECRETS], "readwrite");

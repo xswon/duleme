@@ -69,8 +69,6 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex min-w-0 items-center gap-2">
         <button type="button" onClick={onToggleMobileMenu} aria-label="打开导航菜单" aria-controls="inoreader-sidebar" title="打开菜单" className={`wreader-menu-button wreader-icon-button ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}><PrototypeIcon type="menu" className="h-4 w-4" /></button>
         <h1 className="truncate text-[13px] font-bold text-slate-900">{currentTitle}</h1>
-        {currentCountLabel && <span className="wreader-title-count">{currentCountLabel}</span>}
-        {showTimelineFilters && <span className="wreader-timeline-window">最近 {historyWindowDays} 天</span>}
         {isRefreshing && <span className="truncate text-[11px] text-slate-500" aria-live="polite">同步中 {refreshProgress?.completed || 0}/{refreshProgress?.total || ""}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-1">

@@ -65,6 +65,8 @@ function renderDetail(
     onScrollPositionChange?: (articleId: string, scrollTop: number) => void;
     onReadingProgressChange?: (articleId: string, progress: number) => void;
     initialOpenTarget?: { tab: "notes" } | { tab: "transcript"; note: ArticleNote };
+    initialDetailTab?: "body" | "overview" | "transcript";
+    onDetailTabChange?: (tab: "body" | "overview" | "transcript") => void;
   } = {},
 ) {
   root.render(
@@ -270,9 +272,9 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(container.querySelector('[aria-label="文本标注"]')).toBeTruthy();
-    const selectionPreview = container.querySelector<HTMLElement>("mark[data-selection-preview]");
-    expect(selectionPreview?.textContent).toBe("Original show notes");
-    expect(selectionPreview?.classList.contains("wreader-selection-preview")).toBe(true);
+    expect(container.querySelector("mark[data-selection-preview]")).toBeNull();
+    expect(container.querySelector<HTMLElement>('[aria-label="文本标注"]')?.style.top).toBe("132px");
+    expect(container.querySelector('[aria-label="文本标注"]')?.className).not.toContain("-translate-y-full");
 
     const highlight = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "高亮")!;
     await act(async () => highlight.click());
@@ -355,8 +357,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
 
     expect(container.textContent).toContain("Original show notes");
     expect(container.textContent).not.toContain("Verified overview");
-    expect(container.textContent).not.toContain("AI 摘要");
-    expect(container.textContent).toContain("逐字稿");
+    expect(container.textContent).toContain("AI 摘要");
     await act(async () => root.unmount());
   });
 
@@ -445,6 +446,40 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
 
     expect(container.textContent).toContain("Original show notes");
     expect(container.querySelector("img")).not.toBeNull();
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("keeps the first AI summary click when route state echoes the selected tab", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const plainArticle: Article = {
+      ...baseArticle,
+      id: "plain-article-route-sync",
+      audioUrl: undefined,
+      enrichment: undefined,
+      aiSummary: "路由同步后的摘要",
+    };
+    let initialDetailTab: "body" | "overview" | "transcript" | undefined;
+    const rerender = () => renderDetail(root, plainArticle, {
+      initialDetailTab,
+      onDetailTabChange: (tab) => {
+        initialDetailTab = tab;
+        rerender();
+      },
+    });
+
+    await act(async () => rerender());
+    await waitForNotesToLoad(container);
+
+    const aiTab = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+      .find((tab) => tab.textContent === "AI 摘要");
+    await act(async () => aiTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+
+    expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe("AI 摘要");
+    expect(container.querySelector(".bidclub-overview")?.textContent).toBe("路由同步后的摘要");
+    expect(container.textContent).not.toContain("Original show notes");
     await act(async () => root.unmount());
     container.remove();
   });

@@ -16,18 +16,13 @@ export interface ArticleEnrichmentAvailability {
 
 const DEFAULT_RUNTIME_CAPABILITIES: RuntimeCapabilities = {
   aiConfigured: false,
-  // NextEcho is a built-in local workflow and remains independent from article AI configuration.
-  transcriptionAvailable: true,
+  transcriptionAvailable: false,
 };
 
 function hasText(value?: string | null): boolean {
   return !!value?.trim();
 }
 
-/**
- * Derives display behavior from stored content, enrichment, and runtime capabilities.
- * Existing content always remains readable even when the service that created it is unavailable.
- */
 export function resolveArticlePresentation(
   article: Article,
   enrichment: ArticleEnrichmentAvailability = {},
@@ -39,6 +34,7 @@ export function resolveArticlePresentation(
   const hasProviderDigest = hasProviderReference && hasText(enrichment.digest);
   const hasProviderTranscript = hasProviderReference && hasText(enrichment.transcript);
   const hasProviderContent = hasProviderOverview || hasProviderDigest || hasProviderTranscript;
+  const hasCloudTranscript = article.transcription?.status === "completed" && Boolean(article.transcription.segments?.length);
   const hasLocalTranscript = article.localPodcast?.transcriptionStatus === "completed";
   const hasLocalInsight = article.localPodcast?.insightStatus === "completed";
   const hasStoredArticleSummary = !hasAudio && hasText(article.aiSummary);
@@ -66,10 +62,7 @@ export function resolveArticlePresentation(
 
   const hasOverview = hasStoredArticleSummary || hasProviderOverview || (hasAudio && hasProviderDigest) || hasLocalInsight;
   const hasDigest = hasProviderDigest;
-  const hasTranscript = hasProviderTranscript || hasLocalTranscript;
-
-  // Article-body summarization uses the configured generic AI endpoint.
-  // Podcast transcript/insight generation remains a separate workflow.
+  const hasTranscript = hasProviderTranscript || hasCloudTranscript || hasLocalTranscript;
   const canGenerateOverview = !hasAudio && !isDigested && runtime.aiConfigured;
 
   const capabilities = {
@@ -86,11 +79,10 @@ export function resolveArticlePresentation(
     key: "body",
     label: hasAudio ? "节目介绍" : "正文",
   };
-  const overviewTab: DetailTabPresentation = { key: "overview", label: "AI 摘要" };
   const tabs: DetailTabPresentation[] = [bodyTab];
 
   if (hasOverview || canGenerateOverview) {
-    tabs.push(overviewTab);
+    tabs.push({ key: "overview", label: "AI 摘要" });
   }
   if (hasAudio && (hasTranscript || runtime.transcriptionAvailable)) {
     tabs.push({ key: "transcript", label: "逐字稿" });

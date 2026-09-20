@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Folder,
+  FolderMinus,
   Check,
+  ChevronRight,
   Search,
   GripVertical,
   MoreHorizontal,
@@ -10,11 +12,16 @@ import {
   Upload,
   Database,
   Keyboard,
+  Rss,
+  AudioLines,
+  Sparkles,
+  Trash2,
 } from "lucide-react";
 import { Feed } from "../types";
 import { LocalAiSettingsPanel } from "./LocalAiSettingsModal";
 import { exportOpml } from "../services/rssService";
 import { feedCategory, orderFeedsInFolder, reorderItems, sortCategories, sortFeedsInFolder, type FeedOrderByFolder, SortMode } from "../services/feedSorting";
+import { KEYBOARD_SHORTCUTS } from "../data/keyboardShortcuts";
 export type { SortMode } from "../services/feedSorting";
 
 const SortControl: React.FC<{ value: SortMode; onChange: (mode: SortMode) => void; label: string }> = ({ value, onChange, label }) => (
@@ -44,6 +51,9 @@ const DragHandle: React.FC<{ disabled: boolean; label: string }> = ({ disabled, 
   </span>
 );
 
+const SETTINGS_TABS = ["feeds", "folders", "transcript", "insight", "data", "shortcuts"] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number];
+
 interface SettingsPageProps {
   feeds: Feed[];
   categories: string[];
@@ -58,6 +68,7 @@ interface SettingsPageProps {
   onDeleteFeed: (feedId: string) => void;
   feedSortMode?: SortMode;
   folderSortMode?: SortMode;
+  /** @deprecated 订阅源页不再提供排序设置，仅以该值决定列表顺序。 */
   onFeedSortModeChange?: (mode: SortMode) => void;
   onFolderSortModeChange?: (mode: SortMode) => void;
   feedOrderByFolder?: FeedOrderByFolder;
@@ -72,7 +83,7 @@ interface SettingsPageProps {
   onOpenAddFeed: () => void;
   onExportBackup?: () => void;
   onImportBackup?: (file: File) => void;
-  initialTab?: "subscriptions" | "ai" | "data";
+  initialTab?: SettingsTab;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -86,7 +97,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onDeleteFeed,
   feedSortMode,
   folderSortMode,
-  onFeedSortModeChange,
   onFolderSortModeChange,
   feedOrderByFolder = {},
   onReorderFolderFeeds,
@@ -98,23 +108,35 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onOpenAddFeed,
   onExportBackup,
   onImportBackup,
-  initialTab = "subscriptions",
+  initialTab = "feeds",
 }) => {
   const settingsDialogRef = useRef<HTMLDivElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(
     typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
+  const tabsRef = useRef<HTMLElement | null>(null);
+  const defaultTabRef = useRef<HTMLButtonElement | null>(null);
+
+  // 打开设置时把焦点交给默认选中的分类，键盘用户不必先绕到关闭按钮。
+  useEffect(() => {
+    defaultTabRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const dialog = settingsDialogRef.current;
     if (!dialog) return undefined;
-    const getFocusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(
-      "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
-    ));
+    const getFocusable = () => {
+      const scope = dialog.querySelector<HTMLElement>(".wreader-feed-edit-card") || dialog;
+      return Array.from(scope.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      ));
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onBack();
+        const nestedClose = dialog.querySelector<HTMLButtonElement>('.wreader-feed-edit-card button[aria-label="关闭编辑订阅源"]');
+        if (nestedClose) nestedClose.click();
+        else onBack();
         return;
       }
       if (event.key !== "Tab") return;
@@ -137,7 +159,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     };
   }, [onBack]);
 
-  const [activeTab, setActiveTab] = useState<"subscriptions" | "ai" | "data">(initialTab);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -151,8 +173,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [editFeedUrlInput, setEditFeedUrlInput] = useState("");
   const [editBidclubFeedUrlInput, setEditBidclubFeedUrlInput] = useState("");
   const [feedSearchQuery, setFeedSearchQuery] = useState("");
-  const [expandedFeedGroups, setExpandedFeedGroups] = useState<Record<string, boolean>>({});
   const [openMoreMenu, setOpenMoreMenu] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const effectiveFeedSortMode = feedSortMode ?? sortMode ?? "default";
   const effectiveFolderSortMode = folderSortMode ?? sortMode ?? "default";
 
@@ -172,22 +194,46 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const filteredFeeds = normalizedFeedSearch
     ? sortedCategories.flatMap((category) => sortFeedsInFolder(matchingFeeds, category, effectiveFeedSortMode, feedOrderByFolder))
     : [];
+  const displayedFeeds = normalizedFeedSearch
+    ? filteredFeeds
+    : sortedCategories.flatMap((category) => sortFeedsInFolder(feeds, category, effectiveFeedSortMode, feedOrderByFolder));
 
-  const updateFeedSortMode = (mode: SortMode) => {
-    (onFeedSortModeChange || onSortModeChange)?.(mode);
-  };
   const updateFolderSortMode = (mode: SortMode) => {
     (onFolderSortModeChange || onSortModeChange)?.(mode);
+  };
+
+  const tabClassName = (tab: SettingsTab) => `wreader-settings-tab${activeTab === tab ? " is-active" : ""}`;
+  const tabProps = (tab: SettingsTab) => ({
+    role: "tab" as const,
+    id: `settings-tab-${tab}`,
+    "aria-selected": activeTab === tab,
+    "aria-controls": `settings-panel-${tab}`,
+    tabIndex: activeTab === tab ? 0 : -1,
+    onClick: () => setActiveTab(tab),
+  });
+  const handleTabsKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+    const step = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1
+      : event.key === "ArrowUp" || event.key === "ArrowLeft" ? -1 : 0;
+    const jump = event.key === "Home" ? 0 : event.key === "End" ? SETTINGS_TABS.length - 1 : null;
+    if (step === 0 && jump === null) return;
+    event.preventDefault();
+    const currentIndex = SETTINGS_TABS.indexOf(activeTab);
+    const nextIndex = jump ?? (currentIndex + step + SETTINGS_TABS.length) % SETTINGS_TABS.length;
+    const nextTab = SETTINGS_TABS[nextIndex];
+    setActiveTab(nextTab);
+    tabsRef.current?.querySelector<HTMLButtonElement>(`#settings-tab-${nextTab}`)?.focus();
   };
 
   const [draggedFeedId, setDraggedFeedId] = useState<string | null>(null);
   const [dragOverFeedId, setDragOverFeedId] = useState<string | null>(null);
   const [draggedCategory, setDraggedCategory] = useState<string | null>(null);
-  const canDragFeeds = effectiveFeedSortMode === "default" && !normalizedFeedSearch;
+  // 文件夹页只有“文件夹排序”一个控件，它同时决定文件夹顺序和文件夹内的订阅顺序；
+  // 只有自定义顺序下才允许拖动，否则拖动结果与显示顺序不一致。
+  const canDragFolderFeeds = effectiveFolderSortMode === "default";
   const canDragCategories = effectiveFolderSortMode === "default";
 
   const moveFeed = (targetId: string) => {
-    if (!canDragFeeds || !draggedFeedId || draggedFeedId === targetId) return;
+    if (!canDragFolderFeeds || !draggedFeedId || draggedFeedId === targetId) return;
     const draggedFeed = feeds.find((feed) => feed.id === draggedFeedId);
     const targetFeed = feeds.find((feed) => feed.id === targetId);
     if (!draggedFeed || !targetFeed || feedCategory(draggedFeed) !== feedCategory(targetFeed)) {
@@ -227,6 +273,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setEditCategoryInput(cat);
   };
 
+  const toggleFolder = (category: string) => {
+    setExpandedCategories((current) => current.includes(category)
+      ? current.filter((item) => item !== category)
+      : [...current, category]);
+  };
+
   const handleSaveRename = (oldName: string) => {
     if (editCategoryInput.trim() && editCategoryInput !== oldName) {
       onRenameCategory(oldName, editCategoryInput.trim());
@@ -261,50 +313,47 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     handleCancelEditFeed();
   };
 
-  const renderFeedRow = (feed: Feed, category: string) => {
-    const isEditingFeed = editingFeedId === feed.id;
-    const isDragTarget = dragOverFeedId === feed.id && draggedFeedId !== feed.id;
+  const editingFeed = editingFeedId ? feeds.find((feed) => feed.id === editingFeedId) || null : null;
+
+  const renderFeedRow = (feed: Feed, category: string, options: { draggable: boolean; showDragHandle: boolean; showCategory: boolean; editable: boolean }) => {
+    const isDragTarget = options.draggable && dragOverFeedId === feed.id && draggedFeedId !== feed.id;
     const draggedFeed = draggedFeedId
       ? feeds.find((candidate) => candidate.id === draggedFeedId)
       : undefined;
     const isSameFolderDrag = !!draggedFeed && feedCategory(draggedFeed) === category;
-    let feedHost = feed.feedUrl;
-    try {
-      feedHost = new URL(feed.feedUrl).hostname.replace(/^www\./, "");
-    } catch {
-      // Preserve the stored URL when legacy data is not a complete URL.
-    }
     return (
       <div
         key={feed.id}
         onDragOver={(event) => {
-          if (canDragFeeds && isSameFolderDrag) {
+          if (options.draggable && isSameFolderDrag) {
             event.preventDefault();
             setDragOverFeedId(feed.id);
           }
         }}
         onDrop={() => moveFeed(feed.id)}
-        className={`wreader-settings-feed-row flex transition-colors hover:bg-white ${isEditingFeed ? "flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-center sm:justify-between" : "flex-row items-center justify-between gap-2 rounded-lg px-2 py-1.5"} ${draggedFeedId === feed.id ? "opacity-50" : ""} ${isDragTarget ? "ring-2 ring-blue-300" : ""}`}
+        className={`wreader-settings-feed-row ${draggedFeedId === feed.id ? "opacity-50" : ""} ${isDragTarget ? "ring-2 ring-blue-300" : ""}`}
       >
-        <div className={`flex min-w-0 flex-1 ${isEditingFeed ? "items-start gap-2.5" : "items-center gap-2"}`}>
-          <span
-            className="wreader-settings-drag"
-            draggable={canDragFeeds}
-            onDragStart={(event) => {
-              if (!canDragFeeds) return;
-              event.stopPropagation();
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", feed.id);
-              setDraggedFeedId(feed.id);
-              setDragOverFeedId(null);
-            }}
-            onDragEnd={() => {
-              setDraggedFeedId(null);
-              setDragOverFeedId(null);
-            }}
-          >
-            <DragHandle disabled={!canDragFeeds} label={`拖动${feed.title}调整${category}内顺序`} />
-          </span>
+        <div className="wreader-settings-feed-head">
+          {options.showDragHandle && (
+            <span
+              className="wreader-settings-drag"
+              draggable={options.draggable}
+              onDragStart={(event) => {
+                if (!options.draggable) return;
+                event.stopPropagation();
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", feed.id);
+                setDraggedFeedId(feed.id);
+                setDragOverFeedId(null);
+              }}
+              onDragEnd={() => {
+                setDraggedFeedId(null);
+                setDragOverFeedId(null);
+              }}
+            >
+              <DragHandle disabled={!options.draggable} label={`拖动${feed.title}调整${category}内顺序`} />
+            </span>
+          )}
           {feed.favicon ? (
             <img src={feed.favicon} alt="" className="wreader-settings-feed-icon h-4 w-4 shrink-0 rounded object-contain" onError={(e) => { (e.target as HTMLElement).style.display = "none"; }} />
           ) : (
@@ -312,37 +361,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               {feed.title.slice(0, 2).toUpperCase()}
             </div>
           )}
-          <div className={`min-w-0 flex-1 ${isEditingFeed ? "space-y-2" : ""}`}>
-            {isEditingFeed ? (
-              <h4 className="truncate text-xs font-semibold text-slate-900">{feed.title}</h4>
-            ) : <span className="wreader-settings-feed-copy"><strong>{feed.title}</strong><small>{feedHost}{feed.unreadCount > 0 ? ` · ${feed.unreadCount} 篇未读` : ""}{feed.lastSyncStatus === "error" ? " · 同步失败" : ""}</small></span>}
-            {isEditingFeed && (
-              <div className="grid gap-2">
-                <label className="grid gap-1">
-                  <span className="text-[10px] font-semibold text-slate-500">所属文件夹</span>
-                  <select
-                    value={editFeedCategoryInput}
-                    onChange={(event) => setEditFeedCategoryInput(event.target.value)}
-                    aria-label={`更改${feed.title}所属文件夹`}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:border-blue-500 focus:outline-none"
-                  >
-                    {feedCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
-                </label>
-                <label className="grid gap-1"><span className="text-[10px] font-semibold text-slate-500">RSS 链接</span><input type="url" value={editFeedUrlInput} onChange={(e) => setEditFeedUrlInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500" placeholder="https://example.com/feed.xml" /></label>
-                <label className="grid gap-1"><span className="text-[10px] font-semibold text-slate-500">BidClub 辅助 Feed</span><input type="url" value={editBidclubFeedUrlInput} onChange={(e) => setEditBidclubFeedUrlInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500" placeholder="https://bidclub.ai/feeds/example.xml" /></label>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="wreader-settings-row-actions flex shrink-0 items-center gap-1 sm:pl-3">
-          {isEditingFeed ? <>
-            <button onClick={() => handleSaveFeedUrls(feed)} disabled={!editFeedUrlInput.trim()} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-40 rounded-lg transition-colors" title="保存订阅设置"><Check className="w-4 h-4" /></button>
-            <button onClick={handleCancelEditFeed} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="取消"><X className="w-4 h-4" /></button>
-          </> : <div className="wreader-settings-more-wrap">
-            <button type="button" onClick={() => setOpenMoreMenu((current) => current === `feed:${feed.id}` ? null : `feed:${feed.id}`)} aria-label={`${feed.title}更多操作`} title="更多操作"><MoreHorizontal /></button>
-            {openMoreMenu === `feed:${feed.id}` && <div className="wreader-settings-menu"><button type="button" onClick={() => { setOpenMoreMenu(null); handleStartEditFeed(feed); }}>编辑订阅源</button><button type="button" onClick={() => { setOpenMoreMenu(null); handleStartEditFeed(feed); }}>移动到文件夹</button><button type="button" className="danger" onClick={() => { setOpenMoreMenu(null); if (confirm(`确定要删除订阅"${feed.title}"吗？`)) onDeleteFeed(feed.id); }}>删除订阅源</button></div>}
-          </div>}
+          {options.editable ? (
+            <button type="button" onClick={() => handleStartEditFeed(feed)} aria-label={`编辑${feed.title}`} className="wreader-settings-feed-open">
+              <span className="wreader-settings-feed-copy">
+                <strong>{feed.title}</strong>
+                {options.showCategory && <small>{category}</small>}
+              </span>
+            </button>
+          ) : (
+            <span className="wreader-settings-feed-copy"><strong>{feed.title}</strong></span>
+          )}
+          {!options.editable && category !== "未分类" && (
+            <div className="wreader-settings-row-actions">
+              <button type="button" onClick={() => onUpdateFeedCategory(feed.id, "未分类")} title="移出文件夹" aria-label={`将${feed.title}移出文件夹`}><FolderMinus /></button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -351,51 +384,43 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   return (
     <div ref={settingsDialogRef} className="wreader-settings-modal fixed inset-0 z-[70] grid place-items-center p-6" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
       <button type="button" className="wreader-settings-backdrop absolute inset-0" onClick={onBack} aria-label="关闭设置" />
-      <section className="wreader-settings-card relative flex w-full flex-col overflow-hidden">
-        <header className="wreader-settings-header flex shrink-0 items-center justify-between">
-          <h1 id="settings-modal-title">设置</h1>
-          <button type="button" autoFocus onClick={onBack} aria-label="关闭设置" title="关闭设置" className="wreader-settings-close"><X /></button>
-        </header>
-        <div className="wreader-settings-body overflow-y-auto scrollbar-thin">
-          <div className="wreader-settings-page mx-auto w-full">
-        <nav aria-label="设置分类" className="wreader-settings-tabs flex">
-          <button
-            type="button"
-            onClick={() => setActiveTab("subscriptions")}
-            aria-current={activeTab === "subscriptions" ? "page" : undefined}
-            className={`wreader-settings-tab ${activeTab === "subscriptions" ? "is-active" : ""}`}
+      <section className="wreader-settings-card relative flex w-full overflow-hidden">
+        <aside className="wreader-settings-sidebar">
+          <div className="wreader-settings-sidebar-title">设置</div>
+          <nav
+            aria-label="设置分类"
+            role="tablist"
+            aria-orientation="vertical"
+            ref={tabsRef}
+            onKeyDown={handleTabsKeyDown}
+            className="wreader-settings-tabs"
           >
-            <span>订阅管理</span>
-          </button>
-          <button type="button" onClick={() => setActiveTab("ai")} aria-current={activeTab === "ai" ? "page" : undefined} className={`wreader-settings-tab ${activeTab === "ai" ? "is-active" : ""}`}><span>AI 与转录</span></button>
-          <button type="button" onClick={() => setActiveTab("data")} aria-current={activeTab === "data" ? "page" : undefined} className={`wreader-settings-tab ${activeTab === "data" ? "is-active" : ""}`}><span>数据与备份</span></button>
-        </nav>
-
-      <div className="min-w-0">
-          {/* TAB 1: FEEDS MANAGEMENT */}
-          {activeTab === "subscriptions" && (
-            <section aria-labelledby="feed-settings-title" className="wreader-settings-panel">
-              <div className="wreader-settings-toolbar">
-                <div>
-                  <h2 id="feed-settings-title">订阅与文件夹</h2>
-                  <p>按文件夹管理 {feeds.length} 个订阅源</p>
-                </div>
-                <div className="wreader-settings-toolbar-actions">
-                  <button type="button" onClick={onOpenAddFeed} className="secondary">导入 OPML</button>
-                  <button type="button" onClick={onOpenAddFeed}>添加订阅</button>
-                  <button type="button" onClick={() => setIsFolderComposerOpen(true)} className="secondary">新建文件夹</button>
-                </div>
-              </div>
-
-              {isFolderComposerOpen && (
-                <form onSubmit={handleCreateFolder} className="wreader-settings-folder-composer">
-                  <div className="wreader-settings-folder-dialog">
-                    <label><span>文件夹名称</span><input autoFocus type="text" value={newFolderInput} onChange={(event) => setNewFolderInput(event.target.value)} placeholder="例如：待读主题" /></label>
-                    <div className="wreader-settings-folder-actions"><button type="button" onClick={() => { setIsFolderComposerOpen(false); setNewFolderInput(""); }}>取消</button><button type="submit" disabled={!newFolderInput.trim()}>创建文件夹</button></div>
-                  </div>
-                </form>
-              )}
-
+            <div className="wreader-settings-nav-group">
+              <div className="wreader-settings-nav-group-title">内容</div>
+              <button type="button" ref={defaultTabRef} {...tabProps("feeds")} className={tabClassName("feeds")}><Rss /><span>订阅源</span></button>
+              <button type="button" {...tabProps("folders")} className={tabClassName("folders")}><Folder /><span>文件夹</span></button>
+            </div>
+            <div className="wreader-settings-nav-group">
+              <div className="wreader-settings-nav-group-title">AI 设置</div>
+              <button type="button" {...tabProps("transcript")} className={tabClassName("transcript")}><AudioLines /><span>逐字稿</span></button>
+              <button type="button" {...tabProps("insight")} className={tabClassName("insight")}><Sparkles /><span>内容整理</span></button>
+            </div>
+            <div className="wreader-settings-nav-standalone">
+              <button type="button" {...tabProps("data")} className={tabClassName("data")}><Database /><span>数据与备份</span></button>
+              <button type="button" {...tabProps("shortcuts")} className={tabClassName("shortcuts")}><Keyboard /><span>快捷键</span></button>
+            </div>
+          </nav>
+        </aside>
+        <div className="wreader-settings-main min-w-0">
+          <header className="wreader-settings-header flex shrink-0 items-center justify-between">
+            <h1 id="settings-modal-title">{{ feeds: "订阅源", folders: "文件夹", transcript: "逐字稿", insight: "内容整理", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
+            <button type="button" onClick={onBack} aria-label="关闭设置" className="wreader-settings-close"><X /></button>
+          </header>
+          <div className="wreader-settings-body scrollbar-thin">
+            <div className="wreader-settings-page w-full">
+              <div className="wreader-settings-content min-w-0">
+          {activeTab === "feeds" && (
+            <section id="settings-panel-feeds" role="tabpanel" aria-labelledby="settings-tab-feeds" className="wreader-settings-panel">
               <div className="wreader-settings-filters">
                 {feeds.length > 0 ? (
                   <label className="wreader-settings-search">
@@ -409,13 +434,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       />
                   </label>
                 ) : <span />}
-                <SortControl value={effectiveFeedSortMode} onChange={updateFeedSortMode} label="订阅排序" />
-                <SortControl value={effectiveFolderSortMode} onChange={updateFolderSortMode} label="文件夹排序" />
+                <div className="wreader-settings-actions">
+                  <button type="button" onClick={onOpenAddFeed} className="secondary">导入 OPML</button>
+                  <button type="button" onClick={onOpenAddFeed}>添加订阅</button>
+                </div>
               </div>
-
-              {!canDragFeeds && effectiveFeedSortMode === "default" && normalizedFeedSearch && (
-                <p className="text-xs text-slate-500">搜索时暂不支持拖动排序，请清除搜索后调整顺序。</p>
-              )}
 
               {feeds.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-400">
@@ -425,78 +448,190 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <div className="py-8 text-center text-xs text-slate-400">
                   没有匹配的订阅源。
                 </div>
-              ) : (
-                normalizedFeedSearch ? (
-                  <div className="wreader-settings-groups" aria-label="搜索结果">
-                    {filteredFeeds.map((feed) => renderFeedRow(feed, feedCategory(feed)))}
-                  </div>
-                ) : (
-                  <div className="wreader-settings-groups">
-                    {sortedCategories.map((category) => {
-                      const groupFeeds = sortFeedsInFolder(feeds, category, effectiveFeedSortMode, feedOrderByFolder);
-                      const categoryUnread = groupFeeds.reduce((sum, feed) => sum + feed.unreadCount, 0);
-                      const expanded = expandedFeedGroups[category] ?? true;
-                      const isEditing = editingCategory === category;
-                      return (
-                        <section
-                          key={category}
-                          aria-label={`${category}订阅源`}
-                          draggable={canDragCategories}
-                          onDragStart={() => canDragCategories && setDraggedCategory(category)}
-                          onDragOver={(event) => canDragCategories && event.preventDefault()}
-                          onDrop={() => moveCategory(category)}
-                          onDragEnd={() => setDraggedCategory(null)}
-                          className={`wreader-settings-group ${draggedCategory === category ? "opacity-50" : ""}`}
-                        >
-                          <div className="wreader-settings-group-heading">
-                            <button type="button" onClick={() => setExpandedFeedGroups((previous) => ({ ...previous, [category]: !expanded }))} aria-expanded={expanded} aria-label={`${expanded ? "收起" : "展开"}${category}`} className="wreader-settings-group-toggle">
-                              <span className={`wreader-settings-chevron ${expanded ? "is-expanded" : ""}`}>›</span>
-                              <span className="wreader-settings-folder-icon"><Folder /></span>
-                            </button>
-                            {isEditing ? (
-                              <input autoFocus value={editCategoryInput} onChange={(event) => setEditCategoryInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") handleSaveRename(category); if (event.key === "Escape") setEditingCategory(null); }} aria-label={`重命名${category}`} className="wreader-settings-folder-name-input" />
-                            ) : <strong className="truncate">{category}</strong>}
-                            <small>{groupFeeds.length} 个订阅源 · {categoryUnread} 篇未读</small>
-                            <div className="wreader-settings-row-actions">
-                              {isEditing ? <button type="button" onClick={() => handleSaveRename(category)} aria-label={`保存${category}`} title="保存"><Check /></button> : <div className="wreader-settings-more-wrap"><button type="button" onClick={() => setOpenMoreMenu((current) => current === `folder:${category}` ? null : `folder:${category}`)} aria-label={`${category}文件夹更多操作`} title="更多操作"><MoreHorizontal /></button>{openMoreMenu === `folder:${category}` && <div className="wreader-settings-menu"><button type="button" onClick={() => { setOpenMoreMenu(null); handleStartRename(category); }}>重命名</button><button type="button" className="danger" onClick={() => { setOpenMoreMenu(null); if (confirm(`确定要删除文件夹"${category}"吗？其中订阅源将被移至"未分类"。`)) onDeleteCategory(category); }}>删除文件夹</button></div>}</div>}
-                            </div>
-                          </div>
-                          {expanded && (groupFeeds.length > 0
-                            ? <div className="wreader-settings-group-rows">{groupFeeds.map((feed) => renderFeedRow(feed, category))}</div>
-                            : <p className="wreader-settings-empty-group">暂无订阅源，可从其他分组移动至此。</p>)}
-                        </section>
-                      );
-                    })}
-                  </div>
-                )
-              )}
+              ) : <div className="wreader-settings-groups" aria-label={normalizedFeedSearch ? "搜索结果" : "全部订阅源"}>{displayedFeeds.map((feed) => renderFeedRow(feed, feedCategory(feed), { draggable: false, showDragHandle: false, showCategory: true, editable: true }))}</div>}
 
             </section>
           )}
 
-          {activeTab === "ai" && <LocalAiSettingsPanel />}
+          {activeTab === "folders" && (
+            <section id="settings-panel-folders" role="tabpanel" aria-labelledby="settings-tab-folders" className="wreader-settings-panel">
+              {isFolderComposerOpen && <form onSubmit={handleCreateFolder} className="wreader-settings-folder-composer"><div className="wreader-settings-folder-dialog"><label><span>文件夹名称</span><input autoFocus type="text" value={newFolderInput} onChange={(event) => setNewFolderInput(event.target.value)} placeholder="例如：待读主题" /></label><div className="wreader-settings-folder-actions"><button type="button" onClick={() => { setIsFolderComposerOpen(false); setNewFolderInput(""); }}>取消</button><button type="submit" disabled={!newFolderInput.trim()}>创建文件夹</button></div></div></form>}
+              <div className="wreader-settings-filters"><SortControl value={effectiveFolderSortMode} onChange={updateFolderSortMode} label="文件夹排序" /><div className="wreader-settings-actions"><button type="button" onClick={() => setIsFolderComposerOpen(true)}>新建文件夹</button></div></div>
+              <div className="wreader-settings-groups">
+                {sortedCategories.map((category) => {
+                  const groupFeeds = sortFeedsInFolder(feeds, category, effectiveFolderSortMode, feedOrderByFolder);
+                  const isEditing = editingCategory === category;
+                  const isExpanded = expandedCategories.includes(category);
+                  const feedListId = `settings-folder-feeds-${sortedCategories.indexOf(category)}`;
+                  return <section key={category} aria-label={`${category}文件夹`} draggable={canDragCategories} onDragStart={() => canDragCategories && setDraggedCategory(category)} onDragOver={(event) => canDragCategories && event.preventDefault()} onDrop={() => moveCategory(category)} onDragEnd={() => setDraggedCategory(null)} className={`wreader-settings-group ${draggedCategory === category ? "opacity-50" : ""}`}>
+                    <div className="wreader-settings-group-heading">
+                      <span className="wreader-settings-folder-drag"><DragHandle disabled={!canDragCategories} label={`拖动${category}调整文件夹顺序`} /></span>
+                      {isEditing ? (
+                        <>
+                          <span className="wreader-settings-folder-icon"><Folder /></span>
+                          <input autoFocus value={editCategoryInput} onChange={(event) => setEditCategoryInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") handleSaveRename(category); if (event.key === "Escape") setEditingCategory(null); }} aria-label={`重命名${category}`} className="wreader-settings-folder-name-input" />
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => toggleFolder(category)} aria-expanded={isExpanded} aria-controls={isExpanded ? feedListId : undefined} className="wreader-settings-folder-toggle">
+                          <ChevronRight aria-hidden="true" className={`wreader-settings-folder-chevron${isExpanded ? " is-expanded" : ""}`} />
+                          <span className="wreader-settings-folder-icon"><Folder /></span>
+                          <strong className="truncate">{category}</strong>
+                          <small>{groupFeeds.length} 个订阅源</small>
+                        </button>
+                      )}
+                      <div className="wreader-settings-row-actions">{isEditing ? <button type="button" onClick={() => handleSaveRename(category)} aria-label={`保存${category}`}><Check /></button> : <div className="wreader-settings-more-wrap"><button type="button" onClick={() => setOpenMoreMenu((current) => current === `folder:${category}` ? null : `folder:${category}`)} aria-label={`${category}文件夹更多操作`}><MoreHorizontal /></button>{openMoreMenu === `folder:${category}` && <div className="wreader-settings-menu"><button type="button" onClick={() => { setOpenMoreMenu(null); handleStartRename(category); }}>重命名</button><button type="button" className="danger" onClick={() => { setOpenMoreMenu(null); if (confirm(`确定要删除文件夹"${category}"吗？其中订阅源将被移至"未分类"。`)) onDeleteCategory(category); }}>删除文件夹</button></div>}</div>}</div>
+                    </div>
+                    {!isEditing && isExpanded && (
+                      <div id={feedListId} className="wreader-settings-group-feeds">
+                        {groupFeeds.length === 0
+                          ? <p className="wreader-settings-group-empty">该文件夹还没有订阅源。</p>
+                          : groupFeeds.map((feed) => renderFeedRow(feed, category, { draggable: canDragFolderFeeds, showDragHandle: true, showCategory: false, editable: false }))}
+                      </div>
+                    )}
+                  </section>;
+                })}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "transcript" && <LocalAiSettingsPanel view="transcription" panelId="settings-panel-transcript" />}
+          {activeTab === "insight" && <LocalAiSettingsPanel view="insight" panelId="settings-panel-insight" />}
           {activeTab === "data" && (
-            <section aria-labelledby="data-settings-title" className="space-y-6">
-              <div className="border-b border-slate-200 pb-5">
-                <h2 id="data-settings-title" className="text-lg font-bold text-slate-900">数据与备份</h2>
-                <p className="mt-1.5 text-sm text-slate-500">订阅和阅读数据优先保存在本机。定期导出完整备份可避免浏览器数据被清理后无法恢复。</p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button type="button" onClick={() => exportOpml(feeds)} className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-200 hover:bg-blue-50/20"><Download className="h-5 w-5 text-blue-600" /><strong className="mt-3 block text-sm text-slate-800">导出 OPML</strong><span className="mt-1 block text-xs leading-5 text-slate-500">仅导出订阅源和文件夹，适合迁移到其他阅读器。</span></button>
-                <button type="button" onClick={onOpenAddFeed} className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-200 hover:bg-blue-50/20"><Upload className="h-5 w-5 text-blue-600" /><strong className="mt-3 block text-sm text-slate-800">导入 OPML</strong><span className="mt-1 block text-xs leading-5 text-slate-500">打开添加订阅流程，并报告新增、重复和无效数量。</span></button>
-                {onExportBackup && <button type="button" onClick={onExportBackup} className="rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-200 hover:bg-blue-50/20"><Database className="h-5 w-5 text-blue-600" /><strong className="mt-3 block text-sm text-slate-800">导出完整备份</strong><span className="mt-1 block text-xs leading-5 text-slate-500">包含订阅、文章、状态、笔记、播放列表和进度。</span></button>}
-                {onImportBackup && <label className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 text-left hover:border-blue-200 hover:bg-blue-50/20"><Upload className="h-5 w-5 text-blue-600" /><strong className="mt-3 block text-sm text-slate-800">恢复完整备份</strong><span className="mt-1 block text-xs leading-5 text-slate-500">恢复会替换当前本地业务数据，请先导出当前备份。</span><input type="file" accept="application/json,.json" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportBackup(file); event.currentTarget.value = ""; }} /></label>}
-              </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <div className="flex items-center gap-2"><Keyboard className="h-4 w-4 text-slate-500" /><h3 className="text-sm font-bold text-slate-800">键盘快捷键</h3></div>
-                <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-xs text-slate-600"><dt><kbd>J / K</kbd></dt><dd>下一篇 / 上一篇</dd><dt><kbd>S</kbd></dt><dd>收藏或取消收藏</dd><dt><kbd>M</kbd></dt><dd>标记已读或未读</dd><dt><kbd>R</kbd></dt><dd>刷新订阅</dd><dt><kbd>⌘ / Ctrl + K</kbd></dt><dd>搜索</dd><dt><kbd>Esc</kbd></dt><dd>关闭详情或退出沉浸阅读</dd></dl>
+            <section id="settings-panel-data" role="tabpanel" aria-labelledby="settings-tab-data" className="wreader-settings-data">
+              <p className="wreader-settings-note">订阅和阅读数据优先保存在本机。定期导出完整备份可避免浏览器数据被清理后无法恢复。</p>
+              <div className="wreader-settings-data-grid">
+                <button type="button" onClick={() => exportOpml(feeds)} className="wreader-settings-action-card"><Download /><strong>导出 OPML</strong><span>仅导出订阅源和文件夹，适合迁移到其他阅读器。</span></button>
+                <button type="button" onClick={onOpenAddFeed} className="wreader-settings-action-card"><Upload /><strong>导入 OPML</strong><span>打开添加订阅流程，并报告新增、重复和无效数量。</span></button>
+                {onExportBackup && <button type="button" onClick={onExportBackup} className="wreader-settings-action-card"><Database /><strong>导出完整备份</strong><span>包含订阅、文章、状态、笔记、播放列表和进度。</span></button>}
+                {onImportBackup && <label className="wreader-settings-action-card cursor-pointer"><Upload /><strong>恢复完整备份</strong><span>恢复会替换当前本地业务数据，请先导出当前备份。</span><input type="file" accept="application/json,.json" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportBackup(file); event.currentTarget.value = ""; }} /></label>}
               </div>
             </section>
           )}
-        </div>
-      </div>
+          {activeTab === "shortcuts" && (
+            <section id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="wreader-shortcuts-page">
+              <div className="wreader-shortcut-list">
+                {KEYBOARD_SHORTCUTS.map((shortcut) => (
+                  <div key={shortcut.id}>
+                    <span>{shortcut.label}</span>
+                    <span>
+                      {shortcut.keys.map((key, index) => (
+                        <React.Fragment key={key}>
+                          {index > 0 && shortcut.joiner ? <span>{shortcut.joiner}</span> : null}
+                          <kbd>{key}</kbd>
+                        </React.Fragment>
+                      ))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
+      {editingFeed && (
+        <div
+          className="wreader-feed-edit-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="feed-edit-title"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              handleCancelEditFeed();
+            }
+          }}
+        >
+          <button type="button" className="wreader-feed-edit-backdrop" aria-label="关闭编辑订阅源" onClick={handleCancelEditFeed} />
+          <form
+            className="wreader-feed-edit-card"
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSaveFeedUrls(editingFeed);
+            }}
+          >
+            <header>
+              <h2 id="feed-edit-title">编辑订阅源</h2>
+              <button type="button" aria-label="关闭编辑订阅源" onClick={handleCancelEditFeed}><X /></button>
+            </header>
+
+            <div className="wreader-feed-edit-body">
+              <div className="wreader-feed-edit-identity" aria-label={`当前订阅源：${editingFeed.title}`}>
+                {editingFeed.favicon ? (
+                  <img
+                    src={editingFeed.favicon}
+                    alt=""
+                    className="wreader-feed-edit-cover"
+                    onError={(event) => { (event.currentTarget as HTMLElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="wreader-feed-edit-cover is-fallback" aria-hidden="true">
+                    {editingFeed.title.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <strong>{editingFeed.title}</strong>
+              </div>
+              <label>
+                <span>所属文件夹</span>
+                <select
+                  autoFocus
+                  value={editFeedCategoryInput}
+                  onChange={(event) => setEditFeedCategoryInput(event.target.value)}
+                  aria-label={`更改${editingFeed.title}所属文件夹`}
+                >
+                  {feedCategories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </label>
+
+              <label>
+                <span>RSS 链接</span>
+                <input
+                  type="url"
+                  value={editFeedUrlInput}
+                  onChange={(event) => setEditFeedUrlInput(event.target.value)}
+                  placeholder="https://example.com/feed.xml"
+                />
+              </label>
+
+              <label>
+                <span>BidClub 辅助 Feed</span>
+                <input
+                  type="url"
+                  value={editBidclubFeedUrlInput}
+                  onChange={(event) => setEditBidclubFeedUrlInput(event.target.value)}
+                  placeholder="https://bidclub.ai/feeds/example.xml"
+                />
+                <small>可选，仅在需要为当前订阅补充 BidClub 音频源时填写。</small>
+              </label>
+            </div>
+
+            <footer>
+              <button
+                type="button"
+                className="danger"
+                aria-label="删除订阅源"
+                onClick={() => {
+                  if (confirm(`确定要删除订阅"${editingFeed.title}"吗？`)) {
+                    handleCancelEditFeed();
+                    onDeleteFeed(editingFeed.id);
+                  }
+                }}
+              >
+                <Trash2 />
+                删除订阅源
+              </button>
+              <div>
+                <button type="button" className="secondary" onClick={handleCancelEditFeed}>取消</button>
+                <button type="submit" disabled={!editFeedUrlInput.trim()} title="保存订阅设置" aria-label="保存订阅设置">保存</button>
+              </div>
+            </footer>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

@@ -9,7 +9,6 @@ describe("home density styles", () => {
   it("uses the reviewed responsive layout thresholds", () => {
     expect(styles).toContain("@media (min-width: 900px) and (max-width: 1279px)");
     expect(styles).toContain("--wreader-list: 352px;");
-    expect(styles).toContain("padding-left: 23px !important;");
     expect(styles).toContain("@media (min-width: 1280px)");
     expect(styles).not.toContain("@media (min-width: 1040px)");
   });
@@ -51,6 +50,10 @@ describe("home density styles", () => {
     expect(styles).toMatch(/\.wreader-nav-primary-label \{\s*font-size: 12px;\s*\}/);
     expect(styles).toMatch(/\.wreader-reading-nav button > span\.wreader-nav-count \{\s*font-size: 11px;\s*font-weight: inherit;\s*\}/);
     expect(styles).not.toContain(".wreader-reading-nav button > span:last-child");
+  });
+
+  it("indents feeds beneath their folders", () => {
+    expect(styles).toMatch(/\.wreader-feed-row \{\s*padding-left: 24px !important;/);
   });
 
   it("keeps the settings action anchored while only the navigation area scrolls", () => {

@@ -4,7 +4,7 @@ duleme treats AI as an optional enhancement. Reading RSS feeds does not require 
 
 ## Article summaries
 
-Open **Settings → AI 与转录 → 内容智能** and configure:
+Open **设置 → AI 设置 → 内容整理** and configure:
 
 - **Base URL** — the root of an OpenAI-compatible API, normally ending in `/v1`.
 - **API Key** — your provider key. It may be empty for loopback services such as local Ollama.
@@ -48,4 +48,6 @@ The API Key is deliberately excluded from the JSON business-data backup and is n
 
 ## Transcription
 
-Podcast transcription is separate from article-summary AI configuration. The local NextEcho flow can remain available even when no article-summary API Key is configured, and existing transcripts remain readable when generation is unavailable.
+Podcast transcription is separate from article-summary AI configuration. Configure it under **设置 → AI 设置 → 逐字稿**.
+
+The current cloud transcription configuration and article-summary endpoint do not share credentials. Existing cloud, local NextEcho, or provider transcripts remain readable even when the service that originally generated them is no longer configured.

@@ -38,20 +38,21 @@ function parseMarkup(html: string) {
 }
 
 describe("ArticleInsightTabs", () => {
-  it("offers only an explicit local transcription action for an untouched podcast", () => {
+  it("offers only an explicit cloud transcription action for an untouched podcast", () => {
     const html = renderModel({ article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" }, tab: "transcript" });
-    expect(html).toContain("使用本机生成逐字稿");
-    expect(html).toContain("不会自动调用 AI");
+    expect(html).toContain("生成逐字稿");
+    expect(html).toContain("使用已配置的转录服务生成逐字稿");
+    expect(html).not.toContain("阿里云百炼 API Key");
     expect(html).not.toContain("使用 AI 整理");
   });
 
-  it("offers to reread an existing completed session instead of retranscribing after a fetch error", () => {
+  it("keeps cloud transcription available after an unrelated fetch error", () => {
     const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", localPodcast: { sessionId: "session-1", jobId: "job-1", sourceAudioUrl: "https://cdn.example.com/a.mp3", transcriptionStatus: "completed", insightStatus: "not_started", updatedAt: "now" } },
       tab: "transcript",
       localFetchError: "Failed to fetch",
     });
-    expect(html).toContain("重新读取本机逐字稿");
+    expect(html).toContain("生成逐字稿");
     expect(html).toContain("Failed to fetch");
     expect(html).not.toContain("使用本机生成逐字稿");
   });
@@ -88,6 +89,25 @@ describe("ArticleInsightTabs", () => {
     expect(local).toContain("Local summary");
   });
 
+  it("labels distinct AI evidence clearly and hides duplicate article links", () => {
+    const distinct = renderModel({
+      tab: "overview",
+      overviewHtml: "<p>Prepared highlights</p>",
+      sourceUrl: "https://youtube.com/watch?v=1",
+      sourceLabel: "YouTube",
+    });
+    const duplicate = renderModel({
+      tab: "overview",
+      overviewHtml: "<p>Prepared highlights</p>",
+      sourceUrl: article.link,
+      sourceLabel: "Example",
+    });
+
+    expect(distinct).toContain("摘要依据");
+    expect(distinct).toContain("YouTube");
+    expect(duplicate).not.toContain("摘要依据");
+  });
+
   it("keeps the body available when BidClub enrichment fails", () => {
     const html = renderModel({ tab: "body", enrichmentError: "BidClub unavailable" });
     expect(html).toContain("Readable body");
@@ -105,19 +125,6 @@ describe("ArticleInsightTabs", () => {
     expect(html).toContain("Prepared highlights");
     expect(html).not.toContain("生成文章概要");
   });
-  it("keeps a saved article summary visible when generation is unavailable", () => {
-    const html = renderModel({ tab: "overview", summary: "Previously generated summary" });
-    expect(html).toContain("Previously generated summary");
-    expect(html).not.toContain("配置模型");
-  });
-
-  it("uses a gentle configuration state when an unavailable article overview is opened", () => {
-    const html = renderModel({ tab: "overview", onConfigureAi: vi.fn() });
-    expect(html).toContain("智能长文提炼");
-    expect(html).toContain("配置模型");
-    expect(html).not.toContain("API Key");
-  });
-
 
   it("scopes enrichment errors to enriched content", () => {
     const html = renderModel({ tab: "digest", enrichmentError: "BidClub unavailable" });

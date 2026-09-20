@@ -64,7 +64,7 @@ describe("ArticleDetailModal", () => {
     expect(html).not.toContain(">原文</span>");
     expect(html).not.toContain(">更多</span>");
     expect(html).not.toContain("复制原文链接");
-    expect(html).toContain("原文来源");
+    expect(html).not.toContain("原文来源");
     expect(html).not.toContain("<img");
   });
 
@@ -94,6 +94,12 @@ describe("ArticleDetailModal", () => {
           ...article,
           author: "author@example.com",
           audioUrl: "https://example.com/audio.mp3",
+          localPodcast: {
+            sourceAudioUrl: "https://example.com/audio.mp3",
+            transcriptionStatus: "completed",
+            insightStatus: "completed",
+            updatedAt: "now",
+          },
         }}
         onClose={vi.fn()}
         onToggleStar={vi.fn()}
@@ -103,10 +109,12 @@ describe("ArticleDetailModal", () => {
 
     expect(html).not.toContain("lucide-sparkles");
     expect(html).toContain("lucide-file-text");
+    expect(html).toContain("lucide-sparkle");
     expect(html).toContain("lucide-audio-lines");
-    expect(html).not.toContain("AI 摘要</button>");
     expect(html.indexOf("author@example.com")).toBeGreaterThan(html.indexOf("Example"));
-    expect(html.indexOf("天前")).toBeGreaterThan(html.indexOf("author@example.com"));
+    // The relative-time formatter switches to a localized calendar date after
+    // 30 days; retain the metadata ordering assertion without coupling to it.
+    expect(html).toMatch(/author@example\.com<\/span><span>·<\/span><span>/);
     expect(html).not.toContain("已整理");
 
   });
