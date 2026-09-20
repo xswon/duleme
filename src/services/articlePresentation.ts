@@ -3,7 +3,9 @@ import type {
   ArticlePresentation,
   DetailTabPresentation,
   EnrichmentStatus,
+  OverviewPanelState,
   RuntimeCapabilities,
+  TranscriptPanelState,
 } from "../types";
 import { isVerifiedBidclubEnrichment } from "./bidclubEpisodeCache";
 
@@ -37,7 +39,9 @@ export function resolveArticlePresentation(
   const hasCloudTranscript = article.transcription?.status === "completed" && Boolean(article.transcription.segments?.length);
   const hasLocalTranscript = article.localPodcast?.transcriptionStatus === "completed";
   const hasLocalInsight = article.localPodcast?.insightStatus === "completed";
-  const hasStoredArticleSummary = !hasAudio && hasText(article.aiSummary);
+  const hasStoredArticleSummary = hasText(article.aiSummary) && (
+    !hasAudio || article.aiSummarySource === "transcript"
+  );
 
   const storedStatus = !hasProviderReference
     ? "none"
@@ -63,7 +67,34 @@ export function resolveArticlePresentation(
   const hasOverview = hasStoredArticleSummary || hasProviderOverview || (hasAudio && hasProviderDigest) || hasLocalInsight;
   const hasDigest = hasProviderDigest;
   const hasTranscript = hasProviderTranscript || hasCloudTranscript || hasLocalTranscript;
-  const canGenerateOverview = !hasAudio && !isDigested && runtime.aiConfigured;
+  const transcriptionProcessing = article.transcription?.status === "processing"
+    || article.localPodcast?.transcriptionStatus === "processing";
+
+  let transcriptState: TranscriptPanelState | undefined;
+  if (hasAudio) {
+    transcriptState = hasTranscript
+      ? "ready"
+      : transcriptionProcessing
+        ? "generating"
+        : runtime.transcriptionAvailable
+          ? "can_generate"
+          : "needs_config";
+  }
+
+  let overviewState: OverviewPanelState;
+  if (hasOverview) {
+    overviewState = "ready";
+  } else if (!hasAudio) {
+    overviewState = runtime.aiConfigured ? "can_generate" : "needs_ai_config";
+  } else if (!hasTranscript) {
+    overviewState = transcriptionProcessing
+      ? "transcribing"
+      : runtime.transcriptionAvailable
+        ? "needs_transcript"
+        : "needs_transcription_config";
+  } else {
+    overviewState = runtime.aiConfigured ? "can_generate" : "needs_ai_config";
+  }
 
   const capabilities = {
     hasAudio,
@@ -72,19 +103,15 @@ export function resolveArticlePresentation(
     hasOverview,
     hasDigest,
     hasTranscript,
-    canGenerateOverview,
+    canGenerateOverview: overviewState === "can_generate",
   };
 
-  const bodyTab: DetailTabPresentation = {
-    key: "body",
-    label: hasAudio ? "节目介绍" : "正文",
-  };
-  const tabs: DetailTabPresentation[] = [bodyTab];
+  const tabs: DetailTabPresentation[] = [
+    { key: "body", label: hasAudio ? "节目介绍" : "正文" },
+    { key: "overview", label: "AI 摘要" },
+  ];
 
-  // AI summary is a stable navigation entry. Availability affects the
-  // panel state, not whether the entry exists.
-  tabs.push({ key: "overview", label: "AI 摘要" });
-  if (hasAudio && (hasTranscript || runtime.transcriptionAvailable)) {
+  if (hasAudio) {
     tabs.push({ key: "transcript", label: "逐字稿" });
   }
 
@@ -94,6 +121,8 @@ export function resolveArticlePresentation(
     enrichmentStatus,
     enrichmentProvider: article.enrichment?.provider,
     capabilities,
+    overviewState,
+    transcriptState,
     tabs,
     defaultTab: tabs[0]?.key || "body",
   };

@@ -25,6 +25,20 @@ export interface RuntimeCapabilities {
   transcriptionAvailable: boolean;
 }
 
+export type OverviewPanelState =
+  | "ready"
+  | "can_generate"
+  | "needs_ai_config"
+  | "needs_transcript"
+  | "transcribing"
+  | "needs_transcription_config";
+
+export type TranscriptPanelState =
+  | "ready"
+  | "can_generate"
+  | "generating"
+  | "needs_config";
+
 export interface LocalPodcastProcessing {
   sessionId?: string;
   jobId?: string;
@@ -123,6 +137,8 @@ export interface ArticlePresentation {
   enrichmentStatus: EnrichmentStatus;
   enrichmentProvider?: EnrichmentProvider;
   capabilities: ContentCapabilities;
+  overviewState: OverviewPanelState;
+  transcriptState?: TranscriptPanelState;
   tabs: DetailTabPresentation[];
   defaultTab: DetailTab;
 }
@@ -149,6 +165,8 @@ export interface Article {
   starred: boolean;
   savedAt?: string;
   aiSummary?: string;
+  /** Identifies whether a generated summary came from article text or a completed transcript. */
+  aiSummarySource?: "article" | "transcript";
   /** Fraction of the article body that the reader has consumed (0..1). */
   readingProgress?: number;
   readingProgressUpdatedAt?: number;

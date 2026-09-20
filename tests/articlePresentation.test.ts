@@ -31,52 +31,77 @@ const enrichment = (status: "candidate" | "available" = "candidate") => ({
 });
 
 describe("article presentation resolver", () => {
-  it("keeps the AI summary entry visible when an article has no configured model", () => {
+  it("keeps ordinary article navigation stable when AI is not configured", () => {
     const result = resolveArticlePresentation(article());
-    expect(result.capabilities).toMatchObject({ hasOverview: false, canGenerateOverview: false });
+
     expect(result.tabs).toEqual([
       { key: "body", label: "正文" },
       { key: "overview", label: "AI 摘要" },
     ]);
+    expect(result.overviewState).toBe("needs_ai_config");
+    expect(result.transcriptState).toBeUndefined();
+    expect(result.capabilities.canGenerateOverview).toBe(false);
   });
 
-  it("adds article AI summary generation only when AI is configured", () => {
+  it("lets an ordinary article generate a summary when AI is configured", () => {
     const result = resolveArticlePresentation(article(), {}, runtime({ aiConfigured: true }));
+
+    expect(result.overviewState).toBe("can_generate");
     expect(result.capabilities.canGenerateOverview).toBe(true);
-    expect(result.tabs).toEqual([
-      { key: "body", label: "正文" },
-      { key: "overview", label: "AI 摘要" },
-    ]);
   });
 
-  it("keeps a saved article summary visible after AI is disabled", () => {
+  it("keeps a saved ordinary article summary readable after AI is disabled", () => {
     const result = resolveArticlePresentation(article({ aiSummary: "Saved summary" }));
-    expect(result.capabilities).toMatchObject({ hasOverview: true, canGenerateOverview: false });
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview"]);
+
+    expect(result.overviewState).toBe("ready");
+    expect(result.capabilities.hasOverview).toBe(true);
   });
 
-  it("keeps the AI summary entry visible for audio items when services are unconfigured", () => {
+  it("keeps audio navigation stable even when neither service is configured", () => {
     const result = resolveArticlePresentation(article({ audioUrl: "https://cdn.example.com/e.mp3" }));
-    expect(result.tabs).toEqual([
-      { key: "body", label: "节目介绍" },
-      { key: "overview", label: "AI 摘要" },
-    ]);
-  });
 
-  it("shows podcast transcript generation independently from article AI", () => {
-    const result = resolveArticlePresentation(
-      article({ audioUrl: "https://cdn.example.com/e.mp3" }),
-      {},
-      runtime({ transcriptionAvailable: true }),
-    );
     expect(result.tabs).toEqual([
       { key: "body", label: "节目介绍" },
       { key: "overview", label: "AI 摘要" },
       { key: "transcript", label: "逐字稿" },
     ]);
+    expect(result.overviewState).toBe("needs_transcription_config");
+    expect(result.transcriptState).toBe("needs_config");
   });
 
-  it("keeps completed cloud transcripts visible without current transcription config", () => {
+  it("guides audio content to transcription before summary generation", () => {
+    const result = resolveArticlePresentation(
+      article({ audioUrl: "https://cdn.example.com/e.mp3" }),
+      {},
+      runtime({ aiConfigured: true, transcriptionAvailable: true }),
+    );
+
+    expect(result.overviewState).toBe("needs_transcript");
+    expect(result.transcriptState).toBe("can_generate");
+    expect(result.capabilities.canGenerateOverview).toBe(false);
+  });
+
+  it("reports transcription progress without changing navigation", () => {
+    const result = resolveArticlePresentation(
+      article({
+        audioUrl: "https://cdn.example.com/e.mp3",
+        transcription: {
+          provider: "aliyun",
+          sourceAudioUrl: "https://cdn.example.com/e.mp3",
+          status: "processing",
+          updatedAt: "now",
+        },
+      }),
+      {},
+      runtime({ aiConfigured: true, transcriptionAvailable: true }),
+    );
+
+    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
+    expect(result.overviewState).toBe("transcribing");
+    expect(result.transcriptState).toBe("generating");
+  });
+
+  it("asks for AI configuration after a transcript is ready", () => {
     const result = resolveArticlePresentation(
       article({
         audioUrl: "https://cdn.example.com/e.mp3",
@@ -89,71 +114,72 @@ describe("article presentation resolver", () => {
         },
       }),
       {},
-      runtime(),
+      runtime({ aiConfigured: false }),
     );
+
+    expect(result.overviewState).toBe("needs_ai_config");
+    expect(result.transcriptState).toBe("ready");
     expect(result.capabilities.hasTranscript).toBe(true);
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
   });
 
-  it("keeps completed local transcripts visible without current transcription config", () => {
+  it("allows transcript-based AI summary generation when both capabilities are ready", () => {
     const result = resolveArticlePresentation(
       article({
         audioUrl: "https://cdn.example.com/e.mp3",
-        localPodcast: {
+        transcription: {
+          provider: "aliyun",
           sourceAudioUrl: "https://cdn.example.com/e.mp3",
-          transcriptionStatus: "completed",
-          insightStatus: "not_started",
+          status: "completed",
+          segments: [{ startMs: 0, text: "hello" }],
           updatedAt: "now",
         },
       }),
       {},
-      runtime(),
+      runtime({ aiConfigured: true }),
     );
-    expect(result.capabilities.hasTranscript).toBe(true);
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
+
+    expect(result.overviewState).toBe("can_generate");
+    expect(result.transcriptState).toBe("ready");
+    expect(result.capabilities.canGenerateOverview).toBe(true);
+  });
+
+  it("recognizes a newly generated transcript-based audio summary as reliable", () => {
+    const result = resolveArticlePresentation(
+      article({
+        audioUrl: "https://cdn.example.com/e.mp3",
+        aiSummary: "Transcript summary",
+        aiSummarySource: "transcript",
+      }),
+    );
+
+    expect(result.overviewState).toBe("ready");
+    expect(result.capabilities.hasOverview).toBe(true);
   });
 
   it("does not treat legacy podcast show-note aiSummary as a reliable overview", () => {
     const result = resolveArticlePresentation(
       article({ audioUrl: "https://cdn.example.com/e.mp3", aiSummary: "legacy" }),
-      {},
-      runtime({ transcriptionAvailable: true }),
     );
+
+    expect(result.overviewState).toBe("needs_transcription_config");
     expect(result.capabilities.hasOverview).toBe(false);
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
   });
 
-  it("shows reliable provider digest independently from user AI configuration", () => {
+  it("keeps provider digest and transcript readable independently from user configuration", () => {
     const result = resolveArticlePresentation(
       article({ audioUrl: "https://cdn.example.com/e.mp3", enrichment: enrichment("available") }),
-      { status: "available", digest: "<p>Digest</p>" },
+      { status: "available", digest: "<p>Digest</p>", transcript: "<p>Transcript</p>" },
       runtime(),
     );
-    expect(result.capabilities).toMatchObject({ hasOverview: true, hasDigest: true });
-    expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview"]);
-  });
 
-  it("shows provider transcript independently from current transcription config", () => {
-    const result = resolveArticlePresentation(
-      article({ audioUrl: "https://cdn.example.com/e.mp3", enrichment: enrichment("available") }),
-      { status: "available", transcript: "<p>Transcript</p>" },
-      runtime(),
-    );
-    expect(result.capabilities).toMatchObject({ hasOverview: false, hasTranscript: true });
     expect(result.tabs.map((tab) => tab.key)).toEqual(["body", "overview", "transcript"]);
-  });
-
-  it("does not surface digest-only enrichment as an article overview", () => {
-    const result = resolveArticlePresentation(
-      article({ enrichment: enrichment("available") }),
-      { status: "available", digest: "<p>Digest only</p>" },
-      runtime({ aiConfigured: true }),
-    );
-    expect(result.capabilities).toMatchObject({ hasOverview: false, canGenerateOverview: false });
-    expect(result.tabs).toEqual([
-      { key: "body", label: "正文" },
-      { key: "overview", label: "AI 摘要" },
-    ]);
+    expect(result.overviewState).toBe("ready");
+    expect(result.transcriptState).toBe("ready");
+    expect(result.capabilities).toMatchObject({
+      hasOverview: true,
+      hasDigest: true,
+      hasTranscript: true,
+    });
   });
 
   it("does not infer podcast state from titles", () => {

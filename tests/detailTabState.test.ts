@@ -19,6 +19,7 @@ const articlePresentation: ArticlePresentation = {
     hasTranscript: false,
     canGenerateOverview: true,
   },
+  overviewState: "can_generate",
   tabs: [{ key: "body", label: "正文" }, { key: "overview", label: "概要" }],
   defaultTab: "body",
 };
@@ -29,6 +30,8 @@ const digestedPresentation: ArticlePresentation = {
   processingState: "digested",
   enrichmentStatus: "available",
   enrichmentProvider: "bidclub",
+  overviewState: "ready",
+  transcriptState: "ready",
   tabs: [
     { key: "overview", label: "内容精华" },
     { key: "digest", label: "深度摘要" },
@@ -42,7 +45,13 @@ const checkingPresentation: ArticlePresentation = {
   ...digestedPresentation,
   processingState: "raw",
   enrichmentStatus: "checking",
-  tabs: [{ key: "body", label: "节目介绍" }],
+  overviewState: "needs_transcription_config",
+  transcriptState: "needs_config",
+  tabs: [
+    { key: "body", label: "节目介绍" },
+    { key: "overview", label: "AI 摘要" },
+    { key: "transcript", label: "逐字稿" },
+  ],
   defaultTab: "body",
   capabilities: {
     ...digestedPresentation.capabilities,
@@ -91,8 +100,12 @@ describe("detail tab state", () => {
     expect(resolveDetailTab("transcript", articlePresentation, false)).toBe("body");
   });
 
-  it("keeps candidate/checking podcasts on show notes only", () => {
-    expect(normalizeDetailPresentation(checkingPresentation).tabs).toEqual([{ key: "body", label: "正文" }]);
+  it("keeps candidate/checking podcast navigation stable", () => {
+    expect(normalizeDetailPresentation(checkingPresentation).tabs.map((tab) => tab.key)).toEqual([
+      "body",
+      "overview",
+      "transcript",
+    ]);
     expect(resolveDetailTab("body", checkingPresentation, false)).toBe("body");
   });
 

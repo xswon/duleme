@@ -184,6 +184,14 @@ function removeHighlight(container: HTMLElement | null, noteId: string) {
   parent.normalize();
 }
 
+function htmlToPlainText(value?: string): string {
+  if (!value?.trim()) return "";
+  if (typeof DOMParser !== "undefined") {
+    return new DOMParser().parseFromString(value, "text/html").body.textContent?.replace(/\s+/g, " ").trim() || "";
+  }
+  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 interface ArticleDetailModalProps {
   article: Article | null;
   onClose: () => void;
@@ -211,6 +219,7 @@ interface ArticleDetailModalProps {
   isImmersive?: boolean;
   onToggleImmersive?: () => void;
   onOpenAiSettings?: () => void;
+  onOpenTranscriptionSettings?: () => void;
 }
 
 export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
@@ -238,6 +247,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   isImmersive = false,
   onToggleImmersive,
   onOpenAiSettings,
+  onOpenTranscriptionSettings,
 }) => {
   const [aiSummary, setAiSummary] = useState<string | null>(() => article?.aiSummary || null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -576,16 +586,29 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
   const handleSummarize = async () => {
     if (!presentation?.capabilities.canGenerateOverview || aiSummary || isSummarizing) return;
+    const transcriptText = hasAudio
+      ? (
+          htmlToPlainText(bidclub?.transcriptHtml)
+          || article.transcription?.segments?.map((segment) => segment.text).join("\n").trim()
+          || localPodcast.artifacts?.transcript?.map((segment) => segment.text).join("\n").trim()
+          || ""
+        )
+      : "";
+    if (hasAudio && !transcriptText) return;
+
     setIsSummarizing(true);
     setSummaryError(null);
     try {
       const summary = await summarizeArticleWithAI(
         article.title,
-        article.content,
-        article.snippet
+        hasAudio ? transcriptText : article.content,
+        hasAudio ? "" : article.snippet
       );
       setAiSummary(summary);
-      onArticlePatch?.(article.id, { aiSummary: summary });
+      onArticlePatch?.(article.id, {
+        aiSummary: summary,
+        aiSummarySource: hasAudio ? "transcript" : "article",
+      });
     } catch (err: any) {
       setSummaryError(err.message || "AI 总结生成失败，请稍后重试。");
     } finally {
@@ -1097,7 +1120,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, canGenerateSummary: !!presentation?.capabilities.canGenerateOverview, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onConfigureAi: onOpenAiSettings, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: cloudTranscription.missingKey ? "请先配置转录服务。" : localPodcast.fetchError, localRestoring: false, onStartTranscription: cloudTranscription.start, onRetryTranscription: cloudTranscription.start, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: cloudTranscription.missingKey ? "请先配置转录服务。" : localPodcast.fetchError, localRestoring: false, onStartTranscription: cloudTranscription.start, onRetryTranscription: cloudTranscription.start, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}
