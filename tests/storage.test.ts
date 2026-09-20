@@ -310,6 +310,45 @@ describe("article IndexedDB persistence", () => {
     });
   });
 
+  it("clears a saved API key when a backup switches to a different AI endpoint", async () => {
+    await saveAppStateToDB({
+      aiConfig: {
+        enabled: true,
+        providerPreset: "custom",
+        baseURL: "https://old.example.com/v1",
+        model: "old-model",
+      },
+    });
+    await saveSecretToDB("ai", { apiKey: "old-secret" });
+
+    const cleanBackup = await createDataBackup();
+    const changed = {
+      ...cleanBackup,
+      data: {
+        ...cleanBackup.data,
+        appState: {
+          ...(cleanBackup.data.appState || {}),
+          aiConfig: {
+            enabled: true,
+            providerPreset: "custom",
+            baseURL: "https://new.example.com/v1",
+            model: "new-model",
+          },
+        },
+      },
+    };
+    const payload = JSON.stringify(changed.data);
+    let hash = 2166136261;
+    for (let index = 0; index < payload.length; index += 1) {
+      hash ^= payload.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    changed.checksum = (hash >>> 0).toString(16).padStart(8, "0");
+
+    await restoreDataBackup(JSON.stringify(changed));
+    await expect(getSecretFromDB("ai")).resolves.toBeNull();
+  });
+
   it("exports and restores a checksummed business-data backup", async () => {
     await replaceFeedsInDB([{
       id: "feed-1", title: "Feed", feedUrl: "https://example.com/feed.xml", siteUrl: "https://example.com",
