@@ -39,9 +39,10 @@ function isLoopbackHost(hostname: string): boolean {
 }
 
 function normalizeConfig(input?: Partial<AiRequestConfig>): AiRequestConfig {
-  const baseURL = (input?.baseURL || process.env.AI_BASE_URL || "").trim();
-  const apiKey = (input?.apiKey ?? process.env.AI_API_KEY ?? "").trim();
-  const model = (input?.model || process.env.AI_MODEL || "").trim();
+  const hasExplicitConfig = input !== undefined;
+  const baseURL = (hasExplicitConfig ? input.baseURL || "" : process.env.AI_BASE_URL || "").trim();
+  const apiKey = (hasExplicitConfig ? input.apiKey || "" : process.env.AI_API_KEY || "").trim();
+  const model = (hasExplicitConfig ? input.model || "" : process.env.AI_MODEL || "").trim();
 
   if (!baseURL || !model) {
     throw new AiServiceError("not_configured", "AI service is not configured.");
