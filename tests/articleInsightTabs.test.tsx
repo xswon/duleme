@@ -105,6 +105,19 @@ describe("ArticleInsightTabs", () => {
     expect(html).toContain("Prepared highlights");
     expect(html).not.toContain("生成文章概要");
   });
+  it("keeps a saved article summary visible when generation is unavailable", () => {
+    const html = renderModel({ tab: "overview", summary: "Previously generated summary" });
+    expect(html).toContain("Previously generated summary");
+    expect(html).not.toContain("配置模型");
+  });
+
+  it("uses a gentle configuration state when an unavailable article overview is opened", () => {
+    const html = renderModel({ tab: "overview", onConfigureAi: vi.fn() });
+    expect(html).toContain("智能长文提炼");
+    expect(html).toContain("配置模型");
+    expect(html).not.toContain("API Key");
+  });
+
 
   it("scopes enrichment errors to enriched content", () => {
     const html = renderModel({ tab: "digest", enrichmentError: "BidClub unavailable" });
