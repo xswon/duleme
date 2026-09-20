@@ -72,6 +72,7 @@ interface SettingsPageProps {
   onOpenAddFeed: () => void;
   onExportBackup?: () => void;
   onImportBackup?: (file: File) => void;
+  initialTab?: "subscriptions" | "ai" | "data";
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -97,6 +98,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onOpenAddFeed,
   onExportBackup,
   onImportBackup,
+  initialTab = "subscriptions",
 }) => {
   const settingsDialogRef = useRef<HTMLDivElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(
@@ -135,7 +137,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     };
   }, [onBack]);
 
-  const [activeTab, setActiveTab] = useState<"subscriptions" | "ai" | "data">("subscriptions");
+  const [activeTab, setActiveTab] = useState<"subscriptions" | "ai" | "data">(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
   const [isFolderComposerOpen, setIsFolderComposerOpen] = useState(false);
   const [newFolderInput, setNewFolderInput] = useState("");
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -361,7 +367,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           >
             <span>订阅管理</span>
           </button>
-          <button type="button" onClick={() => setActiveTab("ai")} aria-current={activeTab === "ai" ? "page" : undefined} className={`wreader-settings-tab ${activeTab === "ai" ? "is-active" : ""}`}><span>AI 设置</span></button>
+          <button type="button" onClick={() => setActiveTab("ai")} aria-current={activeTab === "ai" ? "page" : undefined} className={`wreader-settings-tab ${activeTab === "ai" ? "is-active" : ""}`}><span>AI 与转录</span></button>
           <button type="button" onClick={() => setActiveTab("data")} aria-current={activeTab === "data" ? "page" : undefined} className={`wreader-settings-tab ${activeTab === "data" ? "is-active" : ""}`}><span>数据与备份</span></button>
         </nav>
 
