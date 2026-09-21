@@ -448,16 +448,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             onCancel={p.onCancelPipeline}
           />
         );
-      case "needs_transcript":
-        return (
-          <EmptyStateContainer
-            icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
-            title="生成摘要前需要逐字稿"
-            description="先生成逐字稿，再基于节目内容整理摘要。"
-          >
-            <PrimaryActionButton onClick={p.onStartTranscription}>生成逐字稿</PrimaryActionButton>
-          </EmptyStateContainer>
-        );
     }
   }
 
