@@ -258,6 +258,49 @@ describe("AI model settings modals", () => {
     expect(node.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it("auto-selects a content model before testing a new provider setup", async () => {
+    insight.get.mockResolvedValueOnce({
+      providerId: "custom",
+      provider: "自定义",
+      baseURL: "",
+      model: "",
+      configured: false,
+      hasApiKey: false,
+      source: "none" as const,
+    });
+    insight.test.mockResolvedValueOnce(88);
+
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
+    });
+
+    const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
+    await choose(provider, "deepseek");
+    const input = node.querySelector("#insight-api-key") as HTMLInputElement;
+    await typeInto(input, "user-deepseek-key");
+
+    expect((node.querySelector("#insight-model") as HTMLInputElement).value).toBe("");
+
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "测试连接") as HTMLButtonElement).click();
+    });
+    await flush();
+    await flush();
+
+    expect(insight.list).toHaveBeenCalled();
+    expect(insight.test).toHaveBeenCalledWith({
+      provider: "deepseek",
+      baseURL: "https://api.deepseek.com",
+      apiKey: "user-deepseek-key",
+      model: "reader-model",
+    });
+    expect((node.querySelector('select[aria-label="内容整理模型"]') as HTMLSelectElement).value).toBe("reader-model");
+    expect(node.textContent).toContain("连接成功 · 88 ms");
+    expect(node.textContent).not.toContain("请选择一个内容整理模型");
+  });
+
   it("keeps advanced endpoint details hidden from the beginner flow", async () => {
     insight.get.mockResolvedValueOnce(browserInsight);
     await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
