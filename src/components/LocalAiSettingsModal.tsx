@@ -506,7 +506,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               onClose={() => setInsightModalOpen(false)}
               onSave={() => void saveInsight()}
               saving={insightSaving}
-              notice={<ConnectionFeedback feedback={insightFeedback} />}
+              notice={insightFeedback ? <ConnectionFeedback feedback={insightFeedback} /> : null}
             >
               <div className="wreader-model-field">
                 <label htmlFor="insight-provider">服务商</label>
@@ -700,7 +700,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
             onClose={() => setTranscriptionModalOpen(false)}
             onSave={() => void saveTranscription()}
             saving={saving}
-            notice={<ConnectionFeedback feedback={transcriptionFeedback} />}
+            notice={transcriptionFeedback ? <ConnectionFeedback feedback={transcriptionFeedback} /> : null}
           >
             <div className="wreader-model-field">
               <label htmlFor="ai-provider">服务商</label>
