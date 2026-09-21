@@ -19,6 +19,9 @@
 .wreader-model-modal-card {
   width: min(640px, calc(100vw - 32px));
   max-height: min(640px, calc(100dvh - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 18px;
   background: #fff;
 }
@@ -43,6 +46,7 @@
 
 .wreader-model-modal-card header {
   min-height: 64px;
+  flex: 0 0 auto;
   padding: 0 24px;
   border-bottom: 0 !important;
 }
@@ -52,8 +56,13 @@
 }
 
 .wreader-model-modal-body {
+  min-height: 0;
+  flex: 1 1 auto;
   gap: 16px;
-  padding: 10px 24px 8px;
+  padding: 10px 24px 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .wreader-model-field {
@@ -111,11 +120,13 @@
 
 .wreader-model-modal-card footer {
   min-height: 68px;
+  flex: 0 0 auto;
   padding: 10px 24px 16px;
-  border-top: 0 !important;
+  border-top: 1px solid #eef1f3 !important;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  background: #fff;
 }
 
 .wreader-model-modal-card footer button {
@@ -168,13 +179,14 @@
   }
 
   .wreader-model-modal-card footer {
-    padding: 8px 18px 14px;
-    flex-wrap: wrap;
+    min-height: 60px;
+    padding: 8px 18px 12px;
+    gap: 10px;
   }
 
   .wreader-model-modal-footer-start {
-    width: 100%;
-    flex-basis: 100%;
+    min-width: 0;
+    flex: 1;
   }
 
   .wreader-model-modal-footer-actions {
@@ -182,7 +194,11 @@
   }
 
   .wreader-model-footer-tools {
-    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .wreader-model-footer-tools .wreader-model-feedback {
+    display: none;
   }
 }
 
