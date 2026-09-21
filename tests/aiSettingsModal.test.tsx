@@ -121,7 +121,7 @@ describe("AI model settings modals", () => {
     expect(node.querySelector('[role="dialog"]')?.textContent).not.toContain("Qwen Audio 3.0 ASR Flash Filetrans");
   });
 
-  it("opens a saved transcription draft, supports key visibility and discards it on cancel", async () => {
+  it("opens a saved transcription draft and closes without a redundant cancel button", async () => {
     await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
     await flush();
     expect(node.textContent).toContain("Qwen Audio 3.0 ASR Flash Filetrans");
@@ -133,10 +133,36 @@ describe("AI model settings modals", () => {
     expect(provider.disabled).toBe(false);
     const input = node.querySelector("#ai-api-key") as HTMLInputElement;
     expect(input.type).toBe("password");
+    expect(Array.from(node.querySelectorAll("button")).some((button) => button.textContent === "取消")).toBe(false);
     await act(async () => { (node.querySelector('[aria-label="显示 API Key"]') as HTMLButtonElement).click(); });
     expect(input.type).toBe("text");
     await act(async () => {
-      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "取消") as HTMLButtonElement).click();
+      (node.querySelector(".wreader-model-modal-card header [aria-label=\"关闭\"]") as HTMLButtonElement).click();
+    });
+    expect(node.querySelector('[role="dialog"]')).toBeNull();
+    expect(db.save).not.toHaveBeenCalled();
+  });
+
+  it("closes the model dialog from the backdrop or Escape key", async () => {
+    await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
+    await flush();
+
+    const open = async () => {
+      await act(async () => {
+        (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("Qwen Audio")) as HTMLButtonElement).click();
+      });
+      expect(node.querySelector('[role="dialog"]')).not.toBeNull();
+    };
+
+    await open();
+    await act(async () => {
+      (node.querySelector(".wreader-model-modal-backdrop") as HTMLButtonElement).click();
+    });
+    expect(node.querySelector('[role="dialog"]')).toBeNull();
+
+    await open();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(node.querySelector('[role="dialog"]')).toBeNull();
     expect(db.save).not.toHaveBeenCalled();
