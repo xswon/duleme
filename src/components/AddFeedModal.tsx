@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Plus,
@@ -36,6 +36,15 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
   const [failedCuratedId, setFailedCuratedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"custom" | "curated" | "opml">("custom");
   const [curatedCategory, setCuratedCategory] = useState("All");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -169,27 +178,32 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl text-slate-900 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[80] bg-slate-950/30 backdrop-blur-[1.5px] flex items-center justify-center p-4 animate-fadeIn">
+      <div role="dialog" aria-modal="true" aria-labelledby="add-feed-modal-title" className="bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200/80 text-slate-900 w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between bg-slate-50">
           <div>
-            <h2 className="font-bold text-lg text-slate-900">添加订阅源</h2>
+            <h2 id="add-feed-modal-title" className="font-bold text-lg text-slate-900">添加订阅源</h2>
             <p className="text-xs text-slate-500">
               通过 RSS 链接订阅、从推荐源中发现，或导入 OPML 文件
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+            aria-label="关闭添加订阅源"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex bg-slate-50/60 text-xs font-semibold px-6 pt-3 gap-5">
+        <div className="flex bg-slate-50/60 text-xs font-semibold px-6 pt-3 gap-5" role="tablist" aria-label="添加订阅方式">
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "custom"}
             onClick={() => {
               setActiveTab("custom");
               setErrorMsg(null);
@@ -203,6 +217,9 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
             RSS 链接
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "curated"}
             onClick={() => {
               setActiveTab("curated");
               setErrorMsg(null);
@@ -216,6 +233,9 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
             推荐源
           </button>
           <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "opml"}
             onClick={() => {
               setActiveTab("opml");
               setErrorMsg(null);
@@ -246,7 +266,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                     value={feedUrlInput}
                     onChange={(e) => setFeedUrlInput(e.target.value)}
                     placeholder="https://example.com/feed.xml"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -260,7 +280,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                   value={bidclubFeedUrlInput}
                   onChange={(e) => setBidclubFeedUrlInput(e.target.value)}
                   placeholder="https://bidclub.ai/feeds/example.zh.xml"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">主 RSS 保留音频；这里只用于匹配摘要、章节和逐字稿。</p>
               </div>
@@ -272,7 +292,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                 <select
                   value={categoryInput}
                   onChange={(e) => setCategoryInput(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                 >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>
@@ -294,13 +314,13 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder="例如：设计 | 灵感"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                   />
                 </div>
               )}
 
               {errorMsg && (
-                <div className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">
+                <div role="alert" className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">
                   {errorMsg}
                 </div>
               )}
@@ -308,7 +328,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isLoading ? (
                   <>
