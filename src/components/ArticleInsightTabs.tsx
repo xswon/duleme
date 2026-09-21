@@ -548,32 +548,42 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       return <LoadingContent />;
     case "generating":
       return (
-        <InsightEmptyState
+        <EmptyStateContainer
+          icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="正在生成逐字稿…"
           description="完成后会自动显示在这里。"
-          progress={p.localProgress}
-        />
+        >
+          <div className="mx-auto mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-slate-200">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
+          </div>
+        </EmptyStateContainer>
       );
     case "can_generate":
       return (
-        <InsightEmptyState
+        <EmptyStateContainer
+          icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="生成逐字稿"
-          description="音频只会在你主动操作后开始处理。"
-          actionLabel={cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
-          onAction={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}
-          error={p.localFetchError || cloudTask?.error}
-          primary
-        />
+          description="音频只会在你主动操作后开始转录。"
+        >
+          {(p.localFetchError || cloudTask?.error) && (
+            <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || cloudTask?.error}</p>
+          )}
+          <PrimaryActionButton onClick={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}>
+            {cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
+          </PrimaryActionButton>
+        </EmptyStateContainer>
       );
     case "needs_config":
     default:
       return (
-        <InsightEmptyState
+        <EmptyStateContainer
+          icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="还没有逐字稿"
-          description="配置转录方式后，即可按需生成完整逐字稿。"
-          actionLabel="配置逐字稿"
-          onAction={p.onConfigureTranscription}
-        />
+          description="配置转录服务后，可将音频转换为完整文本。"
+        >
+          <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿服务</PrimaryActionButton>
+        </EmptyStateContainer>
       );
   }
+
 }
