@@ -131,7 +131,6 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: 8px;
 }
 
 .wreader-model-footer-tools {
