@@ -476,9 +476,9 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("使用 AI 提炼这篇文章");
+    expect(container.textContent).toContain("需要配置 AI 模型");
     const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "配置模型");
+      .find((button) => button.textContent === "配置 AI 模型");
     expect(configureButton).toBeTruthy();
 
     await act(async () => configureButton?.click());
