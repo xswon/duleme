@@ -307,8 +307,8 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     apiKey: string;
     currentModel: string;
     useEnvironment?: boolean;
-  }) {
-    if (!provider || (!useEnvironment && !baseURL.trim())) return;
+  }): Promise<{ model?: string; error?: string }> {
+    if (!provider || (!useEnvironment && !baseURL.trim())) return {};
     setInsightModelsLoading(true);
     setInsightModelsError("");
     try {
@@ -317,17 +317,24 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
         apiKey: apiKey.trim() || undefined,
       });
       setInsightModels(models);
-      if (models.length === 0) {
-        setInsightModelsError("服务商没有返回可用模型，可在高级设置中手动填写模型名称");
-        return;
+      const candidates = pickContentModels(provider, models, currentModel);
+      if (candidates.length === 0) {
+        const error = "服务商没有返回可用的内容整理模型，可在高级设置中手动填写模型名称";
+        setInsightModelsError(error);
+        return { error };
       }
-      if (!currentModel.trim() && provider !== "custom") {
-        const first = pickContentModels(provider, models, "")[0];
-        if (first) setDraftInsightModel(first.id);
-      }
+
+      const current = currentModel.trim();
+      const selected = current && candidates.some((model) => model.id === current)
+        ? current
+        : candidates[0].id;
+      if (selected !== current) setDraftInsightModel(selected);
+      return { model: selected };
     } catch {
+      const error = "暂时无法自动获取模型列表，可在高级设置中手动填写模型名称";
       setInsightModels([]);
-      setInsightModelsError("暂时无法自动获取模型列表，可在高级设置中手动填写模型名称");
+      setInsightModelsError(error);
+      return { error };
     } finally {
       setInsightModelsLoading(false);
     }
@@ -389,61 +396,90 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     insight.baseURL.trim().replace(/\/+$/, "") === draftInsightBaseURL.trim().replace(/\/+$/, ""),
   );
 
-  const validateInsight = () => {
-    if (!draftInsightProvider) return "请先选择服务商。";
-    if (!draftInsightBaseURL.trim()) return "请填写 Base URL。";
+  const validateInsightBasics = () => {
+    if (!draftInsightProvider) return "请先选择服务商";
+    if (!draftInsightBaseURL.trim()) return "请填写 Base URL";
     try {
       const url = new URL(draftInsightBaseURL.trim());
-      if (url.protocol !== "http:" && url.protocol !== "https:") return "Base URL 仅支持 HTTP / HTTPS。";
+      if (url.protocol !== "http:" && url.protocol !== "https:") return "Base URL 仅支持 HTTP / HTTPS";
     } catch {
-      return "Base URL 格式不正确。";
+      return "Base URL 格式不正确";
     }
-    if (!draftInsightModel.trim()) return "请选择一个内容整理模型，或在高级设置中手动填写模型名称。";
-    if (!isLoopbackUrl(draftInsightBaseURL) && !draftInsightKey.trim() && !hasExistingInsightKey) return "请填写 API Key。";
+    if (!isLoopbackUrl(draftInsightBaseURL) && !draftInsightKey.trim() && !hasExistingInsightKey) return "请填写 API Key";
+    return "";
+  };
+
+  const ensureInsightModel = async (): Promise<string> => {
+    const current = draftInsightModel.trim();
+    if (current) return current;
+
+    setInsightFeedback({ tone: "info", text: "正在自动获取可用模型…" });
+    const result = await loadInsightModelCatalog({
+      provider: draftInsightProvider,
+      baseURL: draftInsightBaseURL,
+      apiKey: draftInsightKey,
+      currentModel: "",
+      useEnvironment: Boolean(
+        insight?.source === "server" &&
+        insight.baseURL.trim().replace(/\/+$/, "") === draftInsightBaseURL.trim().replace(/\/+$/, "") &&
+        !draftInsightKey.trim()
+      ),
+    });
+    if (result.model) return result.model;
+
+    setShowInsightAdvanced(true);
+    setInsightFeedback({
+      tone: "warning",
+      text: result.error || "无法自动选择模型，请在高级设置中手动填写模型名称",
+    });
     return "";
   };
 
   const testInsight = async () => {
-    const invalid = validateInsight();
+    const invalid = validateInsightBasics();
     if (invalid) {
       setInsightFeedback({ tone: "warning", text: invalid });
       return;
     }
     setInsightTesting(true);
-    setInsightFeedback({ tone: "info", text: "正在测试连接…" });
     try {
+      const model = await ensureInsightModel();
+      if (!model) return;
+      setInsightFeedback({ tone: "info", text: "正在测试连接…" });
       const latencyMs = await testInsightSettings({
         provider: draftInsightProvider as InsightProviderId,
         baseURL: draftInsightBaseURL.trim(),
         apiKey: draftInsightKey.trim() || undefined,
-        model: draftInsightModel.trim(),
+        model,
       });
       setInsightFeedback({ tone: "success", text: `连接成功 · ${latencyMs} ms` });
     } catch (error: any) {
-      setInsightFeedback({ tone: "error", text: error.message || "连接失败，请检查模型配置。" });
+      setInsightFeedback({ tone: "error", text: error.message || "连接失败，请检查模型配置" });
     } finally {
       setInsightTesting(false);
     }
   };
 
   const saveInsight = async () => {
-    const invalid = validateInsight();
+    const invalid = validateInsightBasics();
     if (invalid) {
       setInsightFeedback({ tone: "warning", text: invalid });
       return;
     }
     setInsightSaving(true);
     try {
+      const model = await ensureInsightModel();
+      if (!model) return;
       const status = await saveInsightSettings({
         provider: draftInsightProvider as InsightProviderId,
         baseURL: draftInsightBaseURL.trim(),
         apiKey: draftInsightKey.trim() || undefined,
-        model: draftInsightModel.trim(),
+        model,
       });
       setInsight(status);
       setInsightModalOpen(false);
     } catch (error: any) {
-      setInsightFeedback({ tone: "error", text: error.message || "无法保存内容整理模型配置。" });
+      setInsightFeedback({ tone: "error", text: error.message || "无法保存内容整理模型配置" });
     } finally {
       setInsightSaving(false);
     }
@@ -592,8 +628,8 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                       || (!draftProvider
                         ? "先选择服务商"
                         : canLoadModels
-                          ? "点击“获取模型”自动选择，也可以在高级设置中手动填写"
-                          : "完成 API Key 配置后即可自动获取模型")}
+                          ? "将自动获取并选择适合内容整理的模型"
+                          : "填写 API Key 后将自动获取并选择模型")}
                   </div>
                 )}
               </div>
