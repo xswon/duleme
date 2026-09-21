@@ -57,7 +57,7 @@ describe("article presentation resolver", () => {
     expect(result.capabilities.hasOverview).toBe(true);
   });
 
-  it("keeps audio navigation stable even when neither service is configured", () => {
+  it("keeps audio navigation stable and combines missing configuration", () => {
     const result = resolveArticlePresentation(article({ audioUrl: "https://cdn.example.com/e.mp3" }));
 
     expect(result.tabs).toEqual([
@@ -65,20 +65,42 @@ describe("article presentation resolver", () => {
       { key: "overview", label: "AI 摘要" },
       { key: "transcript", label: "逐字稿" },
     ]);
+    expect(result.overviewState).toBe("needs_all_config");
+    expect(result.transcriptState).toBe("needs_config");
+  });
+
+  it("reports only the missing transcription service", () => {
+    const result = resolveArticlePresentation(
+      article({ audioUrl: "https://cdn.example.com/e.mp3" }),
+      {},
+      runtime({ aiConfigured: true, transcriptionAvailable: false }),
+    );
+
     expect(result.overviewState).toBe("needs_transcription_config");
     expect(result.transcriptState).toBe("needs_config");
   });
 
-  it("guides audio content to transcription before summary generation", () => {
+  it("reports only the missing AI model", () => {
+    const result = resolveArticlePresentation(
+      article({ audioUrl: "https://cdn.example.com/e.mp3" }),
+      {},
+      runtime({ aiConfigured: false, transcriptionAvailable: true }),
+    );
+
+    expect(result.overviewState).toBe("needs_ai_config");
+    expect(result.transcriptState).toBe("can_generate");
+  });
+
+  it("makes one-click summary generation available when both services are configured", () => {
     const result = resolveArticlePresentation(
       article({ audioUrl: "https://cdn.example.com/e.mp3" }),
       {},
       runtime({ aiConfigured: true, transcriptionAvailable: true }),
     );
 
-    expect(result.overviewState).toBe("needs_transcript");
+    expect(result.overviewState).toBe("can_generate");
     expect(result.transcriptState).toBe("can_generate");
-    expect(result.capabilities.canGenerateOverview).toBe(false);
+    expect(result.capabilities.canGenerateOverview).toBe(true);
   });
 
   it("reports transcription progress without changing navigation", () => {
@@ -101,7 +123,7 @@ describe("article presentation resolver", () => {
     expect(result.transcriptState).toBe("generating");
   });
 
-  it("asks for AI configuration after a transcript is ready", () => {
+  it("asks only for AI configuration after a transcript is already ready", () => {
     const result = resolveArticlePresentation(
       article({
         audioUrl: "https://cdn.example.com/e.mp3",
@@ -114,7 +136,7 @@ describe("article presentation resolver", () => {
         },
       }),
       {},
-      runtime({ aiConfigured: false }),
+      runtime({ aiConfigured: false, transcriptionAvailable: false }),
     );
 
     expect(result.overviewState).toBe("needs_ai_config");
@@ -122,7 +144,7 @@ describe("article presentation resolver", () => {
     expect(result.capabilities.hasTranscript).toBe(true);
   });
 
-  it("allows transcript-based AI summary generation when both capabilities are ready", () => {
+  it("allows transcript-based AI summary generation without requiring transcription config again", () => {
     const result = resolveArticlePresentation(
       article({
         audioUrl: "https://cdn.example.com/e.mp3",
@@ -135,7 +157,7 @@ describe("article presentation resolver", () => {
         },
       }),
       {},
-      runtime({ aiConfigured: true }),
+      runtime({ aiConfigured: true, transcriptionAvailable: false }),
     );
 
     expect(result.overviewState).toBe("can_generate");
@@ -156,12 +178,12 @@ describe("article presentation resolver", () => {
     expect(result.capabilities.hasOverview).toBe(true);
   });
 
-  it("does not treat legacy podcast show-note aiSummary as a reliable overview", () => {
+  it("does not treat a legacy show-note summary as a transcript-based podcast summary", () => {
     const result = resolveArticlePresentation(
       article({ audioUrl: "https://cdn.example.com/e.mp3", aiSummary: "legacy" }),
     );
 
-    expect(result.overviewState).toBe("needs_transcription_config");
+    expect(result.overviewState).toBe("needs_all_config");
     expect(result.capabilities.hasOverview).toBe(false);
   });
 

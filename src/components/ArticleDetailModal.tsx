@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import {
   ExternalLink,
   Star,
@@ -15,7 +15,7 @@ import {
   Menu,
   AudioLines,
 } from "lucide-react";
-import { Article, ArticleNote, DetailTab } from "../types";
+import { Article, ArticleNote, DetailTab, OverviewPipelineStage } from "../types";
 import { resolveImageUrl } from "./ArticleList";
 import { summarizeArticleWithAI } from "../services/rssService";
 import { AI_SETTINGS_CHANGED_EVENT, getAiCapability } from "../services/aiSettingsService";
@@ -252,6 +252,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [aiSummary, setAiSummary] = useState<string | null>(() => article?.aiSummary || null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [pipelinePendingSummary, setPipelinePendingSummary] = useState(false);
+  const [pipelineStage, setPipelineStage] = useState<OverviewPipelineStage>("idle");
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const summaryInFlightRef = useRef(false);
+  const pipelineForceSummaryRef = useRef(false);
   const [aiConfigured, setAiConfigured] = useState(false);
   const [transcriptionAvailable, setTranscriptionAvailable] = useState(false);
   const [runtimeCapabilitiesLoaded, setRuntimeCapabilitiesLoaded] = useState(false);
@@ -384,6 +389,123 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
   const isInPlaylist = article ? playlistIds.includes(article.id) : false;
 
+  const getTranscriptText = useCallback(() => {
+    if (!article) return "";
+    return (
+      htmlToPlainText(bidclub?.transcriptHtml)
+      || article.transcription?.segments?.map((segment) => segment.text).join("\n").trim()
+      || localPodcast.artifacts?.transcript?.map((segment) => segment.text).join("\n").trim()
+      || ""
+    );
+  }, [article, bidclub?.transcriptHtml, localPodcast.artifacts?.transcript]);
+
+  const generateSummary = useCallback(async (
+    source: "article" | "transcript",
+    options: { force?: boolean } = {},
+  ): Promise<boolean> => {
+    if (!article || summaryInFlightRef.current || (!options.force && aiSummary)) return false;
+    const articleId = article.id;
+    const input = source === "transcript" ? getTranscriptText() : article.content;
+    if (source === "transcript" && !input) return false;
+
+    summaryInFlightRef.current = true;
+    setIsSummarizing(true);
+    setSummaryError(null);
+    setPipelineError(null);
+    if (source === "transcript") setPipelineStage("summarizing");
+
+    try {
+      const summary = await summarizeArticleWithAI(
+        article.title,
+        input,
+        source === "article" ? article.snippet : "",
+      );
+      onArticlePatch?.(articleId, {
+        aiSummary: summary,
+        aiSummarySource: source,
+      });
+      if (activeArticleIdRef.current === articleId) {
+        setAiSummary(summary);
+        setPipelinePendingSummary(false);
+        setPipelineStage("idle");
+      }
+      return true;
+    } catch (err: any) {
+      const message = err.message || "AI 总结生成失败，请稍后重试。";
+      if (activeArticleIdRef.current === articleId) {
+        setSummaryError(message);
+        if (source === "transcript") {
+          setPipelineError(message);
+          setPipelinePendingSummary(false);
+          setPipelineStage("failed");
+        }
+      }
+      return false;
+    } finally {
+      summaryInFlightRef.current = false;
+      if (activeArticleIdRef.current === articleId) setIsSummarizing(false);
+    }
+  }, [article, aiSummary, getTranscriptText, onArticlePatch]);
+
+  const startPodcastSummaryPipeline = useCallback(async (options: { force?: boolean } = {}) => {
+    if (!article?.audioUrl || summaryInFlightRef.current) return;
+    setSummaryError(null);
+    setPipelineError(null);
+
+    if (getTranscriptText()) {
+      await generateSummary("transcript", { force: options.force });
+      return;
+    }
+
+    pipelineForceSummaryRef.current = Boolean(options.force);
+    setPipelinePendingSummary(true);
+    setPipelineStage("transcribing");
+    const result = await cloudTranscription.start();
+    if (!result.started) {
+      setPipelinePendingSummary(false);
+      setPipelineStage("failed");
+      setPipelineError(result.error || "逐字稿生成失败，请重试。");
+    }
+  }, [article?.audioUrl, cloudTranscription.start, generateSummary, getTranscriptText]);
+
+  useEffect(() => {
+    if (!pipelinePendingSummary || !article) return;
+    const status = article.transcription?.status;
+    if (status === "processing") {
+      setPipelineStage("transcribing");
+      return;
+    }
+    if (status === "failed") {
+      setPipelinePendingSummary(false);
+      setPipelineStage("failed");
+      setPipelineError(article.transcription.error || "逐字稿生成失败，请重试。");
+      return;
+    }
+    if (status === "completed") {
+      if (!article.transcription.segments?.length) {
+        setPipelinePendingSummary(false);
+        setPipelineStage("failed");
+        setPipelineError("逐字稿为空，请重新生成后再试。");
+        return;
+      }
+      setPipelineStage("summarizing");
+      const force = pipelineForceSummaryRef.current;
+      pipelineForceSummaryRef.current = false;
+      void generateSummary("transcript", { force });
+    }
+  }, [
+    article,
+    generateSummary,
+    pipelinePendingSummary,
+  ]);
+
+  const cancelPendingSummary = useCallback(() => {
+    pipelineForceSummaryRef.current = false;
+    setPipelinePendingSummary(false);
+    setPipelineStage("idle");
+    setPipelineError(null);
+  }, []);
+
   // Sync detail state when article changes
   useEffect(() => {
     if (!article) return;
@@ -393,6 +515,10 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       setDetachedCurrentTime(savedProgress?.currentTime || 0);
       setAiSummary(article.aiSummary || null);
       setSummaryError(null);
+      pipelineForceSummaryRef.current = false;
+      setPipelinePendingSummary(false);
+      setPipelineStage("idle");
+      setPipelineError(null);
       userInteractedRef.current = !!initialOpenTarget || !!initialDetailTab;
       setNotes([]);
       setNotesLoaded(false);
@@ -586,34 +712,21 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
   const handleSummarize = async () => {
     if (!presentation?.capabilities.canGenerateOverview || aiSummary || isSummarizing) return;
-    const transcriptText = hasAudio
-      ? (
-          htmlToPlainText(bidclub?.transcriptHtml)
-          || article.transcription?.segments?.map((segment) => segment.text).join("\n").trim()
-          || localPodcast.artifacts?.transcript?.map((segment) => segment.text).join("\n").trim()
-          || ""
-        )
-      : "";
-    if (hasAudio && !transcriptText) return;
-
-    setIsSummarizing(true);
-    setSummaryError(null);
-    try {
-      const summary = await summarizeArticleWithAI(
-        article.title,
-        hasAudio ? transcriptText : article.content,
-        hasAudio ? "" : article.snippet
-      );
-      setAiSummary(summary);
-      onArticlePatch?.(article.id, {
-        aiSummary: summary,
-        aiSummarySource: hasAudio ? "transcript" : "article",
-      });
-    } catch (err: any) {
-      setSummaryError(err.message || "AI 总结生成失败，请稍后重试。");
-    } finally {
-      setIsSummarizing(false);
+    if (hasAudio) {
+      await startPodcastSummaryPipeline();
+      return;
     }
+    await generateSummary("article");
+  };
+
+  const handleRegenerateSummary = async () => {
+    if (isSummarizing) return;
+    if (hasAudio) {
+      if (getTranscriptText()) await generateSummary("transcript", { force: true });
+      else await startPodcastSummaryPipeline({ force: true });
+      return;
+    }
+    await generateSummary("article", { force: true });
   };
 
   // Relative publish time string
@@ -1120,7 +1233,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: cloudTranscription.missingKey ? "请先配置转录服务。" : localPodcast.fetchError, localRestoring: false, onStartTranscription: cloudTranscription.start, onRetryTranscription: cloudTranscription.start, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: pipelineStage === "transcribing" || pipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage, pipelinePendingSummary, pipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: cancelPendingSummary, onOpenTranscript: () => handleDetailTabChange("transcript"), onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryError: pipelineError || summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: cloudTranscription.missingKey ? "请先配置转录服务。" : localPodcast.fetchError, localRestoring: false, onStartTranscription: cloudTranscription.start, onRetryTranscription: cloudTranscription.start, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}
