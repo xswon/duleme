@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AiServiceError,
   createChatCompletion,
+  listAiModels,
 } from "../server/services/aiService";
 
 const remoteConfig = {
@@ -32,6 +33,46 @@ describe("OpenAI-compatible AI client", () => {
         headers: expect.objectContaining({ Authorization: "Bearer sk-secret" }),
       }),
     );
+  });
+
+  it("loads a model catalog without requiring a configured model", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [
+        { id: "model-b", created: 2, owned_by: "provider" },
+        { id: "model-a", name: "Model A" },
+      ],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(listAiModels({
+      baseURL: "https://api.example.com/v1",
+      apiKey: "sk-secret",
+    })).resolves.toEqual([
+      { id: "model-b", created: 2, ownedBy: "provider" },
+      { id: "model-a", name: "Model A" },
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.example.com/v1/models",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: "Bearer sk-secret" }),
+      }),
+    );
+  });
+
+  it("allows a local model catalog without an API key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      models: [{ id: "llama3.2:latest" }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(listAiModels({
+      baseURL: "http://127.0.0.1:11434/v1",
+    })).resolves.toEqual([{ id: "llama3.2:latest" }]);
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.headers).not.toHaveProperty("Authorization");
   });
 
   it("keeps environment credentials out of an explicit local endpoint", async () => {
