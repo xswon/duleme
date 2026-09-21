@@ -30,7 +30,6 @@ export type OverviewPanelState =
   | "can_generate"
   | "needs_all_config"
   | "needs_ai_config"
-  | "needs_transcript"
   | "processing"
   | "transcribing"
   | "needs_transcription_config";
