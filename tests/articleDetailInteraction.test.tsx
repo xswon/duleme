@@ -311,11 +311,12 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await act(async () => root.unmount());
   });
 
-  it("keeps audio insight tabs visible and routes missing transcription setup", async () => {
+  it("keeps audio insight tabs visible and exposes both missing configuration shortcuts", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
     const onOpenTranscriptionSettings = vi.fn();
+    const onOpenAiSettings = vi.fn();
     const audioItem: Article = {
       ...baseArticle,
       id: "audio-unconfigured",
@@ -325,7 +326,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
       transcription: undefined,
     };
 
-    await act(async () => renderDetail(root, audioItem, { onOpenTranscriptionSettings }));
+    await act(async () => renderDetail(root, audioItem, { onOpenTranscriptionSettings, onOpenAiSettings }));
     await waitForNotesToLoad(container);
 
     const tabs = Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'));
@@ -334,12 +335,17 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("需要先启用逐字稿");
-    const configure = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "配置逐字稿");
-    expect(configure).toBeTruthy();
-    await act(async () => configure?.click());
+    expect(container.textContent).toContain("开启 AI 摘要");
+    expect(container.textContent).toContain("逐字稿服务");
+    expect(container.textContent).toContain("AI 总结模型");
+    const configureButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .filter((button) => button.textContent?.trim() === "去配置");
+    expect(configureButtons).toHaveLength(2);
+
+    await act(async () => configureButtons[0].click());
     expect(onOpenTranscriptionSettings).toHaveBeenCalledTimes(1);
+    await act(async () => configureButtons[1].click());
+    expect(onOpenAiSettings).toHaveBeenCalledTimes(1);
 
     await act(async () => root.unmount());
     container.remove();
