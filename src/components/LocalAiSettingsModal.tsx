@@ -75,17 +75,25 @@ function contentModelPriority(provider: "" | InsightProviderId, id: string): num
   if (/\d{4}[-_.]\d{2}[-_.]\d{2}/.test(value)) score -= 8;
 
   if (provider === "openai") {
-    if (/^gpt-5(?:[.\-_]\d+)?$/.test(value)) score += 100;
+    if (value === "gpt-5.6-terra") score += 120;
+    else if (value === "gpt-5.6-luna") score += 110;
+    else if (value === "gpt-5.6-sol") score += 100;
+    else if (/^gpt-5(?:[.\-_]\d+)?$/.test(value)) score += 90;
     else if (/^gpt-5(?:[.\-_]\d+)?-(mini|nano)$/.test(value)) score += 80;
     else if (/^gpt-4[.\-_]?1(?:-(mini|nano))?$/.test(value)) score += 60;
   } else if (provider === "deepseek") {
-    if (value === "deepseek-chat") score += 100;
+    if (value === "deepseek-flash") score += 120;
+    else if (value === "deepseek-v4-pro") score += 100;
+    else if (value === "deepseek-chat") score += 80;
     else if (value === "deepseek-reasoner") score += 70;
   } else if (provider === "qwen") {
-    if (/qwen.*(plus|max|turbo|flash)/.test(value)) score += 80;
+    if (value === "qwen-plus") score += 120;
+    else if (/qwen.*flash/.test(value)) score += 110;
+    else if (/qwen.*(plus|max|turbo)/.test(value)) score += 80;
     else if (/qwen3/.test(value)) score += 60;
   } else if (provider === "kimi") {
-    if (/kimi.*k2|kimi-latest/.test(value)) score += 90;
+    if (value === "kimi-k2.5") score += 120;
+    else if (/kimi.*k2|kimi-latest/.test(value)) score += 90;
     else if (/moonshot/.test(value)) score += 60;
   } else if (provider === "ollama") {
     if (/:latest$/.test(value)) score += 30;
