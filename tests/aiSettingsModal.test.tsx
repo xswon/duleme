@@ -356,6 +356,46 @@ describe("AI model settings modals", () => {
     expect(baseURL.closest(".wreader-model-advanced-body")?.hasAttribute("hidden")).toBe(false);
   });
 
+  it("falls back to built-in models for a known provider when discovery fails", async () => {
+    insight.get.mockResolvedValueOnce({
+      providerId: "custom",
+      provider: "自定义",
+      baseURL: "",
+      model: "",
+      configured: false,
+      hasApiKey: false,
+      source: "none" as const,
+    });
+    insight.list.mockRejectedValueOnce(new Error("catalog unavailable"));
+    insight.test.mockResolvedValueOnce(77);
+
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
+    });
+
+    await choose(node.querySelector("#insight-provider") as HTMLSelectElement, "deepseek");
+    await typeInto(node.querySelector("#insight-api-key") as HTMLInputElement, "user-deepseek-key");
+
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "测试连接") as HTMLButtonElement).click();
+    });
+    await flush();
+    await flush();
+
+    const modelSelect = node.querySelector('select[aria-label="内容整理模型"]') as HTMLSelectElement;
+    expect(modelSelect.value).toBe("deepseek-flash");
+    expect(node.textContent).not.toContain("手动填写模型名称");
+    expect(insight.test).toHaveBeenCalledWith({
+      provider: "deepseek",
+      baseURL: "https://api.deepseek.com",
+      apiKey: "user-deepseek-key",
+      model: "deepseek-flash",
+    });
+    expect(node.textContent).toContain("连接成功 · 77 ms");
+  });
+
   it("keeps manual model entry available when model discovery fails", async () => {
     insight.get.mockResolvedValueOnce({
       providerId: "custom",
