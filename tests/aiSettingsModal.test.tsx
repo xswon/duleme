@@ -168,7 +168,7 @@ describe("AI model settings modals", () => {
     expect(db.save).not.toHaveBeenCalled();
   });
 
-  it("keeps connection testing outside the scrollable model form", async () => {
+  it("keeps connection testing beside the API key and feedback at the top", async () => {
     await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
     await flush();
     await act(async () => {
@@ -176,13 +176,19 @@ describe("AI model settings modals", () => {
     });
 
     const dialog = node.querySelector('[role="dialog"]') as HTMLElement;
-    const body = dialog.querySelector(".wreader-model-modal-body") as HTMLElement;
-    const footer = dialog.querySelector("footer") as HTMLElement;
+    const apiRow = dialog.querySelector(".wreader-model-api-row") as HTMLElement;
+    const apiKey = dialog.querySelector("#ai-api-key") as HTMLInputElement;
     const testButton = Array.from(dialog.querySelectorAll("button"))
       .find((button) => button.textContent === "测试连接") as HTMLButtonElement;
 
-    expect(body.contains(testButton)).toBe(false);
-    expect(footer.contains(testButton)).toBe(true);
+    expect(apiRow.contains(apiKey)).toBe(true);
+    expect(apiRow.contains(testButton)).toBe(true);
+
+    await act(async () => { testButton.click(); });
+    await flush();
+    const toast = dialog.querySelector(".wreader-model-modal-toast") as HTMLElement;
+    expect(toast.textContent).toContain("连接成功");
+    expect(dialog.querySelector(".wreader-model-modal-body")?.contains(toast)).toBe(false);
   });
 
   it("tests then saves transcription configuration and keeps daily settings independent", async () => {
@@ -224,6 +230,9 @@ describe("AI model settings modals", () => {
     expect(input.placeholder).toContain("已保存");
     expect(node.textContent).toContain("Reader Model");
     expect(node.textContent).not.toContain("text-embedding-3-small");
+    const modelSelect = node.querySelector('select[aria-label="内容整理模型"]') as HTMLSelectElement;
+    expect(modelSelect.value).toBe("reader-model");
+    expect(node.querySelector('[role="radiogroup"]')).toBeNull();
     await typeInto(input, "user-openai-key");
     await act(async () => {
       (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "测试连接") as HTMLButtonElement).click();
@@ -288,7 +297,8 @@ describe("AI model settings modals", () => {
     const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
     await choose(provider, "ollama");
     await flush();
-    expect(node.textContent).toContain("仍可在高级设置中手动填写模型名称");
+    expect(node.textContent).toContain("可在高级设置中手动填写模型名称");
+    expect(node.textContent?.match(/手动填写模型名称/g)?.length).toBe(1);
 
     const advanced = Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("高级设置")) as HTMLButtonElement;
     await act(async () => { advanced.click(); });
