@@ -86,14 +86,20 @@ export function resolveArticlePresentation(
     overviewState = "ready";
   } else if (!hasAudio) {
     overviewState = runtime.aiConfigured ? "can_generate" : "needs_ai_config";
-  } else if (!hasTranscript) {
-    overviewState = transcriptionProcessing
-      ? "transcribing"
-      : runtime.transcriptionAvailable
-        ? "needs_transcript"
-        : "needs_transcription_config";
-  } else {
+  } else if (hasTranscript) {
     overviewState = runtime.aiConfigured ? "can_generate" : "needs_ai_config";
+  } else if (!runtime.transcriptionAvailable && !runtime.aiConfigured) {
+    overviewState = "needs_all_config";
+  } else if (!runtime.transcriptionAvailable) {
+    overviewState = "needs_transcription_config";
+  } else if (!runtime.aiConfigured) {
+    overviewState = "needs_ai_config";
+  } else if (transcriptionProcessing) {
+    overviewState = "transcribing";
+  } else {
+    // Both dependencies are ready. The detail view owns the one-click
+    // transcription -> summary pipeline when no transcript exists yet.
+    overviewState = "can_generate";
   }
 
   const capabilities = {
