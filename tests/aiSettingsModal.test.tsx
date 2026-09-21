@@ -301,6 +301,42 @@ describe("AI model settings modals", () => {
     expect(node.textContent).not.toContain("请选择一个内容整理模型");
   });
 
+  it("auto-selects a content model before saving a new provider setup", async () => {
+    insight.get.mockResolvedValueOnce({
+      providerId: "custom",
+      provider: "自定义",
+      baseURL: "",
+      model: "",
+      configured: false,
+      hasApiKey: false,
+      source: "none" as const,
+    });
+    insight.save.mockResolvedValueOnce(browserInsight);
+
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
+    });
+
+    await choose(node.querySelector("#insight-provider") as HTMLSelectElement, "deepseek");
+    await typeInto(node.querySelector("#insight-api-key") as HTMLInputElement, "user-deepseek-key");
+
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "保存") as HTMLButtonElement).click();
+    });
+    await flush();
+    await flush();
+
+    expect(insight.list).toHaveBeenCalled();
+    expect(insight.save).toHaveBeenCalledWith({
+      provider: "deepseek",
+      baseURL: "https://api.deepseek.com",
+      apiKey: "user-deepseek-key",
+      model: "reader-model",
+    });
+  });
+
   it("keeps advanced endpoint details hidden from the beginner flow", async () => {
     insight.get.mockResolvedValueOnce(browserInsight);
     await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
