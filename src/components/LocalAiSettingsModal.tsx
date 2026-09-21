@@ -114,7 +114,7 @@ function ModelConfigModal({
   onSave,
   saveLabel = "保存",
   saving = false,
-  footerStart,
+  notice,
 }: {
   title: string;
   children: React.ReactNode;
@@ -122,7 +122,7 @@ function ModelConfigModal({
   onSave: () => void;
   saveLabel?: string;
   saving?: boolean;
-  footerStart?: React.ReactNode;
+  notice?: React.ReactNode;
 }) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -135,6 +135,7 @@ function ModelConfigModal({
   return (
     <div className="wreader-model-modal" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="wreader-model-modal-backdrop" aria-label="关闭" onClick={onClose} />
+      {notice && <div className="wreader-model-modal-toast">{notice}</div>}
       <section className="wreader-model-modal-card">
         <header>
           <h2>{title}</h2>
@@ -142,7 +143,6 @@ function ModelConfigModal({
         </header>
         <div className="wreader-model-modal-body">{children}</div>
         <footer>
-          <div className="wreader-model-modal-footer-start">{footerStart}</div>
           <div className="wreader-model-modal-footer-actions">
             <button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button>
           </div>
@@ -318,7 +318,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       });
       setInsightModels(models);
       if (models.length === 0) {
-        setInsightModelsError("服务商没有返回可用模型；你仍可在高级设置中手动填写模型名称。");
+        setInsightModelsError("服务商没有返回可用模型，可在高级设置中手动填写模型名称");
         return;
       }
       if (!currentModel.trim() && provider !== "custom") {
@@ -327,7 +327,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       }
     } catch {
       setInsightModels([]);
-      setInsightModelsError("暂时无法自动获取模型列表；你仍可在高级设置中手动填写模型名称。");
+      setInsightModelsError("暂时无法自动获取模型列表，可在高级设置中手动填写模型名称");
     } finally {
       setInsightModelsLoading(false);
     }
@@ -506,14 +506,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               onClose={() => setInsightModalOpen(false)}
               onSave={() => void saveInsight()}
               saving={insightSaving}
-              footerStart={(
-                <div className="wreader-model-footer-tools">
-                  <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
-                    {insightTesting ? "正在测试…" : "测试连接"}
-                  </button>
-                  <ConnectionFeedback feedback={insightFeedback} />
-                </div>
-              )}
+              notice={<ConnectionFeedback feedback={insightFeedback} />}
             >
               <div className="wreader-model-field">
                 <label htmlFor="insight-provider">服务商</label>
@@ -532,38 +525,40 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
 
               <div className="wreader-model-field">
                 <label htmlFor="insight-api-key">API Key</label>
-                <div className="wreader-ai-key-field">
-                  <KeyRound aria-hidden="true" />
-                  <input
-                    id="insight-api-key"
-                    type={showInsightKey ? "text" : "password"}
-                    autoComplete="off"
-                    value={draftInsightKey}
-                    disabled={!draftProvider}
-                    onChange={(event) => {
-                      setDraftInsightKey(event.target.value);
-                      setInsightFeedback(null);
-                      setInsightModels([]);
-                      setInsightModelsError("");
-                    }}
-                    onBlur={() => {
-                      if (canLoadModels && draftInsightKey.trim()) void refreshModels();
-                    }}
-                    placeholder={!draftProvider
-                      ? "请先选择服务商"
-                      : isLoopbackUrl(draftInsightBaseURL)
-                        ? "本机服务可留空"
-                        : hasExistingInsightKey
-                          ? "已保存，如需更换请输入新的 API Key"
-                          : "输入 API Key"}
-                  />
-                  <button type="button" onClick={() => setShowInsightKey(!showInsightKey)} aria-label={showInsightKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
-                    {showInsightKey ? <EyeOff /> : <Eye />}
+                <div className="wreader-model-api-row">
+                  <div className="wreader-ai-key-field">
+                    <KeyRound aria-hidden="true" />
+                    <input
+                      id="insight-api-key"
+                      type={showInsightKey ? "text" : "password"}
+                      autoComplete="off"
+                      value={draftInsightKey}
+                      disabled={!draftProvider}
+                      onChange={(event) => {
+                        setDraftInsightKey(event.target.value);
+                        setInsightFeedback(null);
+                        setInsightModels([]);
+                        setInsightModelsError("");
+                      }}
+                      onBlur={() => {
+                        if (canLoadModels && draftInsightKey.trim()) void refreshModels();
+                      }}
+                      placeholder={!draftProvider
+                        ? "请先选择服务商"
+                        : isLoopbackUrl(draftInsightBaseURL)
+                          ? "本机服务可留空"
+                          : hasExistingInsightKey
+                            ? "已保存，如需更换请输入新的 API Key"
+                            : "输入 API Key"}
+                    />
+                    <button type="button" onClick={() => setShowInsightKey(!showInsightKey)} aria-label={showInsightKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
+                      {showInsightKey ? <EyeOff /> : <Eye />}
+                    </button>
+                  </div>
+                  <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
+                    {insightTesting ? "正在测试…" : "测试连接"}
                   </button>
                 </div>
-                {draftProvider && !isLoopbackUrl(draftInsightBaseURL) && !draftInsightKey.trim() && !hasExistingInsightKey && !sameAsServerEndpoint && (
-                  <p className="wreader-model-hint">填写 API Key 后会自动获取可用于内容整理的模型。</p>
-                )}
               </div>
 
               <div className="wreader-model-field">
@@ -575,40 +570,32 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                 </div>
 
                 {insightModelsLoading ? (
-                  <div className="wreader-content-model-state" role="status">正在获取可用模型…</div>
+                  <div className="wreader-content-model-state" role="status">正在获取可用模型</div>
                 ) : contentModels.length > 0 ? (
-                  <div className="wreader-content-model-choices" role="radiogroup" aria-label="内容整理模型">
-                    {contentModels.map((model, index) => {
-                      const selected = draftInsightModel === model.id;
-                      const displayName = model.name && model.name !== model.id ? model.name : model.id;
-                      return (
-                        <label key={model.id} className={`wreader-content-model-choice ${selected ? "is-selected" : ""}`}>
-                          <input
-                            type="radio"
-                            name="insight-model-choice"
-                            value={model.id}
-                            checked={selected}
-                            onChange={() => { setDraftInsightModel(model.id); setInsightFeedback(null); }}
-                          />
-                          <span>
-                            <strong>{displayName}</strong>
-                            {model.name && model.name !== model.id && <small>{model.id}</small>}
-                          </span>
-                          {index === 0 && contentModelPriority(draftInsightProvider, model.id) > 0 && <em>常用</em>}
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <span className="wreader-ai-select-wrap wreader-content-model-select">
+                    <select
+                      aria-label="内容整理模型"
+                      value={draftInsightModel}
+                      onChange={(event) => { setDraftInsightModel(event.target.value); setInsightFeedback(null); }}
+                    >
+                      {contentModels.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name && model.name !== model.id ? `${model.name} · ${model.id}` : model.id}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown aria-hidden="true" />
+                  </span>
                 ) : (
                   <div className="wreader-content-model-state">
-                    {!draftProvider
-                      ? "先选择服务商。"
-                      : canLoadModels
-                        ? "点击“获取模型”自动选择；也可以在高级设置中手动填写。"
-                        : "完成 API Key 配置后即可自动获取模型。"}
+                    {insightModelsError
+                      || (!draftProvider
+                        ? "先选择服务商"
+                        : canLoadModels
+                          ? "点击“获取模型”自动选择，也可以在高级设置中手动填写"
+                          : "完成 API Key 配置后即可自动获取模型")}
                   </div>
                 )}
-                {insightModelsError && <p className="wreader-model-catalog-warning">{insightModelsError}</p>}
               </div>
 
               <div className="wreader-model-advanced">
@@ -656,7 +643,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               </div>
 
               {insight?.source === "server" && (
-                <p className="wreader-model-hint">当前使用环境变量配置；保存后将优先使用此浏览器配置。</p>
+                <p className="wreader-model-hint">当前使用环境变量配置，保存后将优先使用此浏览器配置</p>
               )}
               {insight?.source === "browser" && (
                 <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
@@ -713,14 +700,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
             onClose={() => setTranscriptionModalOpen(false)}
             onSave={() => void saveTranscription()}
             saving={saving}
-            footerStart={(
-              <div className="wreader-model-footer-tools">
-                <button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={!draftProvider || testing}>
-                  {testing ? "正在测试…" : "测试连接"}
-                </button>
-                <ConnectionFeedback feedback={transcriptionFeedback} />
-              </div>
-            )}
+            notice={<ConnectionFeedback feedback={transcriptionFeedback} />}
           >
             <div className="wreader-model-field">
               <label htmlFor="ai-provider">服务商</label>
@@ -739,19 +719,24 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
 
             <div className="wreader-model-field">
               <label htmlFor="ai-api-key">API Key</label>
-              <div className="wreader-ai-key-field">
-                <KeyRound aria-hidden="true" />
-                <input
-                  id="ai-api-key"
-                  type={showKey ? "text" : "password"}
-                  autoComplete="off"
-                  value={draftKey}
-                  disabled={!draftProvider}
-                  onChange={(event) => { setDraftKey(event.target.value); setTranscriptionFeedback(null); }}
-                  placeholder={draftProvider ? `输入${draftProvider.name} API Key` : "请先选择服务商"}
-                />
-                <button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
-                  {showKey ? <EyeOff /> : <Eye />}
+              <div className="wreader-model-api-row">
+                <div className="wreader-ai-key-field">
+                  <KeyRound aria-hidden="true" />
+                  <input
+                    id="ai-api-key"
+                    type={showKey ? "text" : "password"}
+                    autoComplete="off"
+                    value={draftKey}
+                    disabled={!draftProvider}
+                    onChange={(event) => { setDraftKey(event.target.value); setTranscriptionFeedback(null); }}
+                    placeholder={draftProvider ? `输入${draftProvider.name} API Key` : "请先选择服务商"}
+                  />
+                  <button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "隐藏 API Key" : "显示 API Key"} disabled={!draftProvider}>
+                    {showKey ? <EyeOff /> : <Eye />}
+                  </button>
+                </div>
+                <button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={!draftProvider || testing}>
+                  {testing ? "正在测试…" : "测试连接"}
                 </button>
               </div>
               <div className="wreader-model-key-actions">
