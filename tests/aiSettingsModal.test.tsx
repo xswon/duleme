@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), clear: vi.fn() }));
 const transcription = vi.hoisted(() => ({ test: vi.fn() }));
-const insight = vi.hoisted(() => ({ get: vi.fn(), test: vi.fn(), save: vi.fn(), clear: vi.fn() }));
+const insight = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), test: vi.fn(), save: vi.fn(), clear: vi.fn() }));
 
 vi.mock("../src/services/dbService", () => ({
   getTranscriptionSettings: db.get,
@@ -15,6 +15,7 @@ vi.mock("../src/services/dbService", () => ({
 vi.mock("../src/services/transcriptionService", () => ({ transcriptionApi: { test: transcription.test } }));
 vi.mock("../src/services/insightSettingsService", () => ({
   getInsightSettingsStatus: insight.get,
+  listInsightModels: insight.list,
   testInsightSettings: insight.test,
   saveInsightSettings: insight.save,
   clearInsightSettings: insight.clear,
@@ -80,6 +81,11 @@ describe("AI model settings modals", () => {
     db.clear.mockResolvedValue(undefined);
     transcription.test.mockResolvedValue({ ok: true });
     insight.get.mockResolvedValue(serverInsight);
+    insight.list.mockResolvedValue([
+      { id: "reader-model", name: "Reader Model", created: 2 },
+      { id: "text-embedding-3-small", created: 3 },
+      { id: "fallback-chat", created: 1 },
+    ]);
     insight.test.mockResolvedValue(undefined);
     insight.save.mockResolvedValue(browserInsight);
     insight.clear.mockResolvedValue(serverInsight);
@@ -172,6 +178,8 @@ describe("AI model settings modals", () => {
     expect(baseURL.value).toBe("https://api.openai.com/v1");
     expect(model.value).toBe("reader-model");
     expect(input.placeholder).toContain("已保存");
+    expect(node.textContent).toContain("Reader Model");
+    expect(node.textContent).not.toContain("text-embedding-3-small");
     await typeInto(input, "user-openai-key");
     await act(async () => {
       (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "测试连接") as HTMLButtonElement).click();
@@ -195,6 +203,25 @@ describe("AI model settings modals", () => {
       model: "reader-model",
     });
     expect(node.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("keeps advanced endpoint details hidden from the beginner flow", async () => {
+    insight.get.mockResolvedValueOnce(browserInsight);
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("reader-model")) as HTMLButtonElement).click();
+    });
+    await flush();
+
+    const advanced = Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("高级设置")) as HTMLButtonElement;
+    const baseURL = node.querySelector("#insight-base-url") as HTMLInputElement;
+    expect(advanced.getAttribute("aria-expanded")).toBe("false");
+    expect(baseURL.closest(".wreader-model-advanced-body")?.hasAttribute("hidden")).toBe(true);
+
+    await act(async () => { advanced.click(); });
+    expect(advanced.getAttribute("aria-expanded")).toBe("true");
+    expect(baseURL.closest(".wreader-model-advanced-body")?.hasAttribute("hidden")).toBe(false);
   });
 
   it("keeps the full content-organizing form visible before a provider is chosen", async () => {
