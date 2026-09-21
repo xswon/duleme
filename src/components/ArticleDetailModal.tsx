@@ -256,6 +256,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [pipelineStage, setPipelineStage] = useState<OverviewPipelineStage>("idle");
   const [pipelineError, setPipelineError] = useState<string | null>(null);
   const summaryInFlightRef = useRef(false);
+  const pipelineForceSummaryRef = useRef(false);
   const [aiConfigured, setAiConfigured] = useState(false);
   const [transcriptionAvailable, setTranscriptionAvailable] = useState(false);
   const [runtimeCapabilitiesLoaded, setRuntimeCapabilitiesLoaded] = useState(false);
@@ -446,16 +447,17 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     }
   }, [article, aiSummary, getTranscriptText, onArticlePatch]);
 
-  const startPodcastSummaryPipeline = useCallback(async () => {
+  const startPodcastSummaryPipeline = useCallback(async (options: { force?: boolean } = {}) => {
     if (!article?.audioUrl || summaryInFlightRef.current) return;
     setSummaryError(null);
     setPipelineError(null);
 
     if (getTranscriptText()) {
-      await generateSummary("transcript");
+      await generateSummary("transcript", { force: options.force });
       return;
     }
 
+    pipelineForceSummaryRef.current = Boolean(options.force);
     setPipelinePendingSummary(true);
     setPipelineStage("transcribing");
     const result = await cloudTranscription.start();
@@ -487,7 +489,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         return;
       }
       setPipelineStage("summarizing");
-      void generateSummary("transcript");
+      const force = pipelineForceSummaryRef.current;
+      pipelineForceSummaryRef.current = false;
+      void generateSummary("transcript", { force });
     }
   }, [
     article,
@@ -496,6 +500,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   ]);
 
   const cancelPendingSummary = useCallback(() => {
+    pipelineForceSummaryRef.current = false;
     setPipelinePendingSummary(false);
     setPipelineStage("idle");
     setPipelineError(null);
@@ -510,6 +515,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       setDetachedCurrentTime(savedProgress?.currentTime || 0);
       setAiSummary(article.aiSummary || null);
       setSummaryError(null);
+      pipelineForceSummaryRef.current = false;
       setPipelinePendingSummary(false);
       setPipelineStage("idle");
       setPipelineError(null);
@@ -717,7 +723,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (isSummarizing) return;
     if (hasAudio) {
       if (getTranscriptText()) await generateSummary("transcript", { force: true });
-      else await startPodcastSummaryPipeline();
+      else await startPodcastSummaryPipeline({ force: true });
       return;
     }
     await generateSummary("article", { force: true });
