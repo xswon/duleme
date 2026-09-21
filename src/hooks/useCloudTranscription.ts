@@ -84,8 +84,7 @@ export function useCloudTranscription(article: Article | null, onPatch?: (id: st
 
     try {
       const context = settings.contextEnhancement
-        ? [current.title, current.feedTitle, current.snippet].filter(Boolean).join("
-").slice(0, 400)
+        ? [current.title, current.feedTitle, current.snippet].filter(Boolean).join("\n").slice(0, 400)
         : undefined;
       const result = await transcriptionApi.submit({
         apiKey: settings.apiKey,
