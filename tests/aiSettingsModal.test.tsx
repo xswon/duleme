@@ -249,9 +249,11 @@ describe("AI model settings modals", () => {
     expect(baseURL.disabled).toBe(true);
     expect(model.disabled).toBe(true);
     await choose(provider, "ollama");
+    await flush();
     expect(input.disabled).toBe(false);
     expect(input.placeholder).toContain("本机服务可留空");
     expect(baseURL.value).toBe("http://127.0.0.1:11434/v1");
-    expect(model.value).toBe("");
+    expect(model.value).toBe("reader-model");
+    expect(node.textContent).toContain("Reader Model");
   });
 });
