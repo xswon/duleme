@@ -446,6 +446,9 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       setDraftInsightProvider(status.configured ? "custom" : "");
       setDraftInsightBaseURL(status.baseURL || "");
       setDraftInsightModel(status.model || "");
+      setInsightModels([]);
+      setInsightModelsError("");
+      setShowInsightAdvanced(status.configured);
       setInsightFeedback(status.source === "server"
         ? { tone: "info", text: "已清除浏览器配置，当前使用环境变量配置。" }
         : { tone: "info", text: "已清除当前浏览器中的内容整理配置。" });
