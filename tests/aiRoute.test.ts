@@ -4,6 +4,7 @@ const service = vi.hoisted(() => ({
   summarize: vi.fn(),
   test: vi.fn(),
   resolve: vi.fn(),
+  list: vi.fn(),
 }));
 
 vi.mock("../server/services/aiService", async () => {
@@ -15,6 +16,7 @@ vi.mock("../server/services/aiService", async () => {
   return {
     AiServiceError,
     getResolvedAiConfig: service.resolve,
+    listAiModels: service.list,
     summarizeArticle: service.summarize,
     testAiConnection: service.test,
   };
@@ -39,6 +41,7 @@ describe("AI routes", () => {
     service.summarize.mockReset();
     service.test.mockReset();
     service.resolve.mockReset();
+    service.list.mockReset();
   });
 
   it("reports environment capability without exposing the API key", async () => {
@@ -54,6 +57,19 @@ describe("AI routes", () => {
       configured: true,
       baseURL: "https://api.example.com/v1",
       model: "model-1",
+    });
+    expect(JSON.stringify(res.json.mock.calls)).not.toContain("sk-secret");
+  });
+
+  it("loads models for pending form config without returning credentials", async () => {
+    service.list.mockResolvedValue([{ id: "model-1" }, { id: "model-2" }]);
+    const res = response();
+    const config = { baseURL: "https://api.example.com/v1", apiKey: "sk-secret" };
+    await handler("/models", "post")({ body: { config } }, res as any);
+
+    expect(service.list).toHaveBeenCalledWith(config);
+    expect(res.json).toHaveBeenCalledWith({
+      models: [{ id: "model-1" }, { id: "model-2" }],
     });
     expect(JSON.stringify(res.json.mock.calls)).not.toContain("sk-secret");
   });
