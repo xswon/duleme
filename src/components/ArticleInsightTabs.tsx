@@ -1,10 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import {
+  ArrowRight,
+  AudioLines,
+  Bot,
+  Check,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
 import {
   Article,
   DetailTab,
   LocalPodcastArtifacts,
   OverviewPanelState,
+  OverviewPipelineStage,
   TranscriptPanelState,
 } from "../types";
 import { renderBidclubRichText } from "../services/bidclubRichText";
@@ -16,6 +27,9 @@ export interface InsightModel {
   summary: string | null;
   overviewState: OverviewPanelState;
   transcriptState?: TranscriptPanelState;
+  pipelineStage?: OverviewPipelineStage;
+  pipelinePendingSummary?: boolean;
+  pipelineError?: string | null;
   enrichmentLoading: boolean;
   enrichmentError: string | null;
   overviewHtml?: string;
@@ -25,6 +39,9 @@ export interface InsightModel {
   sourceUrl?: string;
   sourceLabel?: string;
   onSummarize: () => void;
+  onRegenerateSummary?: () => void;
+  onCancelPipeline?: () => void;
+  onOpenTranscript?: () => void;
   onConfigureAi?: () => void;
   onConfigureTranscription?: () => void;
   summarizing: boolean;
@@ -81,49 +98,240 @@ function formatMinuteTimestamp(startMs: number): string {
   return `${Math.floor(startMs / 60000)}:00`;
 }
 
-function InsightEmptyState({
+
+function EmptyStateContainer({
+  icon,
   title,
   description,
-  actionLabel,
-  onAction,
-  primary = false,
-  progress,
-  error,
-  disabled = false,
+  children,
 }: {
+  icon: React.ReactNode;
   title: string;
   description: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  primary?: boolean;
-  progress?: number;
-  error?: string | null;
-  disabled?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="py-7">
-      <div className="max-w-md rounded-xl border border-slate-200/80 bg-slate-50/60 px-5 py-4">
-        <p className="text-sm font-semibold text-slate-700">{title}</p>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-        {typeof progress === "number" && (
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200" aria-label={`转录进度 ${Math.round(progress)}%`}>
-            <div className="h-full rounded-full bg-slate-400 transition-[width]" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
-          </div>
-        )}
-        {error && <p className="mt-3 text-xs text-rose-600" role="alert">{error}</p>}
-        {actionLabel && onAction && (
-          <button
-            type="button"
-            onClick={onAction}
-            disabled={disabled}
-            className={primary
-              ? "mt-4 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              : "mt-4 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"}
-          >
-            {actionLabel}
-          </button>
-        )}
+      <div className="mx-auto max-w-md rounded-2xl border border-slate-200/80 bg-slate-50/60 px-6 py-6 text-center">
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200/70">
+          {icon}
+        </div>
+        <h3 className="mt-3 text-sm font-semibold text-slate-800">{title}</h3>
+        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-5 text-slate-500">{description}</p>
+        {children}
       </div>
+    </div>
+  );
+}
+
+function PrimaryActionButton({
+  children,
+  onClick,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  if (!onClick) return null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="mt-4 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ConfigRequirementRow({
+  icon,
+  label,
+  onConfigure,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onConfigure?: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-3 text-left">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 text-xs font-semibold text-slate-700">{label}</span>
+      <span className="text-[11px] text-slate-400">未配置</span>
+      <button
+        type="button"
+        onClick={onConfigure}
+        className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+      >
+        去配置
+        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+function DualConfigRequirementCard({
+  onConfigureTranscription,
+  onConfigureAi,
+}: {
+  onConfigureTranscription?: () => void;
+  onConfigureAi?: () => void;
+}) {
+  return (
+    <EmptyStateContainer
+      icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+      title="开启 AI 摘要"
+      description="需要逐字稿服务和 AI 模型。配置一次，之后即可一键生成。"
+    >
+      <div className="mt-5 divide-y divide-slate-200/80 overflow-hidden rounded-xl border border-slate-200/80 bg-white">
+        <ConfigRequirementRow
+          icon={<AudioLines className="h-4 w-4" aria-hidden="true" />}
+          label="逐字稿服务"
+          onConfigure={onConfigureTranscription}
+        />
+        <ConfigRequirementRow
+          icon={<Bot className="h-4 w-4" aria-hidden="true" />}
+          label="AI 总结模型"
+          onConfigure={onConfigureAi}
+        />
+      </div>
+    </EmptyStateContainer>
+  );
+}
+
+function PipelineProgressCard({
+  stage,
+  autoContinue,
+  error,
+  transcriptionFailed,
+  onCancel,
+}: {
+  stage: OverviewPipelineStage;
+  autoContinue: boolean;
+  error?: string | null;
+  transcriptionFailed?: boolean;
+  onCancel?: () => void;
+}) {
+  const transcribing = stage === "transcribing";
+  const summarizing = stage === "summarizing";
+  const failed = stage === "failed";
+  const stepOneDone = summarizing || (failed && !transcriptionFailed);
+  const stepOneClass = stepOneDone
+    ? "bg-emerald-50 text-emerald-600"
+    : transcribing
+      ? "bg-blue-50 text-blue-600"
+      : failed && transcriptionFailed
+        ? "bg-rose-50 text-rose-600"
+        : "bg-slate-100 text-slate-400";
+  const stepTwoClass = summarizing
+    ? "bg-blue-50 text-blue-600"
+    : failed && !transcriptionFailed
+      ? "bg-rose-50 text-rose-600"
+      : "bg-slate-100 text-slate-400";
+
+  return (
+    <EmptyStateContainer
+      icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+      title={failed ? "生成遇到问题" : "正在准备 AI 摘要…"}
+      description={autoContinue
+        ? "无需切换页面，转录完成后会自动继续生成摘要。"
+        : "逐字稿正在处理中，完成后即可继续生成摘要。"}
+    >
+      <div className="mt-5 space-y-4 text-left">
+        <div className="flex gap-3">
+          <span className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold " + stepOneClass}>
+            {stepOneDone ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : "1"}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-slate-700">转录音频</p>
+              <span className="text-[11px] text-slate-400">
+                {stepOneDone ? "已完成" : failed && transcriptionFailed ? "失败" : "进行中"}
+              </span>
+            </div>
+            {transcribing && (
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <span className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold " + stepTwoClass}>2</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold text-slate-700">提炼核心观点</p>
+              <span className="text-[11px] text-slate-400">
+                {summarizing ? "进行中" : failed && !transcriptionFailed ? "失败" : "等待"}
+              </span>
+            </div>
+            {summarizing && (
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-blue-500" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      {error && <p className="mt-4 text-xs text-rose-600" role="alert">{error}</p>}
+      {autoContinue && transcribing && onCancel && (
+        <button type="button" onClick={onCancel} className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-700">
+          取消自动生成摘要
+        </button>
+      )}
+    </EmptyStateContainer>
+  );
+}
+
+function SummaryActions({
+  summary,
+  onRegenerate,
+  onOpenTranscript,
+  articleUrl,
+}: {
+  summary: string;
+  onRegenerate?: () => void;
+  onOpenTranscript?: () => void;
+  articleUrl?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const copySummary = async () => {
+    try {
+      await navigator.clipboard?.writeText(summary);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-xs">
+      <button type="button" onClick={copySummary} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700">
+        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+        {copied ? "已复制" : "复制"}
+      </button>
+      {onRegenerate && (
+        <button type="button" onClick={onRegenerate} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700">
+          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+          重新生成
+        </button>
+      )}
+      {articleUrl && (
+        <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700">
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          原文
+        </a>
+      )}
+      {onOpenTranscript && (
+        <button type="button" onClick={onOpenTranscript} className="ml-auto inline-flex items-center gap-1 text-blue-600 hover:text-blue-700">
+          查看完整逐字稿
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
