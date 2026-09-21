@@ -4,8 +4,10 @@ import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscription
 import {
   clearInsightSettings,
   getInsightSettingsStatus,
+  listInsightModels,
   saveInsightSettings,
   testInsightSettings,
+  type InsightModelOption,
   type InsightProviderId,
   type InsightSettingsStatus,
 } from "../services/insightSettingsService";
@@ -21,14 +23,66 @@ const TRANSCRIPTION_PROVIDERS = {
 } as const;
 type TranscriptionProviderId = keyof typeof TRANSCRIPTION_PROVIDERS;
 
-const INSIGHT_PROVIDERS: Record<InsightProviderId, { name: string; baseURL: string; suggestedModel: string }> = {
-  openai: { name: "OpenAI", baseURL: "https://api.openai.com/v1", suggestedModel: "" },
-  deepseek: { name: "DeepSeek", baseURL: "https://api.deepseek.com", suggestedModel: "" },
-  qwen: { name: "通义千问", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", suggestedModel: "" },
-  kimi: { name: "Kimi", baseURL: "https://api.moonshot.cn/v1", suggestedModel: "" },
-  ollama: { name: "Ollama", baseURL: "http://127.0.0.1:11434/v1", suggestedModel: "" },
-  custom: { name: "自定义", baseURL: "", suggestedModel: "" },
+const INSIGHT_PROVIDERS: Record<InsightProviderId, { name: string; baseURL: string }> = {
+  openai: { name: "OpenAI", baseURL: "https://api.openai.com/v1" },
+  deepseek: { name: "DeepSeek", baseURL: "https://api.deepseek.com" },
+  qwen: { name: "通义千问", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1" },
+  kimi: { name: "Kimi", baseURL: "https://api.moonshot.cn/v1" },
+  ollama: { name: "Ollama", baseURL: "http://127.0.0.1:11434/v1" },
+  custom: { name: "自定义", baseURL: "" },
 };
+
+const NON_CONTENT_MODEL_PATTERN = /(embedding|embed-|rerank|moderation|dall-e|image|tts|speech|whisper|transcrib|realtime|audio)/i;
+
+function contentModelPriority(provider: "" | InsightProviderId, id: string): number {
+  const value = id.toLowerCase();
+  let score = 0;
+  if (/latest$/.test(value)) score += 30;
+  if (/(preview|experimental|\bexp\b)/.test(value)) score -= 20;
+  if (/\d{4}[-_.]\d{2}[-_.]\d{2}/.test(value)) score -= 8;
+
+  if (provider === "openai") {
+    if (/^gpt-5(?:[.\-_]\d+)?$/.test(value)) score += 100;
+    else if (/^gpt-5(?:[.\-_]\d+)?-(mini|nano)$/.test(value)) score += 80;
+    else if (/^gpt-4[.\-_]?1(?:-(mini|nano))?$/.test(value)) score += 60;
+  } else if (provider === "deepseek") {
+    if (value === "deepseek-chat") score += 100;
+    else if (value === "deepseek-reasoner") score += 70;
+  } else if (provider === "qwen") {
+    if (/qwen.*(plus|max|turbo|flash)/.test(value)) score += 80;
+    else if (/qwen3/.test(value)) score += 60;
+  } else if (provider === "kimi") {
+    if (/kimi.*k2|kimi-latest/.test(value)) score += 90;
+    else if (/moonshot/.test(value)) score += 60;
+  } else if (provider === "ollama") {
+    if (/:latest$/.test(value)) score += 30;
+    if (/instruct/.test(value)) score += 20;
+  }
+
+  if (/(mini|flash|turbo)/.test(value)) score += 8;
+  return score;
+}
+
+function pickContentModels(
+  provider: "" | InsightProviderId,
+  models: InsightModelOption[],
+  currentModel: string,
+): InsightModelOption[] {
+  const current = currentModel.trim();
+  const filtered = models
+    .filter((model) => model.id === current || !NON_CONTENT_MODEL_PATTERN.test(model.id))
+    .sort((a, b) => {
+      const score = contentModelPriority(provider, b.id) - contentModelPriority(provider, a.id);
+      if (score) return score;
+      const created = (b.created || 0) - (a.created || 0);
+      if (created) return created;
+      return a.id.localeCompare(b.id);
+    });
+
+  const selected = filtered.find((model) => model.id === current);
+  const shortlist = filtered.filter((model) => model.id !== current).slice(0, selected ? 5 : 6);
+  return selected ? [selected, ...shortlist] : shortlist;
+}
 
 function isLoopbackUrl(value: string): boolean {
   try {
@@ -119,6 +173,10 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   const [insightFeedback, setInsightFeedback] = useState<Feedback | null>(null);
   const [insightTesting, setInsightTesting] = useState(false);
   const [insightSaving, setInsightSaving] = useState(false);
+  const [insightModels, setInsightModels] = useState<InsightModelOption[]>([]);
+  const [insightModelsLoading, setInsightModelsLoading] = useState(false);
+  const [insightModelsError, setInsightModelsError] = useState("");
+  const [showInsightAdvanced, setShowInsightAdvanced] = useState(false);
 
   const loadTranscription = async () => {
     const value = await getTranscriptionSettings();
@@ -225,28 +283,92 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     }
   };
 
+  async function loadInsightModelCatalog({
+    provider,
+    baseURL,
+    apiKey,
+    currentModel,
+    useEnvironment = false,
+  }: {
+    provider: "" | InsightProviderId;
+    baseURL: string;
+    apiKey: string;
+    currentModel: string;
+    useEnvironment?: boolean;
+  }) {
+    if (!provider || (!useEnvironment && !baseURL.trim())) return;
+    setInsightModelsLoading(true);
+    setInsightModelsError("");
+    try {
+      const models = await listInsightModels(useEnvironment ? undefined : {
+        baseURL: baseURL.trim(),
+        apiKey: apiKey.trim() || undefined,
+      });
+      setInsightModels(models);
+      if (models.length === 0) {
+        setInsightModelsError("服务商没有返回可用模型；你仍可在高级设置中手动填写模型名称。");
+        return;
+      }
+      if (!currentModel.trim() && provider !== "custom") {
+        const first = pickContentModels(provider, models, "")[0];
+        if (first) setDraftInsightModel(first.id);
+      }
+    } catch {
+      setInsightModels([]);
+      setInsightModelsError("暂时无法自动获取模型列表；你仍可在高级设置中手动填写模型名称。");
+    } finally {
+      setInsightModelsLoading(false);
+    }
+  }
+
   const openInsightModal = () => {
-    setDraftInsightProvider(insight?.source === "browser" ? insight.providerId : insight?.configured ? "custom" : "");
-    setDraftInsightBaseURL(insight?.baseURL || "");
-    setDraftInsightModel(insight?.model || "");
+    const nextProvider = insight?.source === "browser" ? insight.providerId : insight?.configured ? "custom" : "";
+    const nextBaseURL = insight?.baseURL || (nextProvider ? INSIGHT_PROVIDERS[nextProvider].baseURL : "");
+    const nextModel = insight?.model || "";
+    setDraftInsightProvider(nextProvider);
+    setDraftInsightBaseURL(nextBaseURL);
+    setDraftInsightModel(nextModel);
     setDraftInsightKey("");
     setShowInsightKey(false);
     setInsightFeedback(null);
+    setInsightModels([]);
+    setInsightModelsError("");
+    setShowInsightAdvanced(nextProvider === "custom");
     setInsightModalOpen(true);
+    if (nextProvider && nextBaseURL) {
+      void loadInsightModelCatalog({
+        provider: nextProvider,
+        baseURL: nextBaseURL,
+        apiKey: "",
+        currentModel: nextModel,
+        useEnvironment: insight?.source === "server",
+      });
+    }
   };
 
   const changeInsightProvider = (value: "" | InsightProviderId) => {
     setDraftInsightProvider(value);
     setDraftInsightKey("");
     setInsightFeedback(null);
+    setInsightModels([]);
+    setInsightModelsError("");
+    setShowInsightAdvanced(value === "custom");
     if (!value) {
       setDraftInsightBaseURL("");
       setDraftInsightModel("");
       return;
     }
     const preset = INSIGHT_PROVIDERS[value];
-    if (value !== "custom") setDraftInsightBaseURL(preset.baseURL);
-    setDraftInsightModel(preset.suggestedModel);
+    setDraftInsightBaseURL(preset.baseURL);
+    setDraftInsightModel("");
+    if (value === "ollama") {
+      void loadInsightModelCatalog({
+        provider: value,
+        baseURL: preset.baseURL,
+        apiKey: "",
+        currentModel: "",
+      });
+    }
   };
 
   const hasExistingInsightKey = Boolean(
@@ -264,7 +386,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     } catch {
       return "Base URL 格式不正确。";
     }
-    if (!draftInsightModel.trim()) return "请填写模型名称。";
+    if (!draftInsightModel.trim()) return "请选择一个内容整理模型，或在高级设置中手动填写模型名称。";
     if (!isLoopbackUrl(draftInsightBaseURL) && !draftInsightKey.trim() && !hasExistingInsightKey) return "请填写 API Key。";
     return "";
   };
@@ -336,6 +458,24 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
 
   if (view === "insight") {
     const draftProvider = draftInsightProvider ? INSIGHT_PROVIDERS[draftInsightProvider] : null;
+    const contentModels = pickContentModels(draftInsightProvider, insightModels, draftInsightModel);
+    const sameAsServerEndpoint = Boolean(
+      insight?.source === "server" &&
+      insight.baseURL.trim().replace(/\/+$/, "") === draftInsightBaseURL.trim().replace(/\/+$/, ""),
+    );
+    const canLoadModels = Boolean(
+      draftProvider &&
+      draftInsightBaseURL.trim() &&
+      (isLoopbackUrl(draftInsightBaseURL) || draftInsightKey.trim() || hasExistingInsightKey || sameAsServerEndpoint),
+    );
+    const refreshModels = () => loadInsightModelCatalog({
+      provider: draftInsightProvider,
+      baseURL: draftInsightBaseURL,
+      apiKey: draftInsightKey,
+      currentModel: draftInsightModel,
+      useEnvironment: sameAsServerEndpoint && !draftInsightKey.trim(),
+    });
+
     return (
       <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
         <section className="wreader-model-settings-page">
@@ -363,18 +503,6 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               </div>
 
               <div className="wreader-model-field">
-                <label htmlFor="insight-base-url">Base URL</label>
-                <input
-                  id="insight-base-url"
-                  value={draftInsightBaseURL}
-                  disabled={!draftProvider}
-                  spellCheck={false}
-                  placeholder={draftProvider ? "输入 OpenAI-compatible API 地址" : "请先选择服务商"}
-                  onChange={(event) => { setDraftInsightBaseURL(event.target.value); setInsightFeedback(null); }}
-                />
-              </div>
-
-              <div className="wreader-model-field">
                 <label htmlFor="insight-api-key">API Key</label>
                 <div className="wreader-ai-key-field">
                   <KeyRound aria-hidden="true" />
@@ -384,7 +512,15 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                     autoComplete="off"
                     value={draftInsightKey}
                     disabled={!draftProvider}
-                    onChange={(event) => { setDraftInsightKey(event.target.value); setInsightFeedback(null); }}
+                    onChange={(event) => {
+                      setDraftInsightKey(event.target.value);
+                      setInsightFeedback(null);
+                      setInsightModels([]);
+                      setInsightModelsError("");
+                    }}
+                    onBlur={() => {
+                      if (canLoadModels && draftInsightKey.trim()) void refreshModels();
+                    }}
                     placeholder={!draftProvider
                       ? "请先选择服务商"
                       : isLoopbackUrl(draftInsightBaseURL)
@@ -397,29 +533,109 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                     {showInsightKey ? <EyeOff /> : <Eye />}
                   </button>
                 </div>
+                {draftProvider && !isLoopbackUrl(draftInsightBaseURL) && !draftInsightKey.trim() && !hasExistingInsightKey && !sameAsServerEndpoint && (
+                  <p className="wreader-model-hint">填写 API Key 后会自动获取可用于内容整理的模型。</p>
+                )}
               </div>
 
               <div className="wreader-model-field">
-                <label htmlFor="insight-model">Model</label>
-                <input
-                  id="insight-model"
-                  value={draftInsightModel}
-                  disabled={!draftProvider}
-                  spellCheck={false}
-                  placeholder="输入服务商提供的模型名称"
-                  onChange={(event) => { setDraftInsightModel(event.target.value); setInsightFeedback(null); }}
-                />
-                <div className="wreader-model-key-actions">
-                  <span />
-                  <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
-                    {insightTesting ? "正在测试…" : "测试连接"}
+                <div className="wreader-model-label-row">
+                  <label>内容整理模型</label>
+                  <button type="button" onClick={() => void refreshModels()} disabled={!canLoadModels || insightModelsLoading}>
+                    {insightModelsLoading ? "正在获取…" : insightModels.length ? "刷新" : "获取模型"}
                   </button>
                 </div>
-                {insight?.source === "server" && <p>当前使用环境变量配置；保存后将优先使用此浏览器配置。</p>}
-                {insight?.source === "browser" && (
-                  <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
+
+                {insightModelsLoading ? (
+                  <div className="wreader-content-model-state" role="status">正在获取可用模型…</div>
+                ) : contentModels.length > 0 ? (
+                  <div className="wreader-content-model-choices" role="radiogroup" aria-label="内容整理模型">
+                    {contentModels.map((model, index) => {
+                      const selected = draftInsightModel === model.id;
+                      const displayName = model.name && model.name !== model.id ? model.name : model.id;
+                      return (
+                        <label key={model.id} className={`wreader-content-model-choice ${selected ? "is-selected" : ""}`}>
+                          <input
+                            type="radio"
+                            name="insight-model-choice"
+                            value={model.id}
+                            checked={selected}
+                            onChange={() => { setDraftInsightModel(model.id); setInsightFeedback(null); }}
+                          />
+                          <span>
+                            <strong>{displayName}</strong>
+                            {model.name && model.name !== model.id && <small>{model.id}</small>}
+                          </span>
+                          {index === 0 && contentModelPriority(draftInsightProvider, model.id) > 0 && <em>常用</em>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="wreader-content-model-state">
+                    {!draftProvider
+                      ? "先选择服务商。"
+                      : canLoadModels
+                        ? "点击“获取模型”自动选择；也可以在高级设置中手动填写。"
+                        : "完成 API Key 配置后即可自动获取模型。"}
+                  </div>
                 )}
+                {insightModelsError && <p className="wreader-model-catalog-warning">{insightModelsError}</p>}
               </div>
+
+              <div className="wreader-model-advanced">
+                <button
+                  type="button"
+                  className="wreader-model-advanced-toggle"
+                  aria-expanded={showInsightAdvanced}
+                  onClick={() => setShowInsightAdvanced((open) => !open)}
+                  disabled={!draftProvider}
+                >
+                  高级设置
+                  <ChevronDown aria-hidden="true" />
+                </button>
+                <div className="wreader-model-advanced-body" hidden={!showInsightAdvanced}>
+                  <div className="wreader-model-field">
+                    <label htmlFor="insight-base-url">Base URL</label>
+                    <input
+                      id="insight-base-url"
+                      value={draftInsightBaseURL}
+                      disabled={!draftProvider}
+                      spellCheck={false}
+                      placeholder={draftProvider ? "输入 OpenAI-compatible API 地址" : "请先选择服务商"}
+                      onChange={(event) => {
+                        setDraftInsightBaseURL(event.target.value);
+                        setInsightFeedback(null);
+                        setInsightModels([]);
+                        setInsightModelsError("");
+                      }}
+                      onBlur={() => { if (canLoadModels) void refreshModels(); }}
+                    />
+                  </div>
+
+                  <div className="wreader-model-field">
+                    <label htmlFor="insight-model">手动模型名称</label>
+                    <input
+                      id="insight-model"
+                      value={draftInsightModel}
+                      disabled={!draftProvider}
+                      spellCheck={false}
+                      placeholder="仅在无法自动获取模型时需要填写"
+                      onChange={(event) => { setDraftInsightModel(event.target.value); setInsightFeedback(null); }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="wreader-model-key-actions">
+                <span>{insight?.source === "server" ? "当前使用环境变量配置；保存后将优先使用此浏览器配置。" : ""}</span>
+                <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
+                  {insightTesting ? "正在测试…" : "测试连接"}
+                </button>
+              </div>
+              {insight?.source === "browser" && (
+                <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
+              )}
               <ConnectionFeedback feedback={insightFeedback} />
             </ModelConfigModal>
           )}
