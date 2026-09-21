@@ -28,6 +28,13 @@ export interface InsightSettingsDraft {
   model: string;
 }
 
+export interface InsightModelOption {
+  id: string;
+  name?: string;
+  created?: number;
+  ownedBy?: string;
+}
+
 const PROVIDER_NAMES: Record<InsightProviderId, string> = {
   openai: "OpenAI",
   deepseek: "DeepSeek",
@@ -78,6 +85,37 @@ export async function getInsightSettingsStatus(): Promise<InsightSettingsStatus>
     hasApiKey: false,
     source: capability.configured ? "server" : "none",
   };
+}
+
+export async function listInsightModels(
+  value?: Pick<InsightSettingsDraft, "baseURL" | "apiKey">,
+): Promise<InsightModelOption[]> {
+  let config: { baseURL: string; apiKey?: string } | undefined;
+  if (value) {
+    const secret = await getAiSecret();
+    const savedMatches = Boolean(
+      secret.apiKey.trim() &&
+      secret.baseURL &&
+      normalizeEndpoint(secret.baseURL) === normalizeEndpoint(value.baseURL),
+    );
+    config = {
+      baseURL: value.baseURL.trim(),
+      apiKey: value.apiKey?.trim() || (savedMatches ? secret.apiKey : undefined),
+    };
+  }
+
+  const response = await fetch("/api/ai/models", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config ? { config } : {}),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || "Unable to load model catalog.") as Error & { code?: string };
+    error.code = payload.code;
+    throw error;
+  }
+  return Array.isArray(payload.models) ? payload.models : [];
 }
 
 export async function testInsightSettings(value: InsightSettingsDraft): Promise<number> {
