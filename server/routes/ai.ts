@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   AiServiceError,
   getResolvedAiConfig,
+  listAiModels,
   summarizeArticle,
   testAiConnection,
   type AiRequestConfig,
@@ -44,6 +45,15 @@ export function createAiRouter() {
       if (error instanceof AiServiceError && (error.code === "not_configured" || error.code === "invalid_config")) {
         return res.json({ configured: false });
       }
+      return sendAiError(res, error);
+    }
+  });
+
+  router.post("/models", async (req, res) => {
+    const config = req.body?.config as Partial<AiRequestConfig> | undefined;
+    try {
+      return res.json({ models: await listAiModels(config) });
+    } catch (error) {
       return sendAiError(res, error);
     }
   });
