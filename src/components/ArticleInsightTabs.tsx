@@ -376,6 +376,12 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <section className="audio-highlight-body">
           <div className="reader-content bidclub-overview whitespace-pre-wrap">{p.summary}</div>
+          <SummaryActions
+            summary={p.summary}
+            onRegenerate={p.onRegenerateSummary}
+            onOpenTranscript={p.article.audioUrl && p.transcriptState === "ready" ? p.onOpenTranscript : undefined}
+            articleUrl={p.article.link}
+          />
         </section>
       </div>
     );
@@ -385,58 +391,72 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     switch (p.overviewState) {
       case "ready":
         return <LoadingContent />;
-      case "can_generate":
+      case "needs_all_config":
         return (
-          <InsightEmptyState
-            title={p.article.audioUrl ? "可以生成 AI 摘要了" : "生成 AI 摘要"}
-            description={p.article.audioUrl
-              ? "将基于逐字稿内容提取核心信息，而不是只根据节目介绍。"
-              : "提取核心摘要、关键观点和阅读时间。"}
-            actionLabel={p.summarizing ? "正在生成…" : "生成 AI 摘要"}
-            onAction={p.onSummarize}
-            disabled={p.summarizing}
-            error={p.summaryError}
-            primary
-          />
-        );
-      case "needs_ai_config":
-        return (
-          <InsightEmptyState
-            title={p.article.audioUrl ? "逐字稿已就绪" : "使用 AI 提炼这篇文章"}
-            description={p.article.audioUrl
-              ? "配置内容整理模型后，即可基于逐字稿内容生成摘要。"
-              : "配置内容整理模型后，可以生成核心摘要和关键观点。"}
-            actionLabel="配置模型"
-            onAction={p.onConfigureAi}
-          />
-        );
-      case "needs_transcript":
-        return (
-          <InsightEmptyState
-            title="先生成逐字稿"
-            description="AI 摘要会基于逐字稿内容生成，而不是只根据节目介绍。"
-            actionLabel={cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
-            onAction={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}
-            error={p.localFetchError || cloudTask?.error}
-            primary
-          />
-        );
-      case "transcribing":
-        return (
-          <InsightEmptyState
-            title="正在生成逐字稿…"
-            description="完成后即可基于逐字稿内容生成 AI 摘要。"
-            progress={p.localProgress}
+          <DualConfigRequirementCard
+            onConfigureTranscription={p.onConfigureTranscription}
+            onConfigureAi={p.onConfigureAi}
           />
         );
       case "needs_transcription_config":
         return (
-          <InsightEmptyState
-            title="需要先启用逐字稿"
-            description="配置转录服务并生成逐字稿后，才能基于完整节目内容生成摘要。"
-            actionLabel="配置逐字稿"
-            onAction={p.onConfigureTranscription}
+          <EmptyStateContainer
+            icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
+            title="需要配置逐字稿服务"
+            description="播客摘要基于逐字稿提取，配置转录后即可一键生成。"
+          >
+            <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿服务</PrimaryActionButton>
+          </EmptyStateContainer>
+        );
+      case "needs_ai_config":
+        return (
+          <EmptyStateContainer
+            icon={<Bot className="h-5 w-5" aria-hidden="true" />}
+            title="需要配置 AI 模型"
+            description={p.article.audioUrl
+              ? "配置语言模型后，即可开始提炼长音频的核心内容。"
+              : "配置语言模型后，即可生成核心摘要和关键观点。"}
+          >
+            <PrimaryActionButton onClick={p.onConfigureAi}>配置 AI 模型</PrimaryActionButton>
+          </EmptyStateContainer>
+        );
+      case "can_generate":
+        return (
+          <EmptyStateContainer
+            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            title="生成 AI 摘要"
+            description={p.article.audioUrl
+              ? p.transcriptState === "ready"
+                ? "将基于现有逐字稿提取核心观点和关键信息。"
+                : "将自动转录音频并提取要点，逐字稿也会同步保存。"
+              : "提取核心摘要、关键观点和阅读时间。"}
+          >
+            {p.summaryError && <p className="mt-4 text-xs text-rose-600" role="alert">{p.summaryError}</p>}
+            <PrimaryActionButton onClick={p.onSummarize} disabled={p.summarizing}>
+              {p.pipelineError ? "重试生成" : p.summarizing ? "正在生成…" : "✨ 生成 AI 摘要"}
+            </PrimaryActionButton>
+          </EmptyStateContainer>
+        );
+      case "processing":
+      case "transcribing":
+        return (
+          <PipelineProgressCard
+            stage={p.pipelineStage === "idle" || !p.pipelineStage ? "transcribing" : p.pipelineStage}
+            autoContinue={Boolean(p.pipelinePendingSummary)}
+            error={p.pipelineError || p.summaryError}
+            transcriptionFailed={cloudTask?.status === "failed"}
+            onCancel={p.onCancelPipeline}
           />
+        );
+      case "needs_transcript":
+        return (
+          <EmptyStateContainer
+            icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
+            title="生成摘要前需要逐字稿"
+            description="先生成逐字稿，再基于节目内容整理摘要。"
+          >
+            <PrimaryActionButton onClick={p.onStartTranscription}>生成逐字稿</PrimaryActionButton>
+          </EmptyStateContainer>
         );
     }
   }
