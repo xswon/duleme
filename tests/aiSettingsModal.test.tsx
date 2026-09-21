@@ -170,6 +170,7 @@ describe("AI model settings modals", () => {
     await act(async () => {
       (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("reader-model")) as HTMLButtonElement).click();
     });
+    await flush();
     const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
     const baseURL = node.querySelector("#insight-base-url") as HTMLInputElement;
     const input = node.querySelector("#insight-api-key") as HTMLInputElement;
@@ -222,6 +223,35 @@ describe("AI model settings modals", () => {
     await act(async () => { advanced.click(); });
     expect(advanced.getAttribute("aria-expanded")).toBe("true");
     expect(baseURL.closest(".wreader-model-advanced-body")?.hasAttribute("hidden")).toBe(false);
+  });
+
+  it("keeps manual model entry available when model discovery fails", async () => {
+    insight.get.mockResolvedValueOnce({
+      providerId: "custom",
+      provider: "自定义",
+      baseURL: "",
+      model: "",
+      configured: false,
+      hasApiKey: false,
+      source: "none" as const,
+    });
+    insight.list.mockRejectedValueOnce(new Error("catalog unavailable"));
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
+    });
+
+    const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
+    await choose(provider, "ollama");
+    await flush();
+    expect(node.textContent).toContain("仍可在高级设置中手动填写模型名称");
+
+    const advanced = Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("高级设置")) as HTMLButtonElement;
+    await act(async () => { advanced.click(); });
+    const model = node.querySelector("#insight-model") as HTMLInputElement;
+    expect(model.disabled).toBe(false);
+    expect(model.placeholder).toContain("无法自动获取模型");
   });
 
   it("keeps the full content-organizing form visible before a provider is chosen", async () => {
