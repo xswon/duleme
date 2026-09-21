@@ -114,6 +114,7 @@ function ModelConfigModal({
   onSave,
   saveLabel = "保存",
   saving = false,
+  footerStart,
 }: {
   title: string;
   children: React.ReactNode;
@@ -121,6 +122,7 @@ function ModelConfigModal({
   onSave: () => void;
   saveLabel?: string;
   saving?: boolean;
+  footerStart?: React.ReactNode;
 }) {
   return (
     <div className="wreader-model-modal" role="dialog" aria-modal="true" aria-label={title}>
@@ -132,8 +134,11 @@ function ModelConfigModal({
         </header>
         <div className="wreader-model-modal-body">{children}</div>
         <footer>
-          <button type="button" className="secondary" onClick={onClose} disabled={saving}>取消</button>
-          <button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button>
+          <div className="wreader-model-modal-footer-start">{footerStart}</div>
+          <div className="wreader-model-modal-footer-actions">
+            <button type="button" className="secondary" onClick={onClose} disabled={saving}>取消</button>
+            <button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button>
+          </div>
         </footer>
       </section>
     </div>
@@ -489,7 +494,20 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
             onClick={openInsightModal}
           />
           {insightModalOpen && (
-            <ModelConfigModal title="配置内容整理模型" onClose={() => setInsightModalOpen(false)} onSave={() => void saveInsight()} saving={insightSaving}>
+            <ModelConfigModal
+              title="配置内容整理模型"
+              onClose={() => setInsightModalOpen(false)}
+              onSave={() => void saveInsight()}
+              saving={insightSaving}
+              footerStart={(
+                <div className="wreader-model-footer-tools">
+                  <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
+                    {insightTesting ? "正在测试…" : "测试连接"}
+                  </button>
+                  <ConnectionFeedback feedback={insightFeedback} />
+                </div>
+              )}
+            >
               <div className="wreader-model-field">
                 <label htmlFor="insight-provider">服务商</label>
                 <span className="wreader-ai-select-wrap">
@@ -630,16 +648,12 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                 </div>
               </div>
 
-              <div className="wreader-model-key-actions">
-                <span>{insight?.source === "server" ? "当前使用环境变量配置；保存后将优先使用此浏览器配置。" : ""}</span>
-                <button type="button" className="wreader-model-test-button" onClick={() => void testInsight()} disabled={!draftProvider || insightTesting}>
-                  {insightTesting ? "正在测试…" : "测试连接"}
-                </button>
-              </div>
+              {insight?.source === "server" && (
+                <p className="wreader-model-hint">当前使用环境变量配置；保存后将优先使用此浏览器配置。</p>
+              )}
               {insight?.source === "browser" && (
                 <button type="button" className="wreader-model-clear-button" onClick={() => void clearInsight()} disabled={insightSaving}>清除浏览器配置</button>
               )}
-              <ConnectionFeedback feedback={insightFeedback} />
             </ModelConfigModal>
           )}
         </section>
@@ -687,7 +701,20 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
         </section>
 
         {transcriptionModalOpen && (
-          <ModelConfigModal title="配置转录模型" onClose={() => setTranscriptionModalOpen(false)} onSave={() => void saveTranscription()} saving={saving}>
+          <ModelConfigModal
+            title="配置转录模型"
+            onClose={() => setTranscriptionModalOpen(false)}
+            onSave={() => void saveTranscription()}
+            saving={saving}
+            footerStart={(
+              <div className="wreader-model-footer-tools">
+                <button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={!draftProvider || testing}>
+                  {testing ? "正在测试…" : "测试连接"}
+                </button>
+                <ConnectionFeedback feedback={transcriptionFeedback} />
+              </div>
+            )}
+          >
             <div className="wreader-model-field">
               <label htmlFor="ai-provider">服务商</label>
               <span className="wreader-ai-select-wrap">
@@ -722,15 +749,11 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               </div>
               <div className="wreader-model-key-actions">
                 {draftProvider ? <a href={draftProvider.apiKeyUrl} target="_blank" rel="noreferrer">获取 API Key <ExternalLink /></a> : <span />}
-                <button type="button" className="wreader-model-test-button" onClick={() => void testTranscription()} disabled={!draftProvider || testing}>
-                  {testing ? "正在测试…" : "测试连接"}
-                </button>
               </div>
               {settings && draftTranscriptionProvider === settings.provider && (
                 <button type="button" className="wreader-model-clear-button" onClick={() => void clearTranscription()} disabled={saving}>清除当前配置</button>
               )}
             </div>
-            <ConnectionFeedback feedback={transcriptionFeedback} />
           </ModelConfigModal>
         )}
       </section>
