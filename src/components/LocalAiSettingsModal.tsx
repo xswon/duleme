@@ -23,14 +23,47 @@ const TRANSCRIPTION_PROVIDERS = {
 } as const;
 type TranscriptionProviderId = keyof typeof TRANSCRIPTION_PROVIDERS;
 
-const INSIGHT_PROVIDERS: Record<InsightProviderId, { name: string; baseURL: string }> = {
-  openai: { name: "OpenAI", baseURL: "https://api.openai.com/v1" },
-  deepseek: { name: "DeepSeek", baseURL: "https://api.deepseek.com" },
-  qwen: { name: "通义千问", baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1" },
-  kimi: { name: "Kimi", baseURL: "https://api.moonshot.cn/v1" },
-  ollama: { name: "Ollama", baseURL: "http://127.0.0.1:11434/v1" },
-  custom: { name: "自定义", baseURL: "" },
+const INSIGHT_PROVIDERS: Record<InsightProviderId, { name: string; baseURL: string; fallbackModels: InsightModelOption[] }> = {
+  openai: {
+    name: "OpenAI",
+    baseURL: "https://api.openai.com/v1",
+    fallbackModels: [
+      { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
+      { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+      { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
+    ],
+  },
+  deepseek: {
+    name: "DeepSeek",
+    baseURL: "https://api.deepseek.com",
+    fallbackModels: [
+      { id: "deepseek-flash", name: "DeepSeek Flash" },
+      { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
+    ],
+  },
+  qwen: {
+    name: "通义千问",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    fallbackModels: [
+      { id: "qwen-plus", name: "Qwen Plus" },
+      { id: "qwen3.5-flash", name: "Qwen 3.5 Flash" },
+    ],
+  },
+  kimi: {
+    name: "Kimi",
+    baseURL: "https://api.moonshot.cn/v1",
+    fallbackModels: [
+      { id: "kimi-k2.5", name: "Kimi K2.5" },
+    ],
+  },
+  ollama: { name: "Ollama", baseURL: "http://127.0.0.1:11434/v1", fallbackModels: [] },
+  custom: { name: "自定义", baseURL: "", fallbackModels: [] },
 };
+
+function getFallbackContentModels(provider: "" | InsightProviderId): InsightModelOption[] {
+  if (!provider) return [];
+  return INSIGHT_PROVIDERS[provider].fallbackModels;
+}
 
 const NON_CONTENT_MODEL_PATTERN = /(embedding|embed-|rerank|moderation|dall-e|image|tts|speech|whisper|transcrib|realtime|audio)/i;
 
@@ -319,6 +352,16 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       setInsightModels(models);
       const candidates = pickContentModels(provider, models, currentModel);
       if (candidates.length === 0) {
+        const fallback = getFallbackContentModels(provider);
+        if (fallback.length > 0) {
+          setInsightModels(fallback);
+          const fallbackCandidates = pickContentModels(provider, fallback, currentModel);
+          const selected = fallbackCandidates[0]?.id || "";
+          if (selected && selected !== currentModel.trim()) setDraftInsightModel(selected);
+          setInsightModelsError("");
+          return selected ? { model: selected } : {};
+        }
+
         const error = "服务商没有返回可用的内容整理模型，可在高级设置中手动填写模型名称";
         setInsightModelsError(error);
         return { error };
@@ -330,11 +373,27 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
         : candidates[0].id;
       if (selected !== current) setDraftInsightModel(selected);
       return { model: selected };
-    } catch {
-      const error = "暂时无法自动获取模型列表，可在高级设置中手动填写模型名称";
+    } catch (error) {
+      const fallback = getFallbackContentModels(provider);
+      if (fallback.length > 0) {
+        setInsightModels(fallback);
+        const candidates = pickContentModels(provider, fallback, currentModel);
+        const current = currentModel.trim();
+        const selected = current && candidates.some((model) => model.id === current)
+          ? current
+          : candidates[0]?.id || "";
+        if (selected && selected !== current) setDraftInsightModel(selected);
+        setInsightModelsError("");
+        return selected ? { model: selected } : {};
+      }
+
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "暂时无法自动获取模型列表";
+      const manualError = `${message}，可在高级设置中手动填写模型名称`;
       setInsightModels([]);
-      setInsightModelsError(error);
-      return { error };
+      setInsightModelsError(manualError);
+      return { error: manualError };
     } finally {
       setInsightModelsLoading(false);
     }
