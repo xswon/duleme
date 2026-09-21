@@ -119,23 +119,17 @@
 }
 
 .wreader-model-modal-card footer {
-  min-height: 68px;
+  min-height: 64px;
   flex: 0 0 auto;
   padding: 10px 24px 16px;
   border-top: 1px solid #eef1f3 !important;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-end;
   background: #fff;
 }
 
 .wreader-model-modal-card footer button {
   min-width: 64px;
-}
-
-.wreader-model-modal-footer-start {
-  min-width: 0;
-  flex: 1;
 }
 
 .wreader-model-modal-footer-actions {
@@ -144,25 +138,53 @@
   align-items: center;
 }
 
-.wreader-model-footer-tools {
-  display: flex;
-  min-width: 0;
-  align-items: center;
+.wreader-model-modal-toast {
+  position: absolute;
+  z-index: 3;
+  top: 20px;
+  left: 50%;
+  max-width: min(420px, calc(100vw - 40px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.wreader-model-modal-toast .wreader-model-feedback {
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 14px;
+  border: 1px solid #e5e8eb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .14);
+  color: #536271;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.wreader-model-modal-toast .wreader-model-feedback.is-error,
+.wreader-model-modal-toast .wreader-model-feedback.is-warning {
+  color: #8d4444;
+}
+
+.wreader-model-modal-toast .wreader-model-feedback.is-info {
+  color: #52718c;
+}
+
+.wreader-model-modal-toast .wreader-model-feedback.is-success {
+  color: #55705f;
+}
+
+.wreader-model-api-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
   gap: 10px;
 }
 
-.wreader-model-footer-tools .wreader-model-feedback {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.wreader-model-footer-tools .wreader-model-feedback {
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.wreader-model-footer-tools .wreader-model-test-button {
-  flex: none;
+.wreader-model-api-row .wreader-model-test-button {
+  min-height: 44px;
+  min-width: 88px;
+  padding: 0 14px;
 }
 
 @media (max-width: 760px) {
@@ -179,26 +201,22 @@
   }
 
   .wreader-model-modal-card footer {
-    min-height: 60px;
+    min-height: 58px;
     padding: 8px 18px 12px;
-    gap: 10px;
   }
 
-  .wreader-model-modal-footer-start {
-    min-width: 0;
-    flex: 1;
+  .wreader-model-api-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
   }
 
-  .wreader-model-modal-footer-actions {
-    margin-left: auto;
+  .wreader-model-api-row .wreader-model-test-button {
+    min-width: 80px;
+    padding: 0 10px;
   }
 
-  .wreader-model-footer-tools {
-    min-width: 0;
-  }
-
-  .wreader-model-footer-tools .wreader-model-feedback {
-    display: none;
+  .wreader-model-modal-toast {
+    top: 12px;
   }
 }
 
@@ -243,16 +261,20 @@
 }
 
 .wreader-content-model-state {
-  min-height: 54px;
+  min-height: 42px;
   display: flex;
   align-items: center;
-  padding: 12px 14px;
+  padding: 9px 12px;
   border: 1px dashed #dfe4e8;
   border-radius: 10px;
   background: #fafbfc;
   color: #74818b;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.wreader-content-model-select select {
+  min-height: 44px;
 }
 
 .wreader-content-model-choices {
