@@ -168,6 +168,23 @@ describe("AI model settings modals", () => {
     expect(db.save).not.toHaveBeenCalled();
   });
 
+  it("keeps connection testing outside the scrollable model form", async () => {
+    await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("Qwen Audio")) as HTMLButtonElement).click();
+    });
+
+    const dialog = node.querySelector('[role="dialog"]') as HTMLElement;
+    const body = dialog.querySelector(".wreader-model-modal-body") as HTMLElement;
+    const footer = dialog.querySelector("footer") as HTMLElement;
+    const testButton = Array.from(dialog.querySelectorAll("button"))
+      .find((button) => button.textContent === "测试连接") as HTMLButtonElement;
+
+    expect(body.contains(testButton)).toBe(false);
+    expect(footer.contains(testButton)).toBe(true);
+  });
+
   it("tests then saves transcription configuration and keeps daily settings independent", async () => {
     await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
     await flush();
