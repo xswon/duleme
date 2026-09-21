@@ -124,6 +124,14 @@ function ModelConfigModal({
   saving?: boolean;
   footerStart?: React.ReactNode;
 }) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, saving]);
+
   return (
     <div className="wreader-model-modal" role="dialog" aria-modal="true" aria-label={title}>
       <button type="button" className="wreader-model-modal-backdrop" aria-label="关闭" onClick={onClose} />
@@ -136,7 +144,6 @@ function ModelConfigModal({
         <footer>
           <div className="wreader-model-modal-footer-start">{footerStart}</div>
           <div className="wreader-model-modal-footer-actions">
-            <button type="button" className="secondary" onClick={onClose} disabled={saving}>取消</button>
             <button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button>
           </div>
         </footer>
