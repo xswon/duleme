@@ -46,8 +46,9 @@ describe("ArticleInsightTabs", () => {
       transcriptState: "needs_config",
       onConfigureTranscription: vi.fn(),
     });
-    expect(html).toContain("还没有逐字稿");
-    expect(html).toContain("配置逐字稿");
+    expect(html).toContain("生成逐字稿");
+    expect(html).toContain("逐字稿服务");
+    expect(html).toContain("配置");
     expect(html).not.toContain("API Key");
   });
 
@@ -92,13 +93,13 @@ describe("ArticleInsightTabs", () => {
       onConfigureAi: vi.fn(),
     });
     const document = parseMarkup(html);
-    expect(html).toContain("开启 AI 摘要");
-    expect(html).toContain("逐字稿");
+    expect(html).toContain("生成 AI 摘要");
+    expect(html).toContain("逐字稿服务");
     expect(html).toContain("AI 模型");
     expect(document.querySelectorAll("button")).toHaveLength(2);
     expect(Array.from(document.querySelectorAll("button")).map((button) => button.textContent?.trim()))
-      .toEqual(["去配置", "去配置"]);
-    expect(html).not.toContain("开始配置");
+      .toEqual(["配置", "配置"]);
+    expect(html).not.toContain("开启 AI 摘要");
     expect(html).not.toContain("未配置");
   });
 
@@ -111,8 +112,9 @@ describe("ArticleInsightTabs", () => {
       overviewState: "needs_transcription_config",
       onConfigureTranscription: vi.fn(),
     });
-    expect(needsTranscription).toContain("需要逐字稿");
-    expect(needsTranscription).toContain("配置逐字稿");
+    expect(needsTranscription).toContain("生成 AI 摘要");
+    expect(needsTranscription).toContain("逐字稿服务");
+    expect(needsTranscription).toContain("配置");
     expect(needsTranscription).not.toContain("AI 模型");
 
     const needsAi = renderModel({
@@ -121,9 +123,10 @@ describe("ArticleInsightTabs", () => {
       overviewState: "needs_ai_config",
       onConfigureAi: vi.fn(),
     });
-    expect(needsAi).toContain("需要 AI 模型");
-    expect(needsAi).toContain("配置模型");
-    expect(needsAi).not.toContain("逐字稿");
+    expect(needsAi).toContain("生成 AI 摘要");
+    expect(needsAi).toContain("AI 模型");
+    expect(needsAi).toContain("配置");
+    expect(needsAi).not.toContain("逐字稿服务");
   });
 
   it("offers one-click podcast summary generation when both dependencies are ready", () => {
