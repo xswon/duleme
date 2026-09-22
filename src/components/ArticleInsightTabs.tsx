@@ -118,12 +118,12 @@ function EmptyStateContainer({
 
   return (
     <div className="px-4 py-10">
-      <div className="mx-auto max-w-sm text-center">
-        <div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm ${iconToneClass}`}>
+      <div className="mx-auto max-w-[360px] text-center">
+        <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${iconToneClass}`}>
           {icon}
         </div>
-        <h3 className="mt-3.5 text-base font-semibold tracking-tight text-slate-800">{title}</h3>
-        <p className="mx-auto mt-1.5 max-w-xs text-xs leading-5 text-slate-500">{description}</p>
+        <h3 className="mt-4 text-lg font-semibold leading-7 tracking-tight text-slate-800">{title}</h3>
+        <p className="mx-auto mt-1.5 max-w-[320px] text-sm leading-6 text-slate-500">{description}</p>
         {children}
       </div>
     </div>
@@ -145,7 +145,7 @@ function PrimaryActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold leading-5 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {children}
     </button>
@@ -162,50 +162,56 @@ function ConfigRequirementRow({
   onConfigure?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 text-left">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5 text-left">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
           {icon}
         </span>
-        <span className="text-xs font-semibold text-slate-700">{label}</span>
+        <span className="text-sm font-semibold leading-5 text-slate-700">{label}</span>
       </div>
       <button
         type="button"
         onClick={onConfigure}
-        className="inline-flex items-center gap-0.5 text-xs font-medium text-blue-600 hover:text-blue-700"
+        className="inline-flex items-center gap-1 text-sm font-medium leading-5 text-blue-600 hover:text-blue-700"
       >
-        去配置
-        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        配置
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </button>
     </div>
   );
 }
 
-function DualConfigRequirementCard({
-  onConfigureTranscription,
-  onConfigureAi,
+function ConfigRequirementCard({
+  icon,
+  title,
+  description,
+  requirements,
 }: {
-  onConfigureTranscription?: () => void;
-  onConfigureAi?: () => void;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  requirements: Array<{
+    icon: React.ReactNode;
+    label: string;
+    onConfigure?: () => void;
+  }>;
 }) {
   return (
     <EmptyStateContainer
-      icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
-      title="开启 AI 摘要"
-      description="配置逐字稿与 AI 模型后即可生成。"
-      tone="blue"
+      icon={icon}
+      title={title}
+      description={description}
+      tone="slate"
     >
       <div className="mt-5 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/80 bg-white text-left shadow-sm">
-        <ConfigRequirementRow
-          icon={<AudioLines className="h-4 w-4" aria-hidden="true" />}
-          label="逐字稿"
-          onConfigure={onConfigureTranscription}
-        />
-        <ConfigRequirementRow
-          icon={<Bot className="h-4 w-4" aria-hidden="true" />}
-          label="AI 模型"
-          onConfigure={onConfigureAi}
-        />
+        {requirements.map((requirement) => (
+          <ConfigRequirementRow
+            key={requirement.label}
+            icon={requirement.icon}
+            label={requirement.label}
+            onConfigure={requirement.onConfigure}
+          />
+        ))}
       </div>
     </EmptyStateContainer>
   );
@@ -402,32 +408,53 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         return <LoadingContent />;
       case "needs_all_config":
         return (
-          <DualConfigRequirementCard
-            onConfigureTranscription={p.onConfigureTranscription}
-            onConfigureAi={p.onConfigureAi}
+          <ConfigRequirementCard
+            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            title="生成 AI 摘要"
+            description="配置所需服务后即可生成。"
+            requirements={[
+              {
+                icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
+                label: "逐字稿服务",
+                onConfigure: p.onConfigureTranscription,
+              },
+              {
+                icon: <Bot className="h-4 w-4" aria-hidden="true" />,
+                label: "内容整理",
+                onConfigure: p.onConfigureAi,
+              },
+            ]}
           />
         );
       case "needs_transcription_config":
         return (
-          <EmptyStateContainer
-            icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
-            title="需要逐字稿"
-            description="AI 摘要基于逐字稿生成。"
-            tone="slate"
-          >
-            <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿</PrimaryActionButton>
-          </EmptyStateContainer>
+          <ConfigRequirementCard
+            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            title="生成 AI 摘要"
+            description="配置逐字稿服务后即可生成。"
+            requirements={[
+              {
+                icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
+                label: "逐字稿服务",
+                onConfigure: p.onConfigureTranscription,
+              },
+            ]}
+          />
         );
       case "needs_ai_config":
         return (
-          <EmptyStateContainer
-            icon={<Bot className="h-5 w-5" aria-hidden="true" />}
-            title="需要 AI 模型"
-            description="配置 AI 模型后即可生成摘要。"
-            tone="blue"
-          >
-            <PrimaryActionButton onClick={p.onConfigureAi}>配置模型</PrimaryActionButton>
-          </EmptyStateContainer>
+          <ConfigRequirementCard
+            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            title="生成 AI 摘要"
+            description="配置 AI 模型后即可生成。"
+            requirements={[
+              {
+                icon: <Bot className="h-4 w-4" aria-hidden="true" />,
+                label: "内容整理",
+                onConfigure: p.onConfigureAi,
+              },
+            ]}
+          />
         );
       case "can_generate":
         return (
@@ -578,14 +605,18 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     case "needs_config":
     default:
       return (
-        <EmptyStateContainer
+        <ConfigRequirementCard
           icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
-          title="还没有逐字稿"
-          description="配置后即可生成逐字稿。"
-          tone="slate"
-        >
-          <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿</PrimaryActionButton>
-        </EmptyStateContainer>
+          title="生成逐字稿"
+          description="配置转录服务后即可生成。"
+          requirements={[
+            {
+              icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
+              label: "逐字稿服务",
+              onConfigure: p.onConfigureTranscription,
+            },
+          ]}
+        />
       );
   }
 

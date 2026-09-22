@@ -118,9 +118,9 @@
 #article-reader .wreader-audio-play:hover { background: #286ba8 !important; color: #fff !important; }
 
 #article-reader .reader-tabs { max-width: 650px; min-height: 40px; display: flex; align-items: stretch; gap: 24px; margin: 20px 0 0; overflow-x: auto; }
-#article-reader .reader-tab { position: relative; min-height: 40px; display: inline-flex; align-items: center; flex: none; gap: 7px; padding: 0 1px; border: 0; color: #7d8996; font-size: 14px; font-weight: 400; white-space: nowrap; }
-#article-reader .reader-tab-icon { width: 15px; height: 15px; color: #8996a4; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-#article-reader .reader-tab.is-active { color: #3175c6; font-weight: 700; }
+#article-reader .reader-tab { position: relative; min-height: 40px; display: inline-flex; align-items: center; flex: none; gap: 7px; padding: 0 1px; border: 0; color: #7d8996; font-size: 15px; line-height: 22px; font-weight: 400; white-space: nowrap; }
+#article-reader .reader-tab-icon { width: 16px; height: 16px; color: #8996a4; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+#article-reader .reader-tab.is-active { color: #3175c6; font-weight: 600; }
 #article-reader .reader-tab.is-active::after { position: absolute; right: 8px; bottom: 0; left: 8px; height: 2px; border-radius: 999px; background: #3175c6; content: ""; }
 #article-reader .reader-tab em { min-width: 20px; margin-left: 3px; padding: 1px 5px; border-radius: 8px; background: #eef2f6; color: #637286; font-size: 11px; font-style: normal; text-align: center; }
 

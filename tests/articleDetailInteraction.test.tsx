@@ -337,7 +337,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
 
     expect(container.textContent).toContain("开启 AI 摘要");
     expect(container.textContent).toContain("逐字稿");
-    expect(container.textContent).toContain("AI 模型");
+    expect(container.textContent).toContain("内容整理");
     const configureButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .filter((button) => button.textContent?.trim() === "去配置");
     expect(configureButtons).toHaveLength(2);
