@@ -420,7 +420,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
               },
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
-                label: "AI 模型",
+                label: "内容整理",
                 onConfigure: p.onConfigureAi,
               },
             ]}
@@ -450,7 +450,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             requirements={[
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
-                label: "AI 模型",
+                label: "内容整理",
                 onConfigure: p.onConfigureAi,
               },
             ]}

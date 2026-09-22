@@ -95,7 +95,7 @@ describe("ArticleInsightTabs", () => {
     const document = parseMarkup(html);
     expect(html).toContain("生成 AI 摘要");
     expect(html).toContain("逐字稿服务");
-    expect(html).toContain("AI 模型");
+    expect(html).toContain("内容整理");
     expect(document.querySelectorAll("button")).toHaveLength(2);
     expect(Array.from(document.querySelectorAll("button")).map((button) => button.textContent?.trim()))
       .toEqual(["配置", "配置"]);
@@ -124,7 +124,7 @@ describe("ArticleInsightTabs", () => {
       onConfigureAi: vi.fn(),
     });
     expect(needsAi).toContain("生成 AI 摘要");
-    expect(needsAi).toContain("AI 模型");
+    expect(needsAi).toContain("内容整理");
     expect(needsAi).toContain("配置");
     expect(needsAi).not.toContain("逐字稿服务");
   });
