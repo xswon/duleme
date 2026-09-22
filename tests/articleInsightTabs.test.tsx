@@ -47,7 +47,7 @@ describe("ArticleInsightTabs", () => {
       onConfigureTranscription: vi.fn(),
     });
     expect(html).toContain("还没有逐字稿");
-    expect(html).toContain("配置逐字稿服务");
+    expect(html).toContain("配置逐字稿");
     expect(html).not.toContain("API Key");
   });
 
@@ -59,7 +59,7 @@ describe("ArticleInsightTabs", () => {
       onStartTranscription: vi.fn(),
     });
     expect(html).toContain("生成逐字稿");
-    expect(html).toContain("音频只会在你主动操作后开始转录");
+    expect(html).toContain("点击开始生成完整逐字稿");
   });
 
   it("keeps retry and error context in the transcript card", () => {
@@ -93,12 +93,13 @@ describe("ArticleInsightTabs", () => {
     });
     const document = parseMarkup(html);
     expect(html).toContain("开启 AI 摘要");
-    expect(html).toContain("逐字稿服务");
-    expect(html).toContain("AI 总结模型");
+    expect(html).toContain("逐字稿");
+    expect(html).toContain("AI 模型");
     expect(document.querySelectorAll("button")).toHaveLength(2);
     expect(Array.from(document.querySelectorAll("button")).map((button) => button.textContent?.trim()))
       .toEqual(["去配置", "去配置"]);
     expect(html).not.toContain("开始配置");
+    expect(html).not.toContain("未配置");
   });
 
   it("maps single missing dependencies to one focused action", () => {
@@ -110,9 +111,9 @@ describe("ArticleInsightTabs", () => {
       overviewState: "needs_transcription_config",
       onConfigureTranscription: vi.fn(),
     });
-    expect(needsTranscription).toContain("需要配置逐字稿服务");
-    expect(needsTranscription).toContain("配置逐字稿服务");
-    expect(needsTranscription).not.toContain("AI 总结模型");
+    expect(needsTranscription).toContain("需要逐字稿");
+    expect(needsTranscription).toContain("配置逐字稿");
+    expect(needsTranscription).not.toContain("AI 模型");
 
     const needsAi = renderModel({
       article: audio,
@@ -120,9 +121,9 @@ describe("ArticleInsightTabs", () => {
       overviewState: "needs_ai_config",
       onConfigureAi: vi.fn(),
     });
-    expect(needsAi).toContain("需要配置 AI 模型");
-    expect(needsAi).toContain("配置 AI 模型");
-    expect(needsAi).not.toContain("逐字稿服务");
+    expect(needsAi).toContain("需要 AI 模型");
+    expect(needsAi).toContain("配置模型");
+    expect(needsAi).not.toContain("逐字稿");
   });
 
   it("offers one-click podcast summary generation when both dependencies are ready", () => {
@@ -134,8 +135,7 @@ describe("ArticleInsightTabs", () => {
       onSummarize: vi.fn(),
     });
     expect(html).toContain("生成 AI 摘要");
-    expect(html).toContain("将自动转录音频并提取要点");
-    expect(html).toContain("逐字稿也会同步保存");
+    expect(html).toContain("将自动生成逐字稿并提炼摘要");
   });
 
   it("renders the two-stage podcast pipeline", () => {
@@ -157,9 +157,9 @@ describe("ArticleInsightTabs", () => {
       onCancelPipeline: vi.fn(),
     });
     expect(transcribing).toContain("正在准备 AI 摘要");
-    expect(transcribing).toContain("转录音频");
-    expect(transcribing).toContain("提炼核心观点");
-    expect(transcribing).toContain("取消自动生成摘要");
+    expect(transcribing).toContain("生成逐字稿");
+    expect(transcribing).toContain("生成 AI 摘要");
+    expect(transcribing).toContain("取消");
 
     const summarizing = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },

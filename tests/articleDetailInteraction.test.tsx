@@ -336,8 +336,8 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await act(async () => aiTab?.click());
 
     expect(container.textContent).toContain("开启 AI 摘要");
-    expect(container.textContent).toContain("逐字稿服务");
-    expect(container.textContent).toContain("AI 总结模型");
+    expect(container.textContent).toContain("逐字稿");
+    expect(container.textContent).toContain("AI 模型");
     const configureButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .filter((button) => button.textContent?.trim() === "去配置");
     expect(configureButtons).toHaveLength(2);
@@ -476,9 +476,9 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("需要配置 AI 模型");
+    expect(container.textContent).toContain("需要 AI 模型");
     const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "配置 AI 模型");
+      .find((button) => button.textContent === "配置模型");
     expect(configureButton).toBeTruthy();
 
     await act(async () => configureButton?.click());

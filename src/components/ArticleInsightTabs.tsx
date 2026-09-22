@@ -104,20 +104,26 @@ function EmptyStateContainer({
   title,
   description,
   children,
+  tone = "blue",
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   children?: React.ReactNode;
+  tone?: "blue" | "slate";
 }) {
+  const iconToneClass = tone === "blue"
+    ? "bg-blue-50 text-blue-600 ring-1 ring-blue-100"
+    : "bg-slate-100 text-slate-600 ring-1 ring-slate-200/60";
+
   return (
-    <div className="py-7">
-      <div className="mx-auto max-w-md rounded-2xl border border-slate-200/80 bg-slate-50/60 px-6 py-6 text-center">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm ring-1 ring-slate-200/70">
+    <div className="px-4 py-10">
+      <div className="mx-auto max-w-sm text-center">
+        <div className={`mx-auto flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm ${iconToneClass}`}>
           {icon}
         </div>
-        <h3 className="mt-3 text-sm font-semibold text-slate-800">{title}</h3>
-        <p className="mx-auto mt-1.5 max-w-sm text-xs leading-5 text-slate-500">{description}</p>
+        <h3 className="mt-3.5 text-base font-semibold tracking-tight text-slate-800">{title}</h3>
+        <p className="mx-auto mt-1.5 max-w-xs text-xs leading-5 text-slate-500">{description}</p>
         {children}
       </div>
     </div>
@@ -139,7 +145,7 @@ function PrimaryActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-4 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {children}
     </button>
@@ -156,16 +162,17 @@ function ConfigRequirementRow({
   onConfigure?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3.5 py-3 text-left">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 text-xs font-semibold text-slate-700">{label}</span>
-      <span className="text-[11px] text-slate-400">未配置</span>
+    <div className="flex items-center justify-between gap-3 px-4 py-3 text-left">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+          {icon}
+        </span>
+        <span className="text-xs font-semibold text-slate-700">{label}</span>
+      </div>
       <button
         type="button"
         onClick={onConfigure}
-        className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+        className="inline-flex items-center gap-0.5 text-xs font-medium text-blue-600 hover:text-blue-700"
       >
         去配置
         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -185,17 +192,18 @@ function DualConfigRequirementCard({
     <EmptyStateContainer
       icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
       title="开启 AI 摘要"
-      description="需要逐字稿服务和 AI 模型。配置一次，之后即可一键生成。"
+      description="配置逐字稿与 AI 模型后即可生成。"
+      tone="blue"
     >
-      <div className="mt-5 divide-y divide-slate-200/80 overflow-hidden rounded-xl border border-slate-200/80 bg-white">
+      <div className="mt-5 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/80 bg-white text-left shadow-sm">
         <ConfigRequirementRow
           icon={<AudioLines className="h-4 w-4" aria-hidden="true" />}
-          label="逐字稿服务"
+          label="逐字稿"
           onConfigure={onConfigureTranscription}
         />
         <ConfigRequirementRow
           icon={<Bot className="h-4 w-4" aria-hidden="true" />}
-          label="AI 总结模型"
+          label="AI 模型"
           onConfigure={onConfigureAi}
         />
       </div>
@@ -238,8 +246,9 @@ function PipelineProgressCard({
       icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
       title={failed ? "生成遇到问题" : "正在准备 AI 摘要…"}
       description={autoContinue
-        ? "无需切换页面，转录完成后会自动继续生成摘要。"
-        : "逐字稿正在处理中，完成后即可继续生成摘要。"}
+        ? "无需切换页面，完成后自动显示。"
+        : "逐字稿处理中，完成后即可生成摘要。"}
+      tone="blue"
     >
       <div className="mt-5 space-y-4 text-left">
         <div className="flex gap-3">
@@ -248,7 +257,7 @@ function PipelineProgressCard({
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold text-slate-700">转录音频</p>
+              <p className="text-xs font-semibold text-slate-700">生成逐字稿</p>
               <span className="text-[11px] text-slate-400">
                 {stepOneDone ? "已完成" : failed && transcriptionFailed ? "失败" : "进行中"}
               </span>
@@ -264,7 +273,7 @@ function PipelineProgressCard({
           <span className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold " + stepTwoClass}>2</span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold text-slate-700">提炼核心观点</p>
+              <p className="text-xs font-semibold text-slate-700">生成 AI 摘要</p>
               <span className="text-[11px] text-slate-400">
                 {summarizing ? "进行中" : failed && !transcriptionFailed ? "失败" : "等待"}
               </span>
@@ -280,7 +289,7 @@ function PipelineProgressCard({
       {error && <p className="mt-4 text-xs text-rose-600" role="alert">{error}</p>}
       {autoContinue && transcribing && onCancel && (
         <button type="button" onClick={onCancel} className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-700">
-          取消自动生成摘要
+          取消
         </button>
       )}
     </EmptyStateContainer>
@@ -402,22 +411,22 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         return (
           <EmptyStateContainer
             icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
-            title="需要配置逐字稿服务"
-            description="播客摘要基于逐字稿提取，配置转录后即可一键生成。"
+            title="需要逐字稿"
+            description="AI 摘要基于逐字稿生成。"
+            tone="slate"
           >
-            <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿服务</PrimaryActionButton>
+            <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿</PrimaryActionButton>
           </EmptyStateContainer>
         );
       case "needs_ai_config":
         return (
           <EmptyStateContainer
             icon={<Bot className="h-5 w-5" aria-hidden="true" />}
-            title="需要配置 AI 模型"
-            description={p.article.audioUrl
-              ? "配置语言模型后，即可开始提炼长音频的核心内容。"
-              : "配置语言模型后，即可生成核心摘要和关键观点。"}
+            title="需要 AI 模型"
+            description="配置 AI 模型后即可生成摘要。"
+            tone="blue"
           >
-            <PrimaryActionButton onClick={p.onConfigureAi}>配置 AI 模型</PrimaryActionButton>
+            <PrimaryActionButton onClick={p.onConfigureAi}>配置模型</PrimaryActionButton>
           </EmptyStateContainer>
         );
       case "can_generate":
@@ -427,9 +436,10 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             title="生成 AI 摘要"
             description={p.article.audioUrl
               ? p.transcriptState === "ready"
-                ? "将基于现有逐字稿提取核心观点和关键信息。"
-                : "将自动转录音频并提取要点，逐字稿也会同步保存。"
-              : "提取核心摘要、关键观点和阅读时间。"}
+                ? "基于逐字稿提炼核心观点。"
+                : "将自动生成逐字稿并提炼摘要。"
+              : "提取核心摘要与关键观点。"}
+            tone="blue"
           >
             {p.summaryError && <p className="mt-4 text-xs text-rose-600" role="alert">{p.summaryError}</p>}
             <PrimaryActionButton onClick={p.onSummarize} disabled={p.summarizing}>
@@ -542,6 +552,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="正在生成逐字稿…"
           description="完成后会自动显示在这里。"
+          tone="slate"
         >
           <div className="mx-auto mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-slate-200">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
@@ -553,7 +564,8 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         <EmptyStateContainer
           icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="生成逐字稿"
-          description="音频只会在你主动操作后开始转录。"
+          description="点击开始生成完整逐字稿。"
+          tone="slate"
         >
           {(p.localFetchError || cloudTask?.error) && (
             <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || cloudTask?.error}</p>
@@ -569,9 +581,10 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         <EmptyStateContainer
           icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="还没有逐字稿"
-          description="配置转录服务后，可将音频转换为完整文本。"
+          description="配置后即可生成逐字稿。"
+          tone="slate"
         >
-          <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿服务</PrimaryActionButton>
+          <PrimaryActionButton onClick={p.onConfigureTranscription}>配置逐字稿</PrimaryActionButton>
         </EmptyStateContainer>
       );
   }
