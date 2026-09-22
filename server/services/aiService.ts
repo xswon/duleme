@@ -4,6 +4,13 @@ export interface AiRequestConfig {
   model: string;
 }
 
+export interface AiModelOption {
+  id: string;
+  name?: string;
+  created?: number;
+  ownedBy?: string;
+}
+
 export type AiErrorCode =
   | "not_configured"
   | "invalid_config"
@@ -38,13 +45,12 @@ function isLoopbackHost(hostname: string): boolean {
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
 }
 
-function normalizeConfig(input?: Partial<AiRequestConfig>): AiRequestConfig {
+function normalizeEndpointConfig(input?: Partial<AiRequestConfig>): Pick<AiRequestConfig, "baseURL" | "apiKey"> {
   const hasExplicitConfig = input !== undefined;
   const baseURL = (hasExplicitConfig ? input.baseURL || "" : process.env.AI_BASE_URL || "").trim();
   const apiKey = (hasExplicitConfig ? input.apiKey || "" : process.env.AI_API_KEY || "").trim();
-  const model = (hasExplicitConfig ? input.model || "" : process.env.AI_MODEL || "").trim();
 
-  if (!baseURL || !model) {
+  if (!baseURL) {
     throw new AiServiceError("not_configured", "AI service is not configured.");
   }
 
@@ -72,8 +78,19 @@ function normalizeConfig(input?: Partial<AiRequestConfig>): AiRequestConfig {
   return {
     baseURL: parsed.toString().replace(/\/$/, ""),
     apiKey: apiKey || undefined,
-    model,
   };
+}
+
+function normalizeConfig(input?: Partial<AiRequestConfig>): AiRequestConfig {
+  const endpoint = normalizeEndpointConfig(input);
+  const hasExplicitConfig = input !== undefined;
+  const model = (hasExplicitConfig ? input.model || "" : process.env.AI_MODEL || "").trim();
+
+  if (!model) {
+    throw new AiServiceError("not_configured", "AI service is not configured.");
+  }
+
+  return { ...endpoint, model };
 }
 
 function extractUpstreamMessage(payload: unknown): string {
@@ -136,6 +153,85 @@ function extractAssistantText(payload: unknown): string {
     if (text) return text;
   }
   throw new AiServiceError("invalid_response", "AI service returned an empty completion.");
+}
+
+
+function extractModelOptions(payload: unknown): AiModelOption[] {
+  let rawModels: unknown[] = [];
+  if (Array.isArray(payload)) {
+    rawModels = payload;
+  } else if (payload && typeof payload === "object") {
+    const value = payload as Record<string, unknown>;
+    if (Array.isArray(value.data)) rawModels = value.data;
+    else if (Array.isArray(value.models)) rawModels = value.models;
+  }
+
+  const seen = new Set<string>();
+  const models: AiModelOption[] = [];
+  for (const raw of rawModels) {
+    if (typeof raw === "string") {
+      const id = raw.trim();
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        models.push({ id });
+      }
+      continue;
+    }
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as Record<string, unknown>;
+    const idValue = typeof item.id === "string" ? item.id : typeof item.model === "string" ? item.model : "";
+    const id = idValue.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const name = typeof item.name === "string" && item.name.trim() ? item.name.trim() : undefined;
+    const created = typeof item.created === "number" && Number.isFinite(item.created) ? item.created : undefined;
+    const ownedBy = typeof item.owned_by === "string" && item.owned_by.trim() ? item.owned_by.trim() : undefined;
+    models.push({ id, ...(name ? { name } : {}), ...(created !== undefined ? { created } : {}), ...(ownedBy ? { ownedBy } : {}) });
+  }
+  return models;
+}
+
+export async function listAiModels(
+  input?: Partial<AiRequestConfig>,
+  timeoutMs = 15_000,
+): Promise<AiModelOption[]> {
+  const config = normalizeEndpointConfig(input);
+  const endpoint = `${config.baseURL}/models`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+      },
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new AiServiceError("endpoint_not_found", "The model catalog endpoint was not found.", 404);
+      }
+      throw classifyHttpError(response.status, extractUpstreamMessage(payload));
+    }
+    return extractModelOptions(payload);
+  } catch (error) {
+    if (error instanceof AiServiceError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new AiServiceError("timeout", "AI service request timed out.");
+    }
+    const cause = error && typeof error === "object"
+      ? (error as { cause?: { code?: string } }).cause
+      : undefined;
+    if (cause?.code === "ECONNREFUSED") {
+      throw new AiServiceError("connection_refused", "Could not connect to the AI service.");
+    }
+    throw new AiServiceError("upstream_error", "Could not reach the AI service.");
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function getResolvedAiConfig(input?: Partial<AiRequestConfig>): AiRequestConfig {
