@@ -141,7 +141,7 @@ function ModelSummaryCard({ title, provider, onClick }: { title: string; provide
     <button type="button" className="wreader-model-summary-card" onClick={onClick}>
       <span>
         <strong>{title}</strong>
-        {provider && <small>{provider} · 已连接</small>}
+        {provider && <small>{provider} · 已配置</small>}
       </span>
       <ChevronRight aria-hidden="true" />
     </button>
@@ -538,6 +538,13 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     try {
       const model = await ensureInsightModel();
       if (!model) return;
+      setInsightFeedback({ tone: "info", text: "正在验证配置…" });
+      await testInsightSettings({
+        provider: draftInsightProvider as InsightProviderId,
+        baseURL: draftInsightBaseURL.trim(),
+        apiKey: draftInsightKey.trim() || undefined,
+        model,
+      });
       const status = await saveInsightSettings({
         provider: draftInsightProvider as InsightProviderId,
         baseURL: draftInsightBaseURL.trim(),

@@ -337,6 +337,43 @@ describe("AI model settings modals", () => {
     });
   });
 
+  it("does not save or report an invalid content-model key as connected", async () => {
+    insight.get.mockResolvedValueOnce({
+      providerId: "custom",
+      provider: "自定义",
+      baseURL: "",
+      model: "",
+      configured: false,
+      hasApiKey: false,
+      source: "none" as const,
+    });
+    insight.test.mockRejectedValueOnce(new Error("API Key 无效"));
+
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
+    });
+
+    await choose(node.querySelector("#insight-provider") as HTMLSelectElement, "deepseek");
+    await typeInto(node.querySelector("#insight-api-key") as HTMLInputElement, "invalid-key");
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent === "保存") as HTMLButtonElement).click();
+    });
+    await flush();
+    await flush();
+
+    expect(insight.test).toHaveBeenCalledWith({
+      provider: "deepseek",
+      baseURL: "https://api.deepseek.com",
+      apiKey: "invalid-key",
+      model: "reader-model",
+    });
+    expect(insight.save).not.toHaveBeenCalled();
+    expect(node.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(node.textContent).toContain("API Key 无效");
+  });
+
   it("keeps advanced endpoint details hidden from the beginner flow", async () => {
     insight.get.mockResolvedValueOnce(browserInsight);
     await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
