@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Eye, EyeOff, KeyRound, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Eye, EyeOff, Info, KeyRound, X } from "lucide-react";
 import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscriptionSettings, type TranscriptionSettings } from "../services/dbService";
 import {
   clearInsightSettings,
@@ -195,9 +195,10 @@ function ModelConfigModal({
 
 function ConnectionFeedback({ feedback }: { feedback: Feedback | null }) {
   if (!feedback) return null;
+  const FeedbackIcon = feedback.tone === "success" ? CheckCircle2 : feedback.tone === "info" ? Info : AlertCircle;
   return (
-    <p role="status" className={`wreader-model-feedback is-${feedback.tone}`}>
-      {feedback.tone === "success" ? <CheckCircle2 /> : <AlertCircle />}
+    <p role="status" aria-live="polite" aria-atomic="true" className={`wreader-model-feedback is-${feedback.tone}`}>
+      <FeedbackIcon aria-hidden="true" />
       {feedback.text}
     </p>
   );

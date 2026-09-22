@@ -1,5 +1,53 @@
 @import "tailwindcss";
 
+:root {
+  --wreader-ui-bg: #f6f8fb;
+  --wreader-ui-surface: #ffffff;
+  --wreader-ui-border: #e2e7ec;
+  --wreader-ui-text: #33485a;
+  --wreader-ui-muted: #7b8792;
+  --wreader-ui-accent: #3175c6;
+  --wreader-ui-radius: 10px;
+  --wreader-ui-shadow: 0 8px 24px rgba(31, 41, 55, .12);
+}
+
+html {
+  background: var(--wreader-ui-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--wreader-ui-bg);
+  color: var(--wreader-ui-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 /* ---- Utilities used across the app ---- */
 
 @keyframes fadeIn {
@@ -3323,14 +3371,14 @@ body,
 .wreader-model-modal-card footer button { height: 36px; padding: 0 14px; border-radius: 8px; background: #2f75c2; color: #fff; font-size: 12px; font-weight: 650; }
 .wreader-model-modal-card footer button.secondary { background: transparent; color: #62717d; }
 .wreader-model-modal-card footer button:disabled, .wreader-model-test-button:disabled, .wreader-model-clear-button:disabled { cursor: not-allowed; opacity: .6; }
-.wreader-model-feedback { display: flex; align-items: center; gap: 6px; margin: 0; color: #55705f; font-size: 11px; }
-.wreader-model-feedback svg { width: 14px; height: 14px; color: #4c9b67; }
-.wreader-ai-feedback.is-error { color: #b44d4d; }
-.wreader-ai-feedback.is-warning { color: #a77929; }
-.wreader-ai-feedback.is-info { color: #52718c; }
-.wreader-ai-feedback.is-error svg { color: #d26464; }
-.wreader-ai-feedback.is-warning svg { color: #c18a2d; }
-.wreader-ai-feedback.is-info svg { color: #5a88b0; }
+.wreader-model-feedback { display: flex; min-height: 30px; align-items: center; gap: 7px; margin: 0; padding: 6px 9px; border-radius: 8px; background: #eef8f1; color: #55705f; font-size: 11px; line-height: 1.4; }
+.wreader-model-feedback svg { width: 14px; height: 14px; flex: none; color: #4c9b67; }
+.wreader-model-feedback.is-error { background: #fff1f1; color: #b44d4d; }
+.wreader-model-feedback.is-warning { background: #fff7e8; color: #9a7028; }
+.wreader-model-feedback.is-info { background: #eef5fb; color: #52718c; }
+.wreader-model-feedback.is-error svg { color: #d26464; }
+.wreader-model-feedback.is-warning svg { color: #c18a2d; }
+.wreader-model-feedback.is-info svg { color: #5a88b0; }
 
 @media (max-width: 760px) {
   .wreader-settings-modal {
