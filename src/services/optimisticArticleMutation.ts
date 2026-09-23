@@ -31,13 +31,13 @@ export class OptimisticArticleMutationTracker {
       if (article.id !== token.articleId) return article;
       const versions = this.versionsByArticle.get(token.articleId);
       if (!versions) return article;
-      const restoration: Partial<Article> = {};
+      let restored = article;
 
       token.versions.forEach((version, field) => {
-        if (versions.get(field) === version) restoration[field] = previous[field];
+        if (versions.get(field) === version) restored = { ...restored, [field]: previous[field] };
       });
 
-      return Object.keys(restoration).length > 0 ? { ...article, ...restoration } : article;
+      return restored;
     });
   }
 }

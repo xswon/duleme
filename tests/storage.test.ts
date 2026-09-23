@@ -14,6 +14,7 @@ import {
   migrateArticleNoteIdsInDB,
   migrateFromLocalStorageIfNeeded,
   replaceArticlesForFeedsInDB,
+  replaceArticlesForFeedsAndMigrateReferencesInDB,
   replaceFeedsInDB,
   restoreDataBackup,
   saveAppStateToDB,
@@ -300,6 +301,43 @@ describe("article IndexedDB persistence", () => {
     const stored = await getAllArticlesFromDB();
     expect(stored.map((item) => item.id).sort()).toEqual(["canonical", "unchanged"]);
     expect(stored.find((item) => item.id === "canonical")).toMatchObject({ starred: true });
+  });
+
+  it("rejects a refresh replacement failure without changing the stored snapshot", async () => {
+    const legacy = { ...article("legacy"), read: true };
+    await saveArticlesToDB([legacy]);
+    const originalPut = IDBObjectStore.prototype.put;
+    const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value: unknown) {
+      if ((value as Article).id === "canonical") throw new Error("simulated refresh persistence failure");
+      return originalPut.call(this, value);
+    });
+
+    await expect(replaceArticlesForFeedsAndMigrateReferencesInDB(
+      ["feed-1"],
+      [{ ...article("canonical"), read: true }],
+      new Map([["legacy", "canonical"]]),
+      { playlistIds: ["canonical"], audioProgressMap: {} }
+    )).rejects.toThrow("simulated refresh persistence failure");
+
+    await expect(getAllArticlesFromDB()).resolves.toEqual([legacy]);
+    put.mockRestore();
+  });
+
+  it("keeps refresh replacement behavior unchanged after a successful transaction", async () => {
+    await saveArticlesToDB([{ ...article("legacy"), starred: true }]);
+    await replaceArticlesForFeedsAndMigrateReferencesInDB(
+      ["feed-1"],
+      [{ ...article("canonical"), starred: true }],
+      new Map([["legacy", "canonical"]]),
+      { playlistIds: ["canonical"], audioProgressMap: { canonical: { currentTime: 20, duration: 30, updatedAt: 1 } } }
+    );
+
+    await expect(getAllArticlesFromDB()).resolves.toEqual([
+      expect.objectContaining({ id: "canonical", starred: true }),
+    ]);
+    await expect(createDataBackup()).resolves.toMatchObject({
+      data: { appState: { playlistIds: ["canonical"], audioProgressMap: { canonical: { currentTime: 20 } } } },
+    });
   });
 
   it("keeps legacy data when the IndexedDB migration write fails", async () => {

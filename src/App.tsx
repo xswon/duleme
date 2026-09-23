@@ -916,7 +916,7 @@ export default function App() {
 
       const successfulResults = results.filter((result): result is NonNullable<typeof result> => !!result);
       const fetchedNewArticles = successfulResults.flatMap((result) => result.articles);
-      const existingIds = new Set(articles.map((article) => article.id));
+      const existingIds = new Set(articlesRef.current.map((article) => article.id));
       const newArticleCount = fetchedNewArticles.filter((article) => !existingIds.has(article.id)).length;
       setRefreshState((state) => ({ ...state, newArticles: newArticleCount, finishedAt: Date.now() }));
       const currentFeedIds = new Set(feedsRef.current.map((feed) => feed.id));
@@ -934,15 +934,43 @@ export default function App() {
       }
 
       if (refreshedFeedIds.size > 0) {
-        const merged = mergeFetchedFeedArticles(articles, fetchedNewArticles, refreshedFeedIds);
-        await migrateStoredArticleNoteBackrefs(merged.articleIdMap);
+        const merged = mergeFetchedFeedArticles(articlesRef.current, fetchedNewArticles, refreshedFeedIds);
+        const nextPlaylistIds = migrateArticleBackrefs(playlistIdsRef.current, merged.articleIdMap);
+        const nextAudioProgressMap = migrateAudioProgressMap(audioProgressMapRef.current, merged.articleIdMap);
+        try {
+          await replaceStoredArticlesForFeedsAndMigrateReferences(
+            refreshedFeedIds,
+            merged.articles.filter((article) => refreshedFeedIds.has(article.feedId)),
+            merged.articleIdMap,
+            { playlistIds: nextPlaylistIds, audioProgressMap: nextAudioProgressMap }
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "本地保存失败";
+          const failedFeeds = successfulResults.map((result) => ({
+            ...result.feed,
+            lastSyncStatus: "error" as const,
+            lastSyncError: `本地保存失败：${message}`,
+          }));
+          setFeeds((current) => current.map((feed) => {
+            const failed = failedFeeds.find((item) => item.id === feed.id);
+            return failed || feed;
+          }));
+          setRefreshState((state) => ({
+            ...state,
+            successful: Math.max(0, state.successful - failedFeeds.length),
+            failed: [...state.failed, ...failedFeeds],
+            newArticles: 0,
+            finishedAt: Date.now(),
+          }));
+          showToast(`同步内容保存失败：${message}`);
+          return;
+        }
+        articlesRef.current = merged.articles;
         setArticles(merged.articles);
-        void replaceStoredArticlesForFeeds(
-          refreshedFeedIds,
-          merged.articles.filter((article) => refreshedFeedIds.has(article.feedId))
-        );
-        setPlaylistIds((prev) => migrateArticleBackrefs(prev, merged.articleIdMap));
-        setAudioProgressMap((prev) => migrateAudioProgressMap(prev, merged.articleIdMap));
+        playlistIdsRef.current = nextPlaylistIds;
+        setPlaylistIds(nextPlaylistIds);
+        audioProgressMapRef.current = nextAudioProgressMap;
+        setAudioProgressMap(nextAudioProgressMap);
         setSelectedArticleId((prev) => {
           if (!prev) return prev;
           const targetId = merged.articleIdMap.get(prev) || prev;
@@ -955,7 +983,7 @@ export default function App() {
       setIsRefreshing(false);
       setRefreshState((state) => ({ ...state, finishedAt: state.finishedAt || Date.now() }));
     }
-  }, [articles, isRefreshing]);
+  }, [isRefreshing, showToast]);
 
   const handleRetryFeed = useCallback(async (feedId: string) => {
     const feed = feeds.find((item) => item.id === feedId);
@@ -973,15 +1001,25 @@ export default function App() {
       if (refreshGeneration.current !== generation || !feedsRef.current.some((item) => item.id === feedId)) return;
       const matched = helper ? matchBidclubItems(parsedItems, helper.items).items : parsedItems;
       const refreshed = (matched || []).map((item) => ({ ...item, feedId: feed.id, feedTitle: feed.title, feedFavicon: parsed.feedImage || parsed.favicon || feed.favicon, read: false, starred: false }));
-      const merged = mergeFetchedFeedArticles(articles, refreshed, new Set([feed.id]));
-      await migrateStoredArticleNoteBackrefs(merged.articleIdMap);
+      const newArticleCount = refreshed.filter((item) => !articlesRef.current.some((existing) => existing.id === item.id)).length;
+      const merged = mergeFetchedFeedArticles(articlesRef.current, refreshed, new Set([feed.id]));
+      const nextPlaylistIds = migrateArticleBackrefs(playlistIdsRef.current, merged.articleIdMap);
+      const nextAudioProgressMap = migrateAudioProgressMap(audioProgressMapRef.current, merged.articleIdMap);
+      await replaceStoredArticlesForFeedsAndMigrateReferences(
+        new Set([feed.id]),
+        merged.articles.filter((item) => item.feedId === feed.id),
+        merged.articleIdMap,
+        { playlistIds: nextPlaylistIds, audioProgressMap: nextAudioProgressMap }
+      );
+      articlesRef.current = merged.articles;
       setArticles(merged.articles);
-      void replaceStoredArticlesForFeeds(new Set([feed.id]), merged.articles.filter((item) => item.feedId === feed.id));
-      setPlaylistIds((prev) => migrateArticleBackrefs(prev, merged.articleIdMap));
-      setAudioProgressMap((prev) => migrateAudioProgressMap(prev, merged.articleIdMap));
+      playlistIdsRef.current = nextPlaylistIds;
+      setPlaylistIds(nextPlaylistIds);
+      audioProgressMapRef.current = nextAudioProgressMap;
+      setAudioProgressMap(nextAudioProgressMap);
       setSelectedArticleId((prev) => prev ? merged.articleIdMap.get(prev) || prev : prev);
       setFeeds((current) => current.map((item) => item.id === feed.id ? { ...item, lastUpdated: new Date().toISOString(), lastSyncStatus: "success", lastSyncError: undefined } : item));
-      setRefreshState({ completed: 1, total: 1, successful: 1, failed: [], newArticles: refreshed.filter((item) => !articles.some((existing) => existing.id === item.id)).length, startedAt: Date.now(), finishedAt: Date.now() });
+      setRefreshState({ completed: 1, total: 1, successful: 1, failed: [], newArticles: newArticleCount, startedAt: Date.now(), finishedAt: Date.now() });
       showToast(`已重试「${feed.title}」`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "同步失败";
@@ -993,7 +1031,7 @@ export default function App() {
       refreshInFlight.current = false;
       setIsRefreshing(false);
     }
-  }, [articles, feeds, isRefreshing, showToast]);
+  }, [feeds, isRefreshing, showToast]);
 
   useEffect(() => {
     if (!pendingRefreshFeedIds || isRefreshing) return;
@@ -1088,7 +1126,9 @@ export default function App() {
     setArticleNotes((current) => current.map((item) => item.id === note.id ? updated : item));
     void saveArticleNoteToDB(updated).catch((error) => {
       console.warn("Failed to update note:", error);
-      void getAllArticleNotesFromDB().then(setArticleNotes);
+      void getAllArticleNotesFromDB()
+        .then(setArticleNotes)
+        .catch((reloadError) => console.warn("Failed to restore notes after a save failure:", reloadError));
     });
   }, []);
 
@@ -1097,7 +1137,9 @@ export default function App() {
     setArticleNotes((current) => current.filter((item) => item.id !== note.id));
     void deleteArticleNoteFromDB(note.id).catch((error) => {
       console.warn("Failed to delete note:", error);
-      void getAllArticleNotesFromDB().then(setArticleNotes);
+      void getAllArticleNotesFromDB()
+        .then(setArticleNotes)
+        .catch((reloadError) => console.warn("Failed to restore notes after a delete failure:", reloadError));
     });
   }, []);
 

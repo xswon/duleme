@@ -427,8 +427,12 @@ export async function replaceArticlesForFeedsInDB(
     let pendingKeyRequests = ids.length;
 
     const writeReplacement = () => {
-      keysToDelete.forEach((key) => store.delete(key));
-      articles.forEach((article) => store.put(article));
+      try {
+        keysToDelete.forEach((key) => store.delete(key));
+        articles.forEach((article) => store.put(article));
+      } catch {
+        tx.abort();
+      }
     };
 
     ids.forEach((feedId) => {
@@ -515,15 +519,19 @@ export async function replaceArticlesForFeedsAndMigrateReferencesInDB(
     };
 
     const writeReplacement = () => {
-      keysToDelete.forEach((key) => {
-        const request = articleStore.delete(key);
-        request.onerror = () => abort(request.error || new Error("Failed to remove refreshed article"));
-      });
-      articles.forEach((article) => {
-        const request = articleStore.put(article);
-        request.onerror = () => abort(request.error || new Error("Failed to save refreshed article"));
-      });
-      updateNotesAndAppState();
+      try {
+        keysToDelete.forEach((key) => {
+          const request = articleStore.delete(key);
+          request.onerror = () => abort(request.error || new Error("Failed to remove refreshed article"));
+        });
+        articles.forEach((article) => {
+          const request = articleStore.put(article);
+          request.onerror = () => abort(request.error || new Error("Failed to save refreshed article"));
+        });
+        updateNotesAndAppState();
+      } catch (error) {
+        abort(error instanceof Error ? error : new Error("Failed to replace refreshed articles"));
+      }
     };
 
     ids.forEach((feedId) => {
