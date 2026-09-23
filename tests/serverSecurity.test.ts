@@ -6,6 +6,7 @@ vi.mock("node:dns/promises", () => ({
   lookup: lookupMock,
 }));
 import { requireLocalAccess, resolveListenHost } from "../server/middleware/localAccess";
+import { createChatCompletion } from "../server/services/aiService";
 import { outboundTransport } from "../server/services/outboundNetwork";
 import {
   assertSafeExternalUrl,
@@ -15,10 +16,20 @@ import {
   readResponseBodyLimited,
 } from "../server/services/proxyService";
 
+const originalSyntheticDnsSetting = process.env.ALLOW_PROXY_SYNTHETIC_DNS;
+
+function errorCauseCodes(error: unknown): Array<string | undefined> {
+  const codes: Array<string | undefined> = [];
+  for (let cause: any = error; cause; cause = cause.cause) codes.push(cause.code);
+  return codes;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   lookupMock.mockReset();
+  if (originalSyntheticDnsSetting === undefined) delete process.env.ALLOW_PROXY_SYNTHETIC_DNS;
+  else process.env.ALLOW_PROXY_SYNTHETIC_DNS = originalSyntheticDnsSetting;
 });
 
 describe("server local-only boundary", () => {
@@ -69,10 +80,31 @@ describe("outbound proxy safety", () => {
     expect(isPublicIpAddress("2606:4700:4700::1111")).toBe(true);
   });
 
-  it("allows proxy synthetic DNS answers for public hostnames only", async () => {
+  it("blocks proxy synthetic DNS answers by default", async () => {
+    delete process.env.ALLOW_PROXY_SYNTHETIC_DNS;
+    lookupMock.mockResolvedValue([{ address: "198.18.0.116", family: 4 }]);
+    await expect(assertSafeExternalUrl("https://example.com/feed.xml"))
+      .rejects.toThrow("non-public address");
+  });
+
+  it("allows proxy synthetic DNS answers only with explicit opt-in", async () => {
+    process.env.ALLOW_PROXY_SYNTHETIC_DNS = "true";
     lookupMock.mockResolvedValue([{ address: "198.18.0.116", family: 4 }]);
     await expect(assertSafeExternalUrl("https://example.com/feed.xml")).resolves.toBeUndefined();
+  });
+
+  it("keeps literal synthetic addresses blocked when opt-in is enabled", async () => {
+    process.env.ALLOW_PROXY_SYNTHETIC_DNS = "true";
     expect(isSafeExternalUrl("http://198.18.0.116/feed.xml")).toBe(false);
+    await expect(assertSafeExternalUrl("http://198.18.0.116/feed.xml"))
+      .rejects.toThrow("unsafe external URL");
+  });
+
+  it("does not let synthetic DNS opt-in allow other private ranges", async () => {
+    process.env.ALLOW_PROXY_SYNTHETIC_DNS = "true";
+    lookupMock.mockResolvedValue([{ address: "192.168.1.10", family: 4 }]);
+    await expect(assertSafeExternalUrl("https://example.com/feed.xml"))
+      .rejects.toThrow("non-public address");
   });
 
   it("rejects a public-looking hostname when DNS includes a private address", async () => {
@@ -95,10 +127,25 @@ describe("outbound proxy safety", () => {
     let rejection: unknown;
     try { await fetchSafeExternal(url); } catch (error) { rejection = error; }
     expect(rejection).toBeDefined();
-    const codes: Array<string | undefined> = [];
-    for (let cause: any = rejection; cause; cause = cause.cause) codes.push(cause.code);
-    expect(codes).toContain("EACCES");
+    expect(errorCauseCodes(rejection)).toContain("EACCES");
     expect(lookupMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("blocks an AI hostname resolving to a private address at connection time", async () => {
+    lookupMock.mockResolvedValue([{ address: "192.168.1.10", family: 4 }]);
+    const realFetch = outboundTransport.fetch;
+    let transportError: unknown;
+    vi.spyOn(outboundTransport, "fetch").mockImplementation(async (...args: any[]) => {
+      try { return await (realFetch as any)(...args); } catch (error) { transportError = error; throw error; }
+    });
+
+    await expect(createChatCompletion(
+      { baseURL: "https://ai.example.test/v1", apiKey: "sk-secret", model: "model-1" },
+      [{ role: "user", content: "hello" }],
+    )).rejects.toMatchObject({ code: "upstream_error" });
+
+    expect(errorCauseCodes(transportError)).toContain("EACCES");
+    expect(lookupMock).toHaveBeenCalledTimes(1);
   });
 
   it("revalidates every redirect target before following it", async () => {
@@ -112,6 +159,66 @@ describe("outbound proxy safety", () => {
     await expect(fetchSafeExternal("https://example.com/feed.xml"))
       .rejects.toThrow("unsafe external URL");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks a redirect hostname resolving to a private address at connection time", async () => {
+    lookupMock.mockResolvedValue([{ address: "127.0.0.1", family: 4 }]);
+    const realFetch = outboundTransport.fetch;
+    const fetchMock = vi.spyOn(outboundTransport, "fetch")
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302,
+        headers: { location: "https://redirect.example.test/resource" },
+      }) as never)
+      .mockImplementation(realFetch as never);
+
+    let rejection: unknown;
+    try { await fetchSafeExternal("https://public.example.test/resource"); } catch (error) { rejection = error; }
+
+    expect(errorCauseCodes(rejection)).toContain("EACCES");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(lookupMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("strips credentials but preserves ordinary headers on a cross-origin redirect", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302,
+        headers: { location: "https://other.example.test/resource" },
+      }))
+      .mockResolvedValueOnce(new Response("ok"));
+    vi.spyOn(outboundTransport, "fetch").mockImplementation(fetchMock as never);
+
+    await fetchSafeExternal("https://api.example.test/resource", {
+      headers: {
+        Authorization: "Bearer secret",
+        Cookie: "session=secret",
+        "Proxy-Authorization": "Basic secret",
+        "X-Request-ID": "request-1",
+      },
+    });
+
+    const redirectedHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    expect(redirectedHeaders.has("authorization")).toBe(false);
+    expect(redirectedHeaders.has("cookie")).toBe(false);
+    expect(redirectedHeaders.has("proxy-authorization")).toBe(false);
+    expect(redirectedHeaders.get("x-request-id")).toBe("request-1");
+  });
+
+  it("preserves authorization on a same-origin redirect", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, {
+        status: 302,
+        headers: { location: "/redirected" },
+      }))
+      .mockResolvedValueOnce(new Response("ok"));
+    vi.spyOn(outboundTransport, "fetch").mockImplementation(fetchMock as never);
+
+    await fetchSafeExternal("https://api.example.test/resource", {
+      headers: { Authorization: "Bearer secret" },
+    });
+
+    const redirectedHeaders = new Headers(fetchMock.mock.calls[1][1].headers);
+    expect(redirectedHeaders.get("authorization")).toBe("Bearer secret");
   });
 
   it("stops chunked responses before buffering beyond the byte limit", async () => {

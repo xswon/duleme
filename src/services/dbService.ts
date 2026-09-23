@@ -110,6 +110,98 @@ export async function replaceFeedsInDB(feeds: Feed[]): Promise<void> {
   });
 }
 
+/** Delete a subscription and all of its articles as one durable operation. */
+export async function deleteFeedAndArticlesFromDB(feedId: string): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES], "readwrite");
+    const feedStore = tx.objectStore(STORE_FEEDS);
+    const articleStore = tx.objectStore(STORE_ARTICLES);
+    const cursorRequest = articleStore.index("feedId").openCursor(IDBKeyRange.only(feedId));
+    let failure: Error | null = null;
+
+    const abort = (error: Error) => {
+      if (!failure) failure = error;
+      try {
+        tx.abort();
+      } catch {
+        // The transaction may already be aborting after a request failure.
+      }
+    };
+
+    try {
+      const deleteFeed = feedStore.delete(feedId);
+      deleteFeed.onerror = () => abort(deleteFeed.error || new Error("Failed to delete subscription"));
+    } catch (error) {
+      abort(error instanceof Error ? error : new Error("Failed to delete subscription"));
+    }
+
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor) return;
+      try {
+        const deleteArticle = cursor.delete();
+        deleteArticle.onerror = () => abort(deleteArticle.error || new Error("Failed to delete subscription articles"));
+        cursor.continue();
+      } catch (error) {
+        abort(error instanceof Error ? error : new Error("Failed to delete subscription articles"));
+      }
+    };
+    cursorRequest.onerror = () => abort(cursorRequest.error || new Error("Failed to read subscription articles"));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => {
+      // onabort supplies one rejection path for every request failure.
+    };
+    tx.onabort = () => reject(failure || tx.error || new Error("Failed to delete subscription"));
+  });
+}
+
+/** Update a subscription and clear its old article snapshot atomically. */
+export async function updateFeedAndDeleteArticlesFromDB(feed: Feed): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES], "readwrite");
+    const feedStore = tx.objectStore(STORE_FEEDS);
+    const articleStore = tx.objectStore(STORE_ARTICLES);
+    const cursorRequest = articleStore.index("feedId").openCursor(IDBKeyRange.only(feed.id));
+    let failure: Error | null = null;
+
+    const abort = (error: Error) => {
+      if (!failure) failure = error;
+      try {
+        tx.abort();
+      } catch {
+        // The transaction may already be aborting after a request failure.
+      }
+    };
+
+    try {
+      const putFeed = feedStore.put(feed);
+      putFeed.onerror = () => abort(putFeed.error || new Error("Failed to update subscription"));
+    } catch (error) {
+      abort(error instanceof Error ? error : new Error("Failed to update subscription"));
+    }
+
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor) return;
+      try {
+        const deleteArticle = cursor.delete();
+        deleteArticle.onerror = () => abort(deleteArticle.error || new Error("Failed to delete outdated subscription articles"));
+        cursor.continue();
+      } catch (error) {
+        abort(error instanceof Error ? error : new Error("Failed to delete outdated subscription articles"));
+      }
+    };
+    cursorRequest.onerror = () => abort(cursorRequest.error || new Error("Failed to read subscription articles"));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => {
+      // onabort supplies one rejection path for every request failure.
+    };
+    tx.onabort = () => reject(failure || tx.error || new Error("Failed to update subscription"));
+  });
+}
+
 export async function getAppStateFromDB(): Promise<PersistedAppState | null> {
   const db = await getDB();
   return new Promise((resolve, reject) => {

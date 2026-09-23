@@ -23,6 +23,16 @@ afterEach(() => {
 });
 
 describe("OpenAI-compatible AI client", () => {
+  it("rejects plaintext HTTP for a non-loopback endpoint even with an API key", async () => {
+    await expect(listAiModels({
+      baseURL: "http://public-ai.example.com/v1",
+      apiKey: "sk-secret",
+    })).rejects.toMatchObject({
+      code: "invalid_config",
+      message: "Non-local AI endpoints must use HTTPS.",
+    } satisfies Partial<AiServiceError>);
+  });
+
   it("calls chat/completions and sends bearer auth for remote endpoints", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: "Summary" } }],
@@ -116,6 +126,21 @@ describe("OpenAI-compatible AI client", () => {
 
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(init.headers).not.toHaveProperty("Authorization");
+  });
+
+  it.each([
+    "http://localhost:11434/v1",
+    "http://127.42.0.9:11434/v1",
+    "http://[::1]:11434/v1",
+  ])("allows HTTP without an API key for loopback endpoint %s", async (baseURL) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ models: [{ id: "local-model" }] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    stubFetch(fetchMock);
+
+    await expect(listAiModels({ baseURL })).resolves.toEqual([{ id: "local-model" }]);
+    expect((fetchMock.mock.calls[0][1] as RequestInit).headers).not.toHaveProperty("Authorization");
   });
 
   it.each([

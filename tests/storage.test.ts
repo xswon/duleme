@@ -3,6 +3,7 @@ import type { Article, ArticleNote } from "../src/types";
 import {
   closeDB,
   createDataBackup,
+  deleteFeedAndArticlesFromDB,
   deleteArticleNoteFromDB,
   deleteArticleNotesFromDB,
   deleteArticlesByFeedIdFromDB,
@@ -285,6 +286,36 @@ describe("article IndexedDB persistence", () => {
     await saveArticlesToDB([article("a"), article("b", "feed-2")]);
     await deleteArticlesByFeedIdFromDB("feed-1");
     await expect(getAllArticlesFromDB()).resolves.toMatchObject([{ id: "b", feedId: "feed-2" }]);
+  });
+
+  it("deletes a feed and its articles in one transaction", async () => {
+    await replaceFeedsInDB([{ id: "feed-1", title: "Feed", feedUrl: "https://example.com/feed", siteUrl: "https://example.com", category: "未分类", unreadCount: 1 }]);
+    await saveArticlesToDB([article("a")]);
+
+    await deleteFeedAndArticlesFromDB("feed-1");
+
+    await expect(getFeedsFromDB()).resolves.toEqual([]);
+    await expect(getAllArticlesFromDB()).resolves.toEqual([]);
+  });
+
+  it("rejects and rolls back feed deletion when its transaction aborts", async () => {
+    const feed = { id: "feed-1", title: "Feed", feedUrl: "https://example.com/feed", siteUrl: "https://example.com", category: "未分类", unreadCount: 1 };
+    const storedArticle = article("a");
+    await replaceFeedsInDB([feed]);
+    await saveArticlesToDB([storedArticle]);
+    const originalDelete = IDBObjectStore.prototype.delete;
+    const remove = vi.spyOn(IDBObjectStore.prototype, "delete").mockImplementation(function (this: IDBObjectStore, key: IDBValidKey | IDBKeyRange) {
+      if (this.name === "feeds") throw new Error("simulated transaction abort");
+      return originalDelete.call(this, key);
+    });
+
+    try {
+      await expect(deleteFeedAndArticlesFromDB("feed-1")).rejects.toThrow("simulated transaction abort");
+      await expect(getFeedsFromDB()).resolves.toEqual([feed]);
+      await expect(getAllArticlesFromDB()).resolves.toEqual([storedArticle]);
+    } finally {
+      remove.mockRestore();
+    }
   });
 
   it("atomically replaces refreshed feed records so migrated ids cannot reappear", async () => {

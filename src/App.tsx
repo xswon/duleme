@@ -68,10 +68,11 @@ import {
 } from "./services/articleVisibility";
 import { countRecentUnreadArticles } from "./services/unreadCount";
 import { BatchMutationCoordinator } from "./services/batchMutation";
-import { OptimisticArticleMutationTracker } from "./services/optimisticArticleMutation";
+import { OptimisticArticleMutationTracker, type ArticleMutationToken } from "./services/optimisticArticleMutation";
 import {
   deleteArticleNoteFromDB,
   deleteArticleNotesFromDB,
+  deleteFeedAndArticlesFromDB,
   getAllArticleNotesFromDB,
   getAppStateFromDB,
   createDataBackup,
@@ -81,6 +82,7 @@ import {
   migrateFeedsAndAppStateFromLocalStorageIfNeeded,
   replaceFeedsInDB,
   saveAppStateToDB,
+  updateFeedAndDeleteArticlesFromDB,
 } from "./services/dbService";
 import { buildReaderUrl, parseReaderRoute, routeFromState, type ReaderRoute } from "./services/router";
 import { useSharedAudioPlayer, type SharedAudioPlayer } from "./hooks/useAudioPlayer";
@@ -508,26 +510,35 @@ export default function App() {
   }, [playlistIds, showToastWithAction, handleUndoPlaylistClear]);
 
   const handleClearFavorites = useCallback(async () => {
-    const favoriteIds = articles.filter((article) => article.starred).map((article) => article.id);
+    const favoriteIds = articlesRef.current.filter((article) => article.starred).map((article) => article.id);
     if (favoriteIds.length === 0) {
       showToast("收藏已清空");
       return;
     }
 
     const favoriteIdSet = new Set(favoriteIds);
-    const previousFavorites = new Map(articles.filter((article) => favoriteIdSet.has(article.id)).map((article) => [article.id, article]));
-    setArticles((current) => current.map((article) => favoriteIdSet.has(article.id)
+    const previousFavorites = new Map<string, Article>(articlesRef.current.filter((article) => favoriteIdSet.has(article.id)).map((article) => [article.id, article]));
+    const tokens = new Map<string, ArticleMutationToken>(favoriteIds.map((articleId) => [articleId, articleMutationTrackerRef.current.begin(articleId, { starred: false, savedAt: undefined })]));
+    const nextArticles = articlesRef.current.map((article) => favoriteIdSet.has(article.id)
       ? { ...article, starred: false, savedAt: undefined }
-      : article));
+      : article);
+    articlesRef.current = nextArticles;
+    setArticles(nextArticles);
     try {
       await updateStoredArticlesStatus(favoriteIds, { starred: false, savedAt: undefined });
       showToast("收藏已清空");
     } catch (error) {
       console.warn("Failed to clear favorites:", error);
-      setArticles((current) => current.map((article) => previousFavorites.get(article.id) || article));
+      let restored = articlesRef.current;
+      previousFavorites.forEach((previous, articleId) => {
+        const token = tokens.get(articleId);
+        if (token) restored = articleMutationTrackerRef.current.restoreIfCurrent(restored, previous, token);
+      });
+      articlesRef.current = restored;
+      setArticles(restored);
       showToast("收藏清空失败，请重试");
     }
-  }, [articles, showToast]);
+  }, [showToast]);
 
   const handleReorderPlaylist = useCallback((nextIds: string[]) => {
     setPlaylistIds((current) => {
@@ -672,13 +683,14 @@ export default function App() {
         console.info("BidClub repair summary", result.diagnostics);
       } catch (error) {
         console.warn("Failed to repair BidClub helper feeds:", error);
+        if (isMounted.current) showToast("节目内容补全保存失败，请稍后重试");
       } finally {
         if (bidclubRepairInFlight.current === fingerprint) {
           bidclubRepairInFlight.current = "";
         }
       }
     })();
-  }, [articles, bidclubFeedConfigFingerprint, feeds, isInitializing]);
+  }, [articles, bidclubFeedConfigFingerprint, feeds, isInitializing, showToast]);
 
   // Sync feed unread counts based on article state
   useEffect(() => {
@@ -725,7 +737,7 @@ export default function App() {
   // Handler: Delete / Unsubscribe Feed
   const handleDeleteFeed = async (feedId: string) => {
     try {
-      await deleteStoredArticlesByFeedId(feedId);
+      await deleteFeedAndArticlesFromDB(feedId);
     } catch (error) {
       console.warn("Failed to delete feed articles:", error);
       showToast("取消订阅失败，本地文章未删除，请重试");
@@ -809,10 +821,16 @@ export default function App() {
   ) => {
     const currentFeed = feeds.find((feed) => feed.id === feedId);
     const feedUrlChanged = !!currentFeed && currentFeed.feedUrl !== urls.feedUrl;
+    const updatedFeed = currentFeed && {
+      ...currentFeed,
+      feedUrl: urls.feedUrl,
+      bidclubFeedUrl: urls.bidclubFeedUrl,
+      lastUpdated: new Date().toISOString(),
+    };
 
-    if (feedUrlChanged) {
+    if (feedUrlChanged && updatedFeed) {
       try {
-        await deleteStoredArticlesByFeedId(feedId);
+        await updateFeedAndDeleteArticlesFromDB(updatedFeed);
       } catch (error) {
         console.warn("Failed to clear articles after changing a feed URL:", error);
         showToast("订阅地址更新失败，本地文章未删除，请重试");
@@ -823,12 +841,12 @@ export default function App() {
     setFeeds((prev) =>
       prev.map((feed) =>
         feed.id === feedId
-          ? {
+          ? (updatedFeed || {
               ...feed,
               feedUrl: urls.feedUrl,
               bidclubFeedUrl: urls.bidclubFeedUrl,
               lastUpdated: new Date().toISOString(),
-            }
+            })
           : feed
       )
     );
@@ -1174,15 +1192,25 @@ export default function App() {
     }
 
     const idSet = new Set(ids);
+    const previousArticles = new Map<string, Article>(articlesRef.current.filter((article) => idSet.has(article.id)).map((article) => [article.id, article]));
+    const tokens = new Map<string, ArticleMutationToken>(ids.map((articleId) => [articleId, articleMutationTrackerRef.current.begin(articleId, { read: false })]));
     readUndoRef.current = null;
     if (readUndoTimer.current) clearTimeout(readUndoTimer.current);
     const result = await batchReadMutationRef.current.execute({
       optimistic: () => {
-        setArticles((current) => current.map((article) => idSet.has(article.id) ? { ...article, read: false } : article));
+        const nextArticles = articlesRef.current.map((article) => idSet.has(article.id) ? { ...article, read: false } : article);
+        articlesRef.current = nextArticles;
+        setArticles(nextArticles);
       },
       persist: () => updateStoredArticlesStatus(ids, { read: false }),
       rollback: () => {
-        setArticles((current) => current.map((article) => idSet.has(article.id) ? { ...article, read: true } : article));
+        let restored = articlesRef.current;
+        previousArticles.forEach((previous, articleId) => {
+          const token = tokens.get(articleId);
+          if (token) restored = articleMutationTrackerRef.current.restoreIfCurrent(restored, previous, token);
+        });
+        articlesRef.current = restored;
+        setArticles(restored);
         readUndoRef.current = ids;
       },
       onError: () => {
@@ -1210,13 +1238,23 @@ export default function App() {
     }
 
     const visibleIdSet = new Set(idsToMarkRead);
+    const previousArticles = new Map<string, Article>(articlesRef.current.filter((article) => visibleIdSet.has(article.id)).map((article) => [article.id, article]));
+    const tokens = new Map<string, ArticleMutationToken>(idsToMarkRead.map((articleId) => [articleId, articleMutationTrackerRef.current.begin(articleId, { read: true })]));
     const result = await batchReadMutationRef.current.execute({
       optimistic: () => {
-        setArticles((current) => current.map((article) => visibleIdSet.has(article.id) ? { ...article, read: true } : article));
+        const nextArticles = articlesRef.current.map((article) => visibleIdSet.has(article.id) ? { ...article, read: true } : article);
+        articlesRef.current = nextArticles;
+        setArticles(nextArticles);
       },
       persist: () => updateStoredArticlesStatus(idsToMarkRead, { read: true }),
       rollback: () => {
-        setArticles((current) => current.map((article) => visibleIdSet.has(article.id) ? { ...article, read: false } : article));
+        let restored = articlesRef.current;
+        previousArticles.forEach((previous, articleId) => {
+          const token = tokens.get(articleId);
+          if (token) restored = articleMutationTrackerRef.current.restoreIfCurrent(restored, previous, token);
+        });
+        articlesRef.current = restored;
+        setArticles(restored);
       },
       onError: () => showToast("批量标记已读保存失败，已恢复原状态，请重试"),
     });

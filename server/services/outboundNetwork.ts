@@ -130,6 +130,10 @@ function isProxySyntheticIpAddress(rawAddress: string): boolean {
   return address !== null && ipv4InCidr(address, ipv4Value("198.18.0.0") as number, 15);
 }
 
+function allowProxySyntheticDns(): boolean {
+  return process.env.ALLOW_PROXY_SYNTHETIC_DNS === "true";
+}
+
 const blockedPublicHostnames = new Set([
   "instance-data",
   "instance-data.ec2.internal",
@@ -181,9 +185,10 @@ function validateUrl(raw: string, policy: AddressPolicy): URL {
 
 function addressAllowed(address: string, policy: AddressPolicy, hostname: string): boolean {
   if (policy.kind === "public") {
-    // 198.18/15 is used by common local proxy/VPN fake-IP DNS modes. Literal
-    // targets remain blocked; a hostname may use it only at connector lookup.
-    return isPublicIpAddress(address) || (isIP(hostname) === 0 && isProxySyntheticIpAddress(address));
+    // Some proxy/VPN fake-IP modes synthesize hostname answers in 198.18/15.
+    // This weakens "public" semantics, so it is opt-in and never applies to literals.
+    const allowSynthetic = allowProxySyntheticDns() && isIP(hostname) === 0 && isProxySyntheticIpAddress(address);
+    return isPublicIpAddress(address) || allowSynthetic;
   }
   if (policy.kind === "loopback") return isLoopbackIpAddress(address);
   return normalizedHostname(hostname) === policy.hostname && isPrivateLanIpAddress(address);

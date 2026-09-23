@@ -76,6 +76,9 @@ function normalizeEndpointConfig(input?: Partial<AiRequestConfig>): Pick<AiReque
   if (parsed.username || parsed.password || parsed.hash) {
     throw new AiServiceError("invalid_config", "Base URL cannot include credentials or a URL fragment.");
   }
+  if (parsed.protocol === "http:" && !isLoopbackHost(parsed.hostname)) {
+    throw new AiServiceError("invalid_config", "Non-local AI endpoints must use HTTPS.");
+  }
   if (!apiKey && !isLoopbackHost(parsed.hostname)) {
     throw new AiServiceError(
       "not_configured",
