@@ -383,6 +383,7 @@ export async function saveArticlesToDB(articles: Article[]): Promise<void> {
 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error("Failed to save articles"));
     });
 }
 
@@ -446,6 +447,103 @@ export async function replaceArticlesForFeedsInDB(
   });
 }
 
+/**
+ * Persist a refreshed article snapshot and its dependent local references in
+ * one transaction. A failed refresh therefore leaves both the old article
+ * keys and note/app-state backrefs untouched.
+ */
+export async function replaceArticlesForFeedsAndMigrateReferencesInDB(
+  feedIds: Iterable<string>,
+  articles: Article[],
+  articleIdMap: Map<string, string>,
+  appStatePatch?: Pick<PersistedAppState, "playlistIds" | "audioProgressMap">
+): Promise<void> {
+  const ids = Array.from(new Set(feedIds));
+  if (ids.length === 0) return;
+
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const stores = appStatePatch
+      ? [STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS]
+      : [STORE_ARTICLES, STORE_NOTES];
+    const tx = db.transaction(stores, "readwrite");
+    const articleStore = tx.objectStore(STORE_ARTICLES);
+    const noteStore = tx.objectStore(STORE_NOTES);
+    const index = articleStore.index("feedId");
+    const keysToDelete: IDBValidKey[] = [];
+    let pendingKeyRequests = ids.length;
+    let failure: Error | null = null;
+
+    const abort = (error: Error) => {
+      if (!failure) failure = error;
+      try {
+        tx.abort();
+      } catch {
+        // A request failure can already have started the abort sequence.
+      }
+    };
+
+    const updateNotesAndAppState = () => {
+      if (articleIdMap.size > 0) {
+        const cursorRequest = noteStore.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const note = cursor.value as ArticleNote;
+          const articleId = articleIdMap.get(note.articleId);
+          if (articleId && articleId !== note.articleId) {
+            const updateRequest = cursor.update({ ...note, articleId });
+            updateRequest.onerror = () => abort(updateRequest.error || new Error("Failed to migrate article note references"));
+          }
+          cursor.continue();
+        };
+        cursorRequest.onerror = () => abort(cursorRequest.error || new Error("Failed to read article notes"));
+      }
+
+      if (appStatePatch) {
+        const settingsStore = tx.objectStore(STORE_SETTINGS);
+        const appRequest = settingsStore.get("app");
+        appRequest.onsuccess = () => {
+          const putRequest = settingsStore.put({
+            key: "app",
+            value: { ...(appRequest.result?.value || {}), ...appStatePatch },
+          });
+          putRequest.onerror = () => abort(putRequest.error || new Error("Failed to migrate article references in app state"));
+        };
+        appRequest.onerror = () => abort(appRequest.error || new Error("Failed to read app state"));
+      }
+    };
+
+    const writeReplacement = () => {
+      keysToDelete.forEach((key) => {
+        const request = articleStore.delete(key);
+        request.onerror = () => abort(request.error || new Error("Failed to remove refreshed article"));
+      });
+      articles.forEach((article) => {
+        const request = articleStore.put(article);
+        request.onerror = () => abort(request.error || new Error("Failed to save refreshed article"));
+      });
+      updateNotesAndAppState();
+    };
+
+    ids.forEach((feedId) => {
+      const request = index.getAllKeys(IDBKeyRange.only(feedId));
+      request.onsuccess = () => {
+        keysToDelete.push(...request.result);
+        pendingKeyRequests -= 1;
+        if (pendingKeyRequests === 0) writeReplacement();
+      };
+      request.onerror = () => abort(request.error || new Error("Failed to read refreshed article keys"));
+    });
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => {
+      // An erroring readwrite transaction always reaches onabort.
+    };
+    tx.onabort = () => reject(failure || tx.error || new Error("Failed to replace refreshed articles"));
+  });
+}
+
 /** Incrementally update a single article's properties (e.g. read / starred) */
 export async function updateArticleInDB(articleId: string, updates: Partial<Article>): Promise<void> {
   const db = await getDB();
@@ -453,18 +551,33 @@ export async function updateArticleInDB(articleId: string, updates: Partial<Arti
       const tx = db.transaction(STORE_ARTICLES, "readwrite");
       const store = tx.objectStore(STORE_ARTICLES);
       const getReq = store.get(articleId);
+      let failure: Error | null = null;
+
+      const abort = (error: Error) => {
+        if (!failure) failure = error;
+        try {
+          tx.abort();
+        } catch {
+          // The transaction may already be aborting after a request error.
+        }
+      };
 
       getReq.onsuccess = () => {
         const existing = getReq.result;
         if (!existing) {
-          reject(new Error(`Article not found: ${articleId}`));
+          abort(new Error(`Article not found: ${articleId}`));
           return;
         }
-        store.put({ ...existing, ...updates });
+        const request = store.put({ ...existing, ...updates });
+        request.onerror = () => abort(request.error || new Error(`Failed to update article: ${articleId}`));
       };
+      getReq.onerror = () => abort(getReq.error || new Error(`Failed to read article: ${articleId}`));
 
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => {
+        // onabort provides a single rejection path for request failures.
+      };
+      tx.onabort = () => reject(failure || tx.error || new Error(`Failed to update article: ${articleId}`));
     });
 }
 
@@ -538,6 +651,7 @@ export async function deleteArticlesByFeedIdFromDB(feedId: string): Promise<void
 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error(`Failed to delete articles for feed: ${feedId}`));
     });
 }
 

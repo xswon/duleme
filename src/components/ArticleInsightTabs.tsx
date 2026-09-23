@@ -205,12 +205,13 @@ function ConfigRequirementCard({
     >
       <div className="mt-5 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/80 bg-white text-left shadow-sm">
         {requirements.map((requirement) => (
-          <ConfigRequirementRow
-            key={requirement.label}
-            icon={requirement.icon}
-            label={requirement.label}
-            onConfigure={requirement.onConfigure}
-          />
+          <React.Fragment key={requirement.label}>
+            <ConfigRequirementRow
+              icon={requirement.icon}
+              label={requirement.label}
+              onConfigure={requirement.onConfigure}
+            />
+          </React.Fragment>
         ))}
       </div>
     </EmptyStateContainer>

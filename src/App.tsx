@@ -13,7 +13,7 @@ import {
   getStoredFeeds,
   getStoredArticles,
   saveStoredArticles,
-  replaceStoredArticlesForFeeds,
+  replaceStoredArticlesForFeedsAndMigrateReferences,
   updateStoredArticleStatus,
   updateStoredArticlesStatus,
   deleteStoredArticlesByFeedId,
@@ -27,7 +27,6 @@ import {
   mergeFetchedFeedArticles,
   migrateArticleBackrefs,
   migrateAudioProgressMap,
-  migrateStoredArticleNoteBackrefs,
   getStoredCategories,
   getStoredSortMode,
   saveStoredSortMode,
@@ -69,6 +68,7 @@ import {
 } from "./services/articleVisibility";
 import { countRecentUnreadArticles } from "./services/unreadCount";
 import { BatchMutationCoordinator } from "./services/batchMutation";
+import { OptimisticArticleMutationTracker } from "./services/optimisticArticleMutation";
 import {
   deleteArticleNoteFromDB,
   deleteArticleNotesFromDB,
@@ -203,6 +203,10 @@ export default function App() {
   const autoPlayNextRef = useRef<string | null>(null);
   const audioPlayerRef = useRef<SharedAudioPlayer | null>(null);
   const visibleArticlesRef = useRef<Article[]>([]);
+  const articlesRef = useRef(articles);
+  const playlistIdsRef = useRef(playlistIds);
+  const audioProgressMapRef = useRef(audioProgressMap);
+  const articleMutationTrackerRef = useRef(new OptimisticArticleMutationTracker());
   const feedsRef = useRef(feeds);
   const refreshGeneration = useRef(0);
   const refreshInFlight = useRef(false);
@@ -212,6 +216,18 @@ export default function App() {
   useEffect(() => {
     feedsRef.current = feeds;
   }, [feeds]);
+
+  useEffect(() => {
+    articlesRef.current = articles;
+  }, [articles]);
+
+  useEffect(() => {
+    playlistIdsRef.current = playlistIds;
+  }, [playlistIds]);
+
+  useEffect(() => {
+    audioProgressMapRef.current = audioProgressMap;
+  }, [audioProgressMap]);
 
   const currentRoute = useCallback((overrides: Partial<ReaderRoute> = {}): ReaderRoute => routeFromState({
     activeTab,
@@ -567,17 +583,27 @@ export default function App() {
   const audioPlayer = useSharedAudioPlayer(handleUpdateAudioProgress, handleAudioEnded);
   audioPlayerRef.current = audioPlayer;
 
+  const persistOptimisticArticlePatch = useCallback((articleId: string, patch: Partial<Article>, failureMessage: string) => {
+    const previous = articlesRef.current.find((article) => article.id === articleId);
+    if (!previous) return;
+    const token = articleMutationTrackerRef.current.begin(articleId, patch);
+    const nextArticles = articlesRef.current.map((article) => article.id === articleId ? { ...article, ...patch } : article);
+    articlesRef.current = nextArticles;
+    setArticles(nextArticles);
+
+    void updateStoredArticleStatus(articleId, patch).catch((error) => {
+      const restored = articleMutationTrackerRef.current.restoreIfCurrent(articlesRef.current, previous, token);
+      articlesRef.current = restored;
+      setArticles(restored);
+      console.warn("Failed to persist article mutation:", error);
+      showToast(failureMessage);
+    });
+  }, [showToast]);
+
   // The single entry point for article fields that are updated by detail views.
   const handleArticlePatch = useCallback((articleId: string, patch: Partial<Article>) => {
-    const previous = articles.find((article) => article.id === articleId);
-    setArticles((prev) =>
-      prev.map((article) => (article.id === articleId ? { ...article, ...patch } : article))
-    );
-    void updateStoredArticleStatus(articleId, patch).catch((error) => {
-      if (previous) setArticles((current) => current.map((article) => article.id === articleId ? { ...article, ...previous } : article));
-      showToast(`文章保存失败：${error instanceof Error ? error.message : "请重试"}`);
-    });
-  }, [articles, showToast]);
+    persistOptimisticArticlePatch(articleId, patch, "文章保存失败，请重试");
+  }, [persistOptimisticArticlePatch]);
 
   const bidclubRepairInFlight = useRef("");
   const completedBidclubRepairFingerprint = useRef("");
@@ -628,16 +654,17 @@ export default function App() {
               .filter((article) => !!article.enrichment)
               .map((article) => [article.id, article.enrichment!])
           );
-          setArticles((current) => {
-            const patched = current.map((article) => {
+          await Promise.all(Array.from(enrichmentById, ([articleId, enrichment]) =>
+            updateStoredArticleStatus(articleId, { enrichment })
+          ));
+          if (isMounted.current) {
+            const committed = articlesRef.current.map((article) => {
               const enrichment = enrichmentById.get(article.id);
               return enrichment ? { ...article, enrichment } : article;
             });
-            void saveStoredArticles(
-              patched.filter((article) => enrichmentById.has(article.id))
-            );
-            return patched;
-          });
+            articlesRef.current = committed;
+            setArticles(committed);
+          }
         }
         if (result.failedFeedUrls.length === 0) {
           completedBidclubRepairFingerprint.current = fingerprint;
@@ -666,15 +693,23 @@ export default function App() {
   }, [articles, localDayVersion]);
 
   // Handler: Add New Feed
-  const handleAddFeed = (newFeed: Feed, newArticles: Article[] = []) => {
+  const handleAddFeed = async (newFeed: Feed, newArticles: Article[] = []) => {
     const stayInSettings = isSettingsOpen;
+    if (newArticles.length > 0) {
+      try {
+        await saveStoredArticles(newArticles);
+      } catch (error) {
+        console.warn("Failed to save articles for a new feed:", error);
+        showToast("订阅内容保存失败，未添加订阅源，请重试");
+        return;
+      }
+    }
     setFeeds((prev) => [newFeed, ...prev.filter((f) => f.id !== newFeed.id)]);
     setFeedOrderByFolder((prev) => appendFeedToFolder(removeFeedFromOrder(prev, newFeed.id), newFeed));
     const newCategory = newFeed.category?.trim() || "未分类";
     setCategories((prev) => (prev.includes(newCategory) ? prev : [...prev, newCategory]));
 
     if (newArticles.length > 0) {
-      void saveStoredArticles(newArticles);
       setArticles((prev) => {
         const existingIds = new Set(prev.map((a) => a.id));
         const filteredNew = newArticles.filter((a) => !existingIds.has(a.id));
@@ -688,12 +723,18 @@ export default function App() {
   };
 
   // Handler: Delete / Unsubscribe Feed
-  const handleDeleteFeed = (feedId: string) => {
+  const handleDeleteFeed = async (feedId: string) => {
+    try {
+      await deleteStoredArticlesByFeedId(feedId);
+    } catch (error) {
+      console.warn("Failed to delete feed articles:", error);
+      showToast("取消订阅失败，本地文章未删除，请重试");
+      return;
+    }
     refreshGeneration.current += 1;
     setFeeds((prev) => prev.filter((f) => f.id !== feedId));
     setFeedOrderByFolder((prev) => removeFeedFromOrder(prev, feedId));
     setArticles((prev) => prev.filter((a) => a.feedId !== feedId));
-    void deleteStoredArticlesByFeedId(feedId);
     if (selectedFeedId === feedId) {
       setSelectedFeedId(null);
     }
@@ -762,12 +803,22 @@ export default function App() {
     setCategories(nextCategories);
   };
 
-  const handleUpdateFeedUrls = (
+  const handleUpdateFeedUrls = async (
     feedId: string,
     urls: { feedUrl: string; bidclubFeedUrl?: string }
   ) => {
     const currentFeed = feeds.find((feed) => feed.id === feedId);
     const feedUrlChanged = !!currentFeed && currentFeed.feedUrl !== urls.feedUrl;
+
+    if (feedUrlChanged) {
+      try {
+        await deleteStoredArticlesByFeedId(feedId);
+      } catch (error) {
+        console.warn("Failed to clear articles after changing a feed URL:", error);
+        showToast("订阅地址更新失败，本地文章未删除，请重试");
+        return;
+      }
+    }
 
     setFeeds((prev) =>
       prev.map((feed) =>
@@ -784,7 +835,6 @@ export default function App() {
 
     if (feedUrlChanged) {
       setArticles((prev) => prev.filter((article) => article.feedId !== feedId));
-      void deleteStoredArticlesByFeedId(feedId);
       if (selectedArticle?.feedId === feedId) {
         setSelectedArticleId(null);
       }
@@ -963,24 +1013,9 @@ export default function App() {
   }, [handleRefreshAllFeeds, isAppStateReady, isInitializing]);
   // Handler: Toggle Star / Save Article
   const handleToggleStar = (articleId: string) => {
-    const article = articles.find((item) => item.id === articleId);
+    const article = articlesRef.current.find((item) => item.id === articleId);
     const patch = article ? { starred: !article.starred, savedAt: !article.starred ? new Date().toISOString() : undefined } : null;
-    if (patch) void updateStoredArticleStatus(articleId, patch).catch(() => {
-      setArticles((current) => current.map((item) => item.id === articleId ? { ...item, starred: article.starred, savedAt: article.savedAt } : item));
-      showToast("收藏保存失败，请重试");
-    });
-    setArticles((prev) =>
-      prev.map((a) =>
-        a.id === articleId
-          ? {
-              ...a,
-              starred: !a.starred,
-              savedAt: !a.starred ? new Date().toISOString() : undefined,
-            }
-          : a
-      )
-    );
-
+    if (patch) persistOptimisticArticlePatch(articleId, patch, "收藏保存失败，请重试");
   };
 
   // Handler: Toggle Read State
@@ -989,15 +1024,8 @@ export default function App() {
       clearTimeout(autoReadTimers.current[articleId]);
       delete autoReadTimers.current[articleId];
     }
-    const article = articles.find((item) => item.id === articleId);
-    if (article) void updateStoredArticleStatus(articleId, { read: !article.read }).catch(() => {
-      setArticles((current) => current.map((item) => item.id === articleId ? { ...item, read: article.read } : item));
-      showToast("已读状态保存失败，请重试");
-    });
-    setArticles((prev) =>
-      prev.map((a) => (a.id === articleId ? { ...a, read: !a.read } : a))
-    );
-
+    const article = articlesRef.current.find((item) => item.id === articleId);
+    if (article) persistOptimisticArticlePatch(articleId, { read: !article.read }, "已读状态保存失败，请重试");
   };
 
   // Handler: Select & Read Article
@@ -1019,18 +1047,15 @@ export default function App() {
 
   const handleUpdateReadingProgress = useCallback((articleId: string, progress: number) => {
     const normalized = Math.max(0, Math.min(1, progress));
-    setArticles((current) => current.map((item) => item.id === articleId
-      ? { ...item, readingProgress: normalized, readingProgressUpdatedAt: Date.now() }
-      : item));
-    void updateStoredArticleStatus(articleId, {
+    persistOptimisticArticlePatch(articleId, {
       readingProgress: normalized,
       readingProgressUpdatedAt: Date.now(),
-    });
+    }, "阅读进度保存失败，请重试");
     if (normalized >= 0.4) {
       const article = articles.find((item) => item.id === articleId);
       if (article && canAutoMarkRead(article)) handleToggleRead(articleId);
     }
-  }, [articles, handleToggleRead]);
+  }, [articles, handleToggleRead, persistOptimisticArticlePatch]);
 
   const closeArticle = useCallback(() => {
     setSelectedArticleId(null);

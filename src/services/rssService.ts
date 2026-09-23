@@ -190,6 +190,7 @@ import {
   getAllArticlesFromDB,
   saveArticlesToDB,
   replaceArticlesForFeedsInDB,
+  replaceArticlesForFeedsAndMigrateReferencesInDB,
   updateArticleInDB,
   updateArticlesInDB,
   deleteArticlesByIdsFromDB,
@@ -320,6 +321,16 @@ export function saveStoredArticles(articles: Article[]) {
 
 export function replaceStoredArticlesForFeeds(feedIds: Iterable<string>, articles: Article[]) {
   return replaceArticlesForFeedsInDB(feedIds, articles);
+}
+
+/** Persist a refresh and every persisted reference that follows its article IDs. */
+export function replaceStoredArticlesForFeedsAndMigrateReferences(
+  feedIds: Iterable<string>,
+  articles: Article[],
+  articleIdMap: Map<string, string>,
+  appStatePatch?: { playlistIds: string[]; audioProgressMap: Record<string, AudioProgress> }
+) {
+  return replaceArticlesForFeedsAndMigrateReferencesInDB(feedIds, articles, articleIdMap, appStatePatch);
 }
 
 export function updateStoredArticleStatus(articleId: string, updates: Partial<Article>) {
