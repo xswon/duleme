@@ -1,3 +1,5 @@
+import { fetchLoopbackHttp, fetchPublicHttp } from "./outboundNetwork";
+
 export interface AiRequestConfig {
   baseURL: string;
   apiKey?: string;
@@ -41,8 +43,15 @@ interface ChatMessage {
 }
 
 function isLoopbackHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return host === "localhost" || host === "::1" || /^127(?:\.\d{1,3}){3}$/.test(host);
+}
+
+function fetchAiEndpoint(config: Pick<AiRequestConfig, "baseURL">, endpoint: string, init: RequestInit): Promise<Response> {
+  const hostname = new URL(config.baseURL).hostname;
+  return isLoopbackHost(hostname)
+    ? fetchLoopbackHttp(endpoint, init)
+    : fetchPublicHttp(endpoint, init);
 }
 
 function normalizeEndpointConfig(input?: Partial<AiRequestConfig>): Pick<AiRequestConfig, "baseURL" | "apiKey"> {
@@ -201,7 +210,7 @@ export async function listAiModels(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetchAiEndpoint(config, endpoint, {
       method: "GET",
       headers: {
         Accept: "application/json",
@@ -249,7 +258,7 @@ export async function createChatCompletion(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetchAiEndpoint(config, endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
+import { fetchDockerHostHttp, fetchLoopbackHttp } from "./outboundNetwork";
 
 export function isAllowedNextEchoUrl(value: string): boolean {
   try {
@@ -20,6 +21,12 @@ function configuredBaseUrl(): string {
     throw new Error("NEXTECHO_URL 必须是本机 HTTP 地址。");
   }
   return parsed.origin;
+}
+
+function fetchNextEcho(rawUrl: string, init: RequestInit): Promise<Response> {
+  return new URL(rawUrl).hostname === "host.docker.internal"
+    ? fetchDockerHostHttp(rawUrl, "host.docker.internal", init)
+    : fetchLoopbackHttp(rawUrl, init);
 }
 let startupPromise: Promise<void> | null = null;
 
@@ -47,7 +54,7 @@ export function resolveNextEchoRoot(): string | null {
 
 async function isReady(): Promise<boolean> {
   try {
-    const response = await fetch(`${configuredBaseUrl()}/api/preflight`, { signal: AbortSignal.timeout(1200) });
+    const response = await fetchNextEcho(`${configuredBaseUrl()}/api/preflight`, { signal: AbortSignal.timeout(1200) });
     return response.ok;
   } catch {
     return false;
@@ -96,7 +103,7 @@ export async function nextEchoRequest(endpoint: string, init?: RequestInit): Pro
   await ensureNextEcho();
   let response: Response;
   try {
-    response = await fetch(`${configuredBaseUrl()}${endpoint}`, {
+    response = await fetchNextEcho(`${configuredBaseUrl()}${endpoint}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
       signal: AbortSignal.timeout(30_000),
@@ -118,7 +125,7 @@ export async function readNextEchoArtifact(artifactUrl: string): Promise<any> {
     throw new NextEchoError("无效的产物地址。", 400, "invalid_artifact");
   }
   await ensureNextEcho();
-  const response = await fetch(`${configuredBaseUrl()}${artifactUrl}`, { signal: AbortSignal.timeout(15_000) });
+  const response = await fetchNextEcho(`${configuredBaseUrl()}${artifactUrl}`, { signal: AbortSignal.timeout(15_000) });
   if (!response.ok) throw new NextEchoError("无法读取 NextEcho 产物。", response.status, "artifact_unavailable");
   return response.json();
 }

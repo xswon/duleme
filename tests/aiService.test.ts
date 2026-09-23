@@ -4,11 +4,17 @@ import {
   createChatCompletion,
   listAiModels,
 } from "../server/services/aiService";
+import { outboundTransport } from "../server/services/outboundNetwork";
 
 const remoteConfig = {
   baseURL: "https://api.example.com/v1",
   apiKey: "sk-secret",
   model: "model-1",
+};
+
+const stubFetch = (mock: ReturnType<typeof vi.fn>) => {
+  vi.spyOn(outboundTransport, "fetch").mockImplementation(mock as never);
+  return mock;
 };
 
 afterEach(() => {
@@ -21,7 +27,7 @@ describe("OpenAI-compatible AI client", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: "Summary" } }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(createChatCompletion(remoteConfig, [{ role: "user", content: "hello" }]))
       .resolves.toBe("Summary");
@@ -42,7 +48,7 @@ describe("OpenAI-compatible AI client", () => {
         { id: "model-a", name: "Model A" },
       ],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(listAiModels({
       baseURL: "https://api.example.com/v1",
@@ -65,7 +71,7 @@ describe("OpenAI-compatible AI client", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       models: [{ id: "llama3.2:latest" }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await expect(listAiModels({
       baseURL: "http://127.0.0.1:11434/v1",
@@ -81,7 +87,7 @@ describe("OpenAI-compatible AI client", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: "OK" } }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     try {
       await createChatCompletion(
@@ -101,7 +107,7 @@ describe("OpenAI-compatible AI client", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: "OK" } }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubFetch(fetchMock);
 
     await createChatCompletion(
       { baseURL: "http://127.0.0.1:11434/v1", model: "local-model" },
@@ -118,18 +124,22 @@ describe("OpenAI-compatible AI client", () => {
     [429, "rate_limited"],
     [500, "upstream_error"],
   ] as const)("maps HTTP %s to %s", async (status, code) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      error: { message: "upstream detail" },
-    }), { status, headers: { "Content-Type": "application/json" } })));
+    stubFetch(
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: { message: "upstream detail" },
+      }), { status, headers: { "Content-Type": "application/json" } })),
+    );
 
     await expect(createChatCompletion(remoteConfig, [{ role: "user", content: "hello" }]))
       .rejects.toMatchObject({ code });
   });
 
   it("distinguishes a model-shaped 404 without echoing provider secrets", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      error: { message: "model not found; sk-secret should never be echoed" },
-    }), { status: 404, headers: { "Content-Type": "application/json" } })));
+    stubFetch(
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: { message: "model not found; sk-secret should never be echoed" },
+      }), { status: 404, headers: { "Content-Type": "application/json" } })),
+    );
 
     try {
       await createChatCompletion(remoteConfig, [{ role: "user", content: "hello" }]);
@@ -143,14 +153,14 @@ describe("OpenAI-compatible AI client", () => {
 
   it("maps connection refused", async () => {
     const error = Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } });
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(error));
+    stubFetch(vi.fn().mockRejectedValue(error));
 
     await expect(createChatCompletion(remoteConfig, [{ role: "user", content: "hello" }]))
       .rejects.toMatchObject({ code: "connection_refused" });
   });
 
   it("maps aborts to timeout", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((_url: string, init: RequestInit) => (
+    stubFetch(vi.fn().mockImplementation((_url: string, init: RequestInit) => (
       new Promise((_resolve, reject) => {
         init.signal?.addEventListener("abort", () => {
           const error = new Error("aborted");
@@ -165,7 +175,7 @@ describe("OpenAI-compatible AI client", () => {
   });
 
   it("rejects an empty compatible response", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [] }), {
+    stubFetch(vi.fn().mockResolvedValue(new Response(JSON.stringify({ choices: [] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     })));

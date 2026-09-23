@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 const { lookupMock } = vi.hoisted(() => ({ lookupMock: vi.fn() }));
 vi.mock("node:dns/promises", () => ({
@@ -5,6 +6,7 @@ vi.mock("node:dns/promises", () => ({
   lookup: lookupMock,
 }));
 import { requireLocalAccess, resolveListenHost } from "../server/middleware/localAccess";
+import { outboundTransport } from "../server/services/outboundNetwork";
 import {
   assertSafeExternalUrl,
   fetchSafeExternal,
@@ -15,6 +17,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   lookupMock.mockReset();
 });
 
@@ -81,13 +84,30 @@ describe("outbound proxy safety", () => {
       .rejects.toThrow("non-public address");
   });
 
+  it("rejects DNS rebinding at the socket lookup after a safe preflight", async () => {
+    lookupMock
+      .mockResolvedValueOnce([{ address: "93.184.216.34", family: 4 }])
+      .mockResolvedValueOnce([{ address: "127.0.0.1", family: 4 }]);
+
+    const url = "http://rebind.example.test/resource";
+    await expect(assertSafeExternalUrl(url)).resolves.toBeUndefined();
+
+    let rejection: unknown;
+    try { await fetchSafeExternal(url); } catch (error) { rejection = error; }
+    expect(rejection).toBeDefined();
+    const codes: Array<string | undefined> = [];
+    for (let cause: any = rejection; cause; cause = cause.cause) codes.push(cause.code);
+    expect(codes).toContain("EACCES");
+    expect(lookupMock).toHaveBeenCalledTimes(2);
+  });
+
   it("revalidates every redirect target before following it", async () => {
     lookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, {
       status: 302,
       headers: { location: "http://169.254.169.254/latest/meta-data" },
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(outboundTransport, "fetch").mockImplementation(fetchMock as never);
 
     await expect(fetchSafeExternal("https://example.com/feed.xml"))
       .rejects.toThrow("unsafe external URL");

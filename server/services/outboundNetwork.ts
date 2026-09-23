@@ -1,6 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { Agent, type Dispatcher } from "undici";
+import { Agent, fetch as undiciFetch, type Dispatcher } from "undici";
 
 export const DEFAULT_OUTBOUND_MAX_BYTES = 15 * 1024 * 1024;
 export const DEFAULT_OUTBOUND_TIMEOUT_MS = 15_000;
@@ -13,6 +13,9 @@ type AddressPolicy =
 type LookupRecord = { address: string; family: number };
 
 const agents = new Map<string, Agent>();
+
+/** A narrow seam for unit tests; production always uses Undici with our Agent. */
+export const outboundTransport = { fetch: undiciFetch };
 
 function normalizedHostname(hostname: string): string {
   return hostname.replace(/^\[|\]$/g, "").split("%")[0].toLowerCase();
@@ -266,7 +269,7 @@ async function fetchWithPolicy(
     redirect: "manual" as const,
     dispatcher: agentFor(policy, maxBytes) as Dispatcher,
   };
-  const response = await fetch(url.toString(), requestInit as RequestInit);
+  const response = await outboundTransport.fetch(url.toString(), requestInit as any) as unknown as Response;
   if (response.status >= 300 && response.status < 400) {
     if (!redirects) {
       await response.body?.cancel();

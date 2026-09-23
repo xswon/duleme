@@ -1,5 +1,4 @@
-import dns from "node:dns/promises";
-import net from "node:net";
+import { assertSafePublicHttpUrl, fetchPublicHttp } from "./outboundNetwork";
 
 export type TranscriptionErrorCode = "invalid_credentials" | "permission_required" | "quota_exceeded" | "audio_unreachable" | "audio_unsupported" | "provider_unavailable" | "timeout" | "unknown";
 export class TranscriptionError extends Error {
@@ -9,16 +8,8 @@ export const transcriptionErrorMessage = (code: TranscriptionErrorCode) => ({
   invalid_credentials: "API Key 无效或已失效，请重新填写。", permission_required: "该 API Key 没有调用转录服务的权限。", quota_exceeded: "转录额度不足或已超出限额。", audio_unreachable: "阿里云无法访问该公网音频地址。", audio_unsupported: "音频格式、大小或时长不受支持。", provider_unavailable: "阿里云百炼暂时不可用，请稍后重试。", timeout: "转录请求超时，请稍后重试。", unknown: "转录失败，请稍后重试。",
 }[code]);
 
-function privateIp(ip: string) {
-  if (net.isIPv4(ip)) { const p = ip.split(".").map(Number); return p[0] === 10 || p[0] === 127 || p[0] === 0 || p[0] === 169 && p[1] === 254 || p[0] === 192 && p[1] === 168 || p[0] === 172 && p[1] >= 16 && p[1] <= 31; }
-  const normalized = ip.toLowerCase(); return normalized === "::1" || normalized === "::" || normalized.startsWith("fe80:") || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.includes("ffff:127.");
-}
 export async function validatePublicAudioUrl(value: string) {
-  let url: URL;
-  try { url = new URL(value); } catch { throw new TranscriptionError("audio_unreachable", "音频地址无效。", 400); }
-  if (!["http:", "https:"].includes(url.protocol) || !url.hostname || url.username || url.password || url.hostname.toLowerCase() === "localhost") throw new TranscriptionError("audio_unreachable", "音频地址必须是可公开访问的 HTTP/HTTPS 地址。", 400);
-  if (net.isIP(url.hostname)) { if (privateIp(url.hostname)) throw new TranscriptionError("audio_unreachable", "不允许访问本机或私网音频地址。", 400); return; }
-  try { const records = await dns.lookup(url.hostname, { all: true }); if (!records.length || records.some((record) => privateIp(record.address))) throw new Error("private"); } catch { throw new TranscriptionError("audio_unreachable", "音频地址不可访问或指向私有网络。", 400); }
+  try { await assertSafePublicHttpUrl(value); } catch { throw new TranscriptionError("audio_unreachable", "音频地址不可访问或指向私有网络。", 400); }
 }
 
 export interface TranscriptSegment { startMs: number; endMs: number; text: string; speaker?: string; }
@@ -29,7 +20,7 @@ function mapError(status: number, body: any): TranscriptionError {
   return new TranscriptionError(code, undefined, status >= 400 && status < 500 ? status : 502);
 }
 async function call(url: string, apiKey: string, init?: RequestInit) {
-  let response: Response; try { response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${apiKey}`, ...(init?.headers || {}) }, signal: AbortSignal.timeout(30_000) }); } catch { throw new TranscriptionError("timeout"); }
+  let response: Response; try { response = await fetchPublicHttp(url, { ...init, headers: { Authorization: `Bearer ${apiKey}`, ...(init?.headers || {}) }, signal: AbortSignal.timeout(30_000) }); } catch (error) { if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) throw new TranscriptionError("timeout"); throw new TranscriptionError("provider_unavailable"); }
   const payload = await response.json().catch(() => ({})); if (!response.ok) throw mapError(response.status, payload); return payload;
 }
 export class AliyunTranscriptionProvider implements TranscriptionProvider {
@@ -48,7 +39,7 @@ export class AliyunTranscriptionProvider implements TranscriptionProvider {
     const payload = await call(`${this.base}/tasks/${encodeURIComponent(input.taskId)}`, input.apiKey); const output = payload?.output || {}; const status = String(output.task_status || "").toUpperCase();
     if (status === "PENDING" || status === "RUNNING") return { status: "processing" as const };
     const result = output.results?.[0]; if (status !== "SUCCEEDED" || result?.subtask_status === "FAILED" || !result?.transcription_url) return { status: "failed" as const, error: mapError(400, result || output) };
-    const raw = await fetch(result.transcription_url, { signal: AbortSignal.timeout(30_000) }).then(async (r) => r.ok ? r.json() : Promise.reject(new TranscriptionError("provider_unavailable"))).catch((error) => { throw error instanceof TranscriptionError ? error : new TranscriptionError("provider_unavailable"); });
+    const raw = await fetchPublicHttp(result.transcription_url, { signal: AbortSignal.timeout(30_000) }).then(async (r) => r.ok ? r.json() : Promise.reject(new TranscriptionError("provider_unavailable"))).catch((error) => { throw error instanceof TranscriptionError ? error : new TranscriptionError("provider_unavailable"); });
     const segments: TranscriptSegment[] = (raw?.transcripts || []).flatMap((transcript: any) => (transcript?.sentences || []).map((sentence: any) => ({ startMs: Number(sentence.begin_time || 0), endMs: Number(sentence.end_time || 0), text: String(sentence.text || "").trim(), ...(sentence.speaker_id === undefined ? {} : { speaker: `说话人 ${Number(sentence.speaker_id) + 1}` }) })).filter((s: TranscriptSegment) => s.text));
     return { status: "completed" as const, segments };
   }
