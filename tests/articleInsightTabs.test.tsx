@@ -47,10 +47,37 @@ describe("ArticleInsightTabs", () => {
       onConfigureTranscription: vi.fn(),
     });
     expect(html).toContain("生成逐字稿");
-    expect(html).toContain("逐字稿服务");
+    expect(html).toContain("逐字稿");
+    expect(html).toContain("配置以下服务后可将音频转成逐字稿");
     expect(html).toContain("配置");
     expect(html).not.toContain("API Key");
   });
+
+  it.each(["overview", "transcript"] as const)(
+    "shows a loading placeholder instead of configuration while BidClub %s is pending",
+    (tab) => {
+      const html = renderModel({
+        article: {
+          ...article,
+          audioUrl: "https://cdn.example.com/a.mp3",
+          enrichment: {
+            provider: "bidclub",
+            episodeId: "episode-1",
+            status: "available",
+            matchedBy: "api",
+          },
+        },
+        tab,
+        overviewState: "ready",
+        transcriptState: "ready",
+        enrichmentLoading: true,
+      });
+
+      expect(html).toContain("正在加载整理内容");
+      expect(html).not.toContain("配置以下服务");
+      expect(html).not.toContain(">配置<");
+    },
+  );
 
   it("offers explicit transcript generation when transcription is configured", () => {
     const html = renderModel({
@@ -94,8 +121,9 @@ describe("ArticleInsightTabs", () => {
     });
     const document = parseMarkup(html);
     expect(html).toContain("生成 AI 摘要");
-    expect(html).toContain("逐字稿服务");
-    expect(html).toContain("内容整理");
+    expect(html).toContain("逐字稿");
+    expect(html).toContain("AI 摘要");
+    expect(html).toContain("配置以下服务后即可生成");
     expect(document.querySelectorAll("button")).toHaveLength(2);
     expect(Array.from(document.querySelectorAll("button")).map((button) => button.textContent?.trim()))
       .toEqual(["配置", "配置"]);
@@ -113,7 +141,7 @@ describe("ArticleInsightTabs", () => {
       onConfigureTranscription: vi.fn(),
     });
     expect(needsTranscription).toContain("生成 AI 摘要");
-    expect(needsTranscription).toContain("逐字稿服务");
+    expect(needsTranscription).toContain("逐字稿");
     expect(needsTranscription).toContain("配置");
     expect(needsTranscription).not.toContain("AI 模型");
 
@@ -124,9 +152,9 @@ describe("ArticleInsightTabs", () => {
       onConfigureAi: vi.fn(),
     });
     expect(needsAi).toContain("生成 AI 摘要");
-    expect(needsAi).toContain("内容整理");
+    expect(needsAi).toContain("AI 摘要");
     expect(needsAi).toContain("配置");
-    expect(needsAi).not.toContain("逐字稿服务");
+    expect(needsAi).not.toContain("逐字稿");
   });
 
   it("offers one-click podcast summary generation when both dependencies are ready", () => {

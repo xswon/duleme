@@ -386,6 +386,22 @@ export async function saveArticlesToDB(articles: Article[]): Promise<void> {
     });
 }
 
+/** Remove specific obsolete article records without affecting other feed data. */
+export async function deleteArticlesByIdsFromDB(articleIds: Iterable<string>): Promise<void> {
+  const ids = Array.from(new Set(articleIds));
+  if (ids.length === 0) return;
+
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_ARTICLES, "readwrite");
+    const store = tx.objectStore(STORE_ARTICLES);
+    ids.forEach((id) => store.delete(id));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error("Failed to delete obsolete articles"));
+  });
+}
+
 /**
  * Replace the persisted snapshot for successfully refreshed feeds.
  *

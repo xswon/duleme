@@ -746,6 +746,21 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const showAuthor = article.author && article.author !== article.feedTitle;
 
   const tabs = presentation?.tabs || [];
+  const hasOverviewContent = Boolean(
+    aiSummary?.trim()
+      || bidclubTldrHtml?.trim()
+      || bidclubDigestHtml?.trim()
+      || localPodcast.artifacts?.digest
+  );
+  const hasTranscriptContent = Boolean(
+    bidclub?.transcriptHtml?.trim()
+      || article.transcription?.segments?.length
+      || localPodcast.artifacts?.transcript?.length
+  );
+  const notesEnabledForCurrentTab = detailTab === "body"
+    || detailTab === "digest"
+    || (detailTab === "overview" && hasOverviewContent)
+    || (detailTab === "transcript" && hasTranscriptContent);
   const markUserInteracted = () => {
     userInteractedRef.current = true;
   };
@@ -876,6 +891,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     }, 0);
   };
   const captureSelection = (event?: React.SyntheticEvent) => {
+    if (!notesEnabledForCurrentTab) return;
     const clickedHighlight = event?.target instanceof Element && !!event.target.closest("mark[data-note-id]");
     window.setTimeout(() => {
       if (detailTab === "notes") return;
@@ -947,6 +963,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     }, 0);
   };
   const handleHighlightClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!notesEnabledForCurrentTab) return;
     const mark = (event.target as Element).closest<HTMLElement>("mark[data-note-id]");
     const noteId = mark?.dataset.noteId;
     if (!mark || !noteId) return;
@@ -1212,9 +1229,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             <div
               ref={selectableContentRef}
               className="pt-3"
-              onPointerUp={detailTab === "notes" ? undefined : captureSelection}
-              onKeyUp={detailTab === "notes" ? undefined : captureSelection}
-              onClick={detailTab === "notes" ? undefined : handleHighlightClick}
+              onPointerUp={notesEnabledForCurrentTab ? captureSelection : undefined}
+              onKeyUp={notesEnabledForCurrentTab ? captureSelection : undefined}
+              onClick={notesEnabledForCurrentTab ? handleHighlightClick : undefined}
             >
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />

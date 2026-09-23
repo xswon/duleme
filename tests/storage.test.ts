@@ -25,6 +25,7 @@ import {
 } from "../src/services/dbService";
 import {
   mergeFetchedFeedArticles,
+  loadStoredArticlesAsync,
   migrateAudioProgressMap,
   normalizeStoredArticle,
 } from "../src/services/rssService";
@@ -53,6 +54,32 @@ beforeEach(async () => {
 });
 
 describe("article IndexedDB persistence", () => {
+  it("removes the obsolete Taixian demo article from existing storage", async () => {
+    const obsolete = article("init-taixian-1", "feed-taixian");
+    const retained = article("retained");
+    await saveArticlesToDB([obsolete, retained]);
+
+    await expect(loadStoredArticlesAsync()).resolves.toEqual([
+      expect.objectContaining({ id: "retained" }),
+    ]);
+    await expect(getAllArticlesFromDB()).resolves.toEqual([
+      expect.objectContaining({ id: "retained" }),
+    ]);
+  });
+
+  it("does not replace a stored publication date with a moving demo timestamp", async () => {
+    const publishedAt = "2024-02-03T04:05:06.000Z";
+    await saveArticlesToDB([{
+      ...article("real-crossing", "feed-crossing"),
+      title: "「模型能力已经够了，要卷就卷 infra」｜对谈戴冠兰：Runta 创始人",
+      pubDate: publishedAt,
+    }]);
+
+    await expect(loadStoredArticlesAsync()).resolves.toEqual([
+      expect.objectContaining({ id: "real-crossing", pubDate: publishedAt }),
+    ]);
+  });
+
   it("normalizes legacy BidClub fields into the canonical enrichment reference", () => {
     const legacy = {
       ...article("legacy-bidclub"),

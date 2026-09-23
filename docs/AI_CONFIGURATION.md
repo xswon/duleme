@@ -4,11 +4,11 @@ duleme treats AI as an optional enhancement. Reading RSS feeds does not require 
 
 ## Article summaries
 
-Open **设置 → AI 设置 → 内容整理** and configure:
+Open **设置 → AI 设置 → AI 摘要** and configure:
 
 - **服务商** — choose a common provider or a custom OpenAI-compatible endpoint.
 - **API Key** — your provider key. It may be empty for loopback services such as local Ollama.
-- **内容整理模型** — duleme tries to load the provider's model catalog and shows a short list of text models suitable for article and podcast organization.
+- **AI 摘要模型** — duleme tries to load the provider's model catalog and shows a short list of text models suitable for article and podcast summarization.
 
 For common providers, the Base URL is filled automatically and kept under **高级设置**. If a provider does not expose a compatible `/models` endpoint, model discovery is non-blocking: open **高级设置** and enter the Base URL or model identifier manually.
 

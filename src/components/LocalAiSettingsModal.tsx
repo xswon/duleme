@@ -371,7 +371,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
           return selected ? { model: selected } : {};
         }
 
-        const error = "服务商没有返回可用的内容整理模型，可在高级设置中手动填写模型名称";
+        const error = "服务商没有返回可用的 AI 摘要模型，可在高级设置中手动填写模型名称";
         setInsightModelsError(error);
         return { error };
       }
@@ -554,7 +554,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       setInsight(status);
       setInsightModalOpen(false);
     } catch (error: any) {
-      setInsightFeedback({ tone: "error", text: error.message || "无法保存内容整理模型配置" });
+      setInsightFeedback({ tone: "error", text: error.message || "无法保存 AI 摘要模型配置" });
     } finally {
       setInsightSaving(false);
     }
@@ -574,9 +574,9 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       setShowInsightAdvanced(status.configured);
       setInsightFeedback(status.source === "server"
         ? { tone: "info", text: "已清除浏览器配置，当前使用环境变量配置。" }
-        : { tone: "info", text: "已清除当前浏览器中的内容整理配置。" });
+        : { tone: "info", text: "已清除当前浏览器中的 AI 摘要配置。" });
     } catch (error: any) {
-      setInsightFeedback({ tone: "error", text: error.message || "无法清除内容整理模型配置。" });
+      setInsightFeedback({ tone: "error", text: error.message || "无法清除 AI 摘要模型配置。" });
     } finally {
       setInsightSaving(false);
     }
@@ -605,7 +605,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     return (
       <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
         <section className="wreader-model-settings-page">
-          <h3>内容整理模型</h3>
+          <h3>AI 摘要模型</h3>
           <ModelSummaryCard
             title={insight?.configured ? insight.model || "已配置" : "尚未配置"}
             provider={insight?.configured ? insight.provider : undefined}
@@ -613,7 +613,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
           />
           {insightModalOpen && (
             <ModelConfigModal
-              title="配置内容整理模型"
+              title="配置 AI 摘要模型"
               onClose={() => setInsightModalOpen(false)}
               onSave={() => void saveInsight()}
               saving={insightSaving}
@@ -674,7 +674,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
 
               <div className="wreader-model-field">
                 <div className="wreader-model-label-row">
-                  <label>内容整理模型</label>
+                  <label>AI 摘要模型</label>
                   <button type="button" onClick={() => void refreshModels()} disabled={!canLoadModels || insightModelsLoading}>
                     {insightModelsLoading ? "正在获取…" : insightModels.length ? "刷新" : "获取模型"}
                   </button>
@@ -685,7 +685,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                 ) : contentModels.length > 0 ? (
                   <span className="wreader-ai-select-wrap wreader-content-model-select">
                     <select
-                      aria-label="内容整理模型"
+                      aria-label="AI 摘要模型"
                       value={draftInsightModel}
                       onChange={(event) => { setDraftInsightModel(event.target.value); setInsightFeedback(null); }}
                     >
@@ -703,7 +703,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                       || (!draftProvider
                         ? "先选择服务商"
                         : canLoadModels
-                          ? "将自动获取并选择适合内容整理的模型"
+                          ? "将自动获取并选择适合 AI 摘要的模型"
                           : "填写 API Key 后将自动获取并选择模型")}
                   </div>
                 )}

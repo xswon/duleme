@@ -335,17 +335,61 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("开启 AI 摘要");
+    expect(container.textContent).toContain("生成 AI 摘要");
     expect(container.textContent).toContain("逐字稿");
-    expect(container.textContent).toContain("内容整理");
+    expect(container.textContent).toContain("AI 摘要");
     const configureButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .filter((button) => button.textContent?.trim() === "去配置");
+      .filter((button) => button.textContent?.trim() === "配置");
     expect(configureButtons).toHaveLength(2);
 
     await act(async () => configureButtons[0].click());
     expect(onOpenTranscriptionSettings).toHaveBeenCalledTimes(1);
     await act(async () => configureButtons[1].click());
     expect(onOpenAiSettings).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("does not offer notes from empty AI summary or transcript states", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const audioItem: Article = {
+      ...baseArticle,
+      id: "audio-empty-states",
+      enrichment: undefined,
+      aiSummary: undefined,
+      localPodcast: undefined,
+      transcription: undefined,
+    };
+
+    await act(async () => renderDetail(root, audioItem, { initialDetailTab: "overview" }));
+    await waitForNotesToLoad(container);
+
+    const selectText = async (text: string) => {
+      const paragraph = Array.from(container.querySelectorAll("p")).find((item) => item.textContent === text)!;
+      const range = document.createRange();
+      range.selectNodeContents(paragraph);
+      const selection = window.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      await act(async () => {
+        paragraph.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
+    await selectText("配置以下服务后即可生成");
+    expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
+        .find((tab) => tab.textContent === "逐字稿")
+        ?.click();
+    });
+    await selectText("配置以下服务后可将音频转成逐字稿");
+    expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
 
     await act(async () => root.unmount());
     container.remove();
@@ -476,9 +520,9 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("需要 AI 模型");
+    expect(container.textContent).toContain("配置 AI 摘要模型后即可生成。");
     const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "配置模型");
+      .find((button) => button.textContent === "配置");
     expect(configureButton).toBeTruthy();
 
     await act(async () => configureButton?.click());

@@ -204,6 +204,22 @@ describe("article presentation resolver", () => {
     });
   });
 
+  it("keeps BidClub tabs in a loading state while provider content is being checked", () => {
+    const result = resolveArticlePresentation(
+      article({ audioUrl: "https://cdn.example.com/e.mp3", enrichment: enrichment("available") }),
+      { status: "checking" },
+      runtime(),
+    );
+
+    expect(result.overviewState).toBe("ready");
+    expect(result.transcriptState).toBe("ready");
+    expect(result.capabilities).toMatchObject({
+      hasOverview: false,
+      hasTranscript: false,
+      canGenerateOverview: false,
+    });
+  });
+
   it("does not infer podcast state from titles", () => {
     const result = resolveArticlePresentation(article({ feedTitle: "Podcast", title: "Episode 12" }));
     expect(result.contentType).toBe("article");

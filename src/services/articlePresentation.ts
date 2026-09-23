@@ -67,6 +67,7 @@ export function resolveArticlePresentation(
   const hasOverview = hasStoredArticleSummary || hasProviderOverview || (hasAudio && hasProviderDigest) || hasLocalInsight;
   const hasDigest = hasProviderDigest;
   const hasTranscript = hasProviderTranscript || hasCloudTranscript || hasLocalTranscript;
+  const providerContentLoading = hasProviderReference && enrichmentStatus === "checking";
   const transcriptionProcessing = article.transcription?.status === "processing"
     || article.localPodcast?.transcriptionStatus === "processing";
 
@@ -74,6 +75,8 @@ export function resolveArticlePresentation(
   if (hasAudio) {
     transcriptState = hasTranscript
       ? "ready"
+      : providerContentLoading
+        ? "ready"
       : transcriptionProcessing
         ? "generating"
         : runtime.transcriptionAvailable
@@ -83,6 +86,10 @@ export function resolveArticlePresentation(
 
   let overviewState: OverviewPanelState;
   if (hasOverview) {
+    overviewState = "ready";
+  } else if (providerContentLoading) {
+    // A referenced BidClub episode may already contain both artifacts. Keep
+    // configuration prompts hidden until that request has actually finished.
     overviewState = "ready";
   } else if (!hasAudio) {
     overviewState = runtime.aiConfigured ? "can_generate" : "needs_ai_config";

@@ -192,11 +192,14 @@ import {
   replaceArticlesForFeedsInDB,
   updateArticleInDB,
   updateArticlesInDB,
+  deleteArticlesByIdsFromDB,
   deleteArticlesByFeedIdFromDB,
   migrateArticleNoteIdsInDB,
   migrateFromLocalStorageIfNeeded,
 } from "./dbService";
 import { normalizeBidclubEnrichmentReference, isVerifiedBidclubEnrichment } from "./bidclubEpisodeCache";
+
+const DEPRECATED_SEED_ARTICLE_IDS = new Set(["init-taixian-1"]);
 
 export async function loadStoredArticlesAsync(): Promise<Article[]> {
   // Migration errors intentionally propagate so callers can keep legacy data.
@@ -210,6 +213,11 @@ export async function loadStoredArticlesAsync(): Promise<Article[]> {
   const fromDB = await getAllArticlesFromDB();
   if (fromDB.length > 0) {
     const normalized = sanitizeArticles(fromDB);
+    const normalizedIds = new Set(normalized.map((article) => article.id));
+    const removedIds = fromDB
+      .filter((article) => !normalizedIds.has(article.id))
+      .map((article) => article.id);
+    if (removedIds.length > 0) await deleteArticlesByIdsFromDB(removedIds);
     if (fromDB.some((article, index) => article !== normalized[index] || hasLegacyBidclubFields(article))) {
       await saveArticlesToDB(normalized);
     }
@@ -261,7 +269,9 @@ export function normalizeStoredArticle(article: Article): Article {
 }
 
 function sanitizeArticles(articles: Article[]): Article[] {
-  return articles.map((input: Article) => {
+  return articles
+    .filter((article) => !DEPRECATED_SEED_ARTICLE_IDS.has(article.id))
+    .map((input: Article) => {
     let a = normalizeStoredArticle(input);
     if (a.audioUrl && a.audioUrl.includes("soundhelix.com")) {
       a = { ...a, audioUrl: undefined, duration: undefined };
@@ -282,12 +292,11 @@ function sanitizeArticles(articles: Article[]): Article[] {
     if (initMatch) {
       return {
         ...a,
-        pubDate: initMatch.pubDate,
         thumbnail: initMatch.thumbnail || a.thumbnail,
       };
     }
     return a;
-  });
+    });
 }
 
 export function getStoredArticles(): Article[] {

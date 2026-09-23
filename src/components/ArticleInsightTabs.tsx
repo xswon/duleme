@@ -411,16 +411,16 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <ConfigRequirementCard
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
             title="生成 AI 摘要"
-            description="配置所需服务后即可生成。"
+            description="配置以下服务后即可生成"
             requirements={[
               {
                 icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
-                label: "逐字稿服务",
+                label: "逐字稿",
                 onConfigure: p.onConfigureTranscription,
               },
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
-                label: "内容整理",
+                label: "AI 摘要",
                 onConfigure: p.onConfigureAi,
               },
             ]}
@@ -431,11 +431,11 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <ConfigRequirementCard
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
             title="生成 AI 摘要"
-            description="配置逐字稿服务后即可生成。"
+            description="配置以下服务后即可生成"
             requirements={[
               {
                 icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
-                label: "逐字稿服务",
+                label: "逐字稿",
                 onConfigure: p.onConfigureTranscription,
               },
             ]}
@@ -446,11 +446,11 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <ConfigRequirementCard
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
             title="生成 AI 摘要"
-            description="配置 AI 模型后即可生成。"
+            description="配置 AI 摘要模型后即可生成。"
             requirements={[
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
-                label: "内容整理",
+                label: "AI 摘要",
                 onConfigure: p.onConfigureAi,
               },
             ]}
@@ -608,11 +608,11 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         <ConfigRequirementCard
           icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="生成逐字稿"
-          description="配置转录服务后即可生成。"
+          description="配置以下服务后可将音频转成逐字稿"
           requirements={[
             {
               icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
-              label: "逐字稿服务",
+              label: "逐字稿",
               onConfigure: p.onConfigureTranscription,
             },
           ]}

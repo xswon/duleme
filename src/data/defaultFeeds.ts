@@ -419,22 +419,6 @@ export const COVERAGE_FEED_IDS = [
 
 export const INITIAL_ARTICLES: Article[] = [
   {
-    id: "init-taixian-1",
-    feedId: "feed-taixian",
-    feedTitle: "苔藓之火",
-    feedFavicon: "https://www.google.com/s2/favicons?domain=xyzfm.space&sz=64",
-    title: "46. 办公Agent大战：为什么大厂做不出好AI产品？ - 马克汤",
-    link: "https://xyzfm.space/episodes/taixian-46",
-    snippet:
-      "“局部理性，就是每个部门都在做自己定义下正确的事情，但最终结合产出就偏离了最初的目标。” “模型的忠诚度是零，谁强用谁的。迁移成本一旦被抹平，用户随时可以走。”",
-    content: `<p>局部的理性如何导致整体的盲目？深度剖析大厂在 AI Agent 浪潮中的战略焦虑与基因束缚。</p>`,
-    pubDate: new Date(Date.now() - 1000 * 3600 * 4).toISOString(), // 4h ago
-    author: "苔藓之火",
-    thumbnail: "https://image.xyzcdn.net/FrZIT1qUXdDaKAbF0wUSZ-oYfDr-.jpeg@small",
-    read: false,
-    starred: false,
-  },
-  {
     id: "init-crossing-1",
     feedId: "feed-crossing",
     feedTitle: "十字路口Crossing",

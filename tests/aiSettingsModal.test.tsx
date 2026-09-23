@@ -230,7 +230,7 @@ describe("AI model settings modals", () => {
     expect(input.placeholder).toContain("已保存");
     expect(node.textContent).toContain("Reader Model");
     expect(node.textContent).not.toContain("text-embedding-3-small");
-    const modelSelect = node.querySelector('select[aria-label="内容整理模型"]') as HTMLSelectElement;
+    const modelSelect = node.querySelector('select[aria-label="AI 摘要模型"]') as HTMLSelectElement;
     expect(modelSelect.value).toBe("reader-model");
     expect(node.querySelector('[role="radiogroup"]')).toBeNull();
     await typeInto(input, "user-openai-key");
@@ -296,9 +296,9 @@ describe("AI model settings modals", () => {
       apiKey: "user-deepseek-key",
       model: "reader-model",
     });
-    expect((node.querySelector('select[aria-label="内容整理模型"]') as HTMLSelectElement).value).toBe("reader-model");
+    expect((node.querySelector('select[aria-label="AI 摘要模型"]') as HTMLSelectElement).value).toBe("reader-model");
     expect(node.textContent).toContain("连接成功 · 88 ms");
-    expect(node.textContent).not.toContain("请选择一个内容整理模型");
+    expect(node.textContent).not.toContain("请选择一个 AI 摘要模型");
   });
 
   it("auto-selects a content model before saving a new provider setup", async () => {
@@ -421,7 +421,7 @@ describe("AI model settings modals", () => {
     await flush();
     await flush();
 
-    const modelSelect = node.querySelector('select[aria-label="内容整理模型"]') as HTMLSelectElement;
+    const modelSelect = node.querySelector('select[aria-label="AI 摘要模型"]') as HTMLSelectElement;
     expect(modelSelect.value).toBe("deepseek-flash");
     expect(node.textContent).not.toContain("手动填写模型名称");
     expect(insight.test).toHaveBeenCalledWith({

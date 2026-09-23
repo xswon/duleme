@@ -81,7 +81,7 @@ describe("navigation chrome", () => {
     );
     expect(quickEntryOrder).toEqual([...quickEntryOrder].sort((a, b) => a - b));
     expect(html).toContain('id="nav-tab-notes"');
-    expect((html.match(/wreader-nav-primary-label/g) || []).length).toBe(4);
+    expect((html.match(/wreader-nav-primary-label/g) || []).length).toBe(5);
     expect(html).toContain('d="M12.22 2h-.44');
     expect(html).toContain('d="M12 2v2M12 20v2');
     expect(html).not.toContain(">未读<");
@@ -95,7 +95,7 @@ describe("navigation chrome", () => {
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">音频</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>');
     expect(html).toContain('class="wreader-nav-label truncate text-xs">搜索</span>');
-    expect(html).toContain('class="wreader-nav-label truncate text-xs">设置</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">设置</span>');
   });
 
   it("keeps primary labels at their dedicated size when counts are zero", () => {
@@ -226,7 +226,7 @@ describe("navigation chrome", () => {
     expect(html).toContain("数据与备份");
     expect(html).toContain("快捷键");
     expect(html).toContain("逐字稿");
-    expect(html).toContain("内容整理");
+    expect(html).toContain("AI 摘要");
     expect(html).toContain('role="tablist"');
     expect(html).toContain('aria-labelledby="settings-tab-feeds"');
     expect(html).not.toContain("个订阅源及其所属文件夹");
