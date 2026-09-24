@@ -38,6 +38,7 @@ vi.mock("../src/components/Sidebar", () => ({
 
 vi.mock("../src/components/Header", () => ({
   Header: ({ setFilterType, onMarkAllRead, onRefresh }: any) => <>
+    <button type="button" onClick={() => setFilterType("all")}>test-all-filter</button>
     <button type="button" onClick={() => setFilterType("starred")}>test-starred-filter</button>
     <button type="button" onClick={onMarkAllRead}>test-mark-all</button>
     <button type="button" onClick={onRefresh}>test-refresh</button>
@@ -227,11 +228,13 @@ describe("App persistence rollback", () => {
     await act(async () => click(container, "test-starred-filter"));
     await act(async () => click(container, "test-mark-all"));
     await act(async () => click(container, "test-newer-star"));
+    await act(async () => click(container, "test-newer-star"));
     await act(async () => {
       pending.reject(new Error("clear favorites failed"));
       await Promise.resolve();
     });
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:unread:starred|b:unread:starred");
+    await act(async () => click(container, "test-all-filter"));
+    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:unread:plain|b:unread:starred");
 
     await act(async () => root.unmount());
   });
@@ -245,11 +248,12 @@ describe("App persistence rollback", () => {
     await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:unread"));
     await act(async () => click(container, "test-mark-all"));
     await act(async () => click(container, "test-newer-read"));
+    await act(async () => click(container, "test-newer-read"));
     await act(async () => {
       pending.reject(new Error("batch read failed"));
       await Promise.resolve();
     });
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:unread:plain|b:unread:plain");
+    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:read:plain|b:unread:plain");
 
     await act(async () => root.unmount());
   });
