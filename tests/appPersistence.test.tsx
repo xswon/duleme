@@ -21,6 +21,10 @@ const articleActions = vi.hoisted(() => ({
   toggleStar: undefined as ((articleId: string) => void) | undefined,
 }));
 
+const audioUpdates = vi.hoisted(() => ({
+  advance: undefined as (() => void) | undefined,
+}));
+
 vi.mock("../src/services/rssService", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/services/rssService")>();
   return {
@@ -74,9 +78,16 @@ vi.mock("../src/components/ManageFeedsModal", () => ({ SettingsPage: () => null 
 vi.mock("../src/components/SearchView", () => ({ SearchView: () => null }));
 vi.mock("../src/components/NotesView", () => ({ NotesView: () => null }));
 vi.mock("../src/components/KeyboardShortcutsModal", () => ({ KeyboardShortcutsModal: () => null }));
-vi.mock("../src/hooks/useAudioPlayer", () => ({
-  useSharedAudioPlayer: () => ({ stop: vi.fn(), loadArticle: vi.fn(), articleId: null, isPlaying: false, currentTime: 0, duration: 0 }),
-}));
+vi.mock("../src/hooks/useAudioPlayer", async () => {
+  const { useState } = await import("react");
+  return {
+    useSharedAudioPlayer: () => {
+      const [currentTime, setCurrentTime] = useState(0);
+      audioUpdates.advance = () => setCurrentTime((value) => value + 1);
+      return { stop: vi.fn(), loadArticle: vi.fn(), articleId: null, isPlaying: false, currentTime, duration: 0 };
+    },
+  };
+});
 vi.mock("../src/services/localDayRefresh", () => ({ subscribeToLocalDayRefresh: () => () => {} }));
 
 import App from "../src/App";
@@ -175,6 +186,7 @@ beforeEach(async () => {
   rss.updateArticles.mockReset();
   articleActions.toggleRead = undefined;
   articleActions.toggleStar = undefined;
+  audioUpdates.advance = undefined;
   rss.fetchRssFeed.mockRejectedValue(new Error("initial refresh failure"));
   rss.replaceRefreshSnapshot.mockResolvedValue(undefined);
   rss.updateArticle.mockResolvedValue(undefined);
@@ -186,6 +198,38 @@ afterEach(() => {
 });
 
 describe("App persistence rollback", () => {
+  it("does not rebuild a full article-ID Set during audio progress renders", async () => {
+    const storedArticles = Array.from({ length: 500 }, (_, index) => article(`perf-${index}`));
+    await replaceFeedsInDB([feed]);
+    await saveArticlesToDB(storedArticles);
+    const { container, root } = await renderApp();
+    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("perf-499:"));
+
+    const NativeSet = globalThis.Set;
+    let fullArticleIdCollections = 0;
+    class TrackingSet<T> extends NativeSet<T> {
+      constructor(values?: Iterable<T> | null) {
+        if (
+          Array.isArray(values) &&
+          values.length === storedArticles.length &&
+          values.every((value) => typeof value === "string" && value.startsWith("perf-"))
+        ) {
+          fullArticleIdCollections += 1;
+        }
+        super(values ?? undefined);
+      }
+    }
+    vi.stubGlobal("Set", TrackingSet);
+    try {
+      await act(async () => audioUpdates.advance?.());
+      expect(fullArticleIdCollections).toBe(0);
+    } finally {
+      vi.stubGlobal("Set", NativeSet);
+    }
+
+    await act(async () => root.unmount());
+  });
+
   it("keeps retry results out of UI state when refresh persistence fails", async () => {
     const legacy = article("legacy", { audioUrl: "https://cdn.example.com/legacy.mp3" });
     const canonical = article("canonical", { audioUrl: "https://cdn.example.com/canonical.mp3" });

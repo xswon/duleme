@@ -11,6 +11,12 @@ interface VirtualWindowProps {
   renderItem: (index: number) => React.ReactNode;
 }
 
+export function measureScrollMargin(root: HTMLElement, scrollElement: HTMLElement): number {
+  const rootRect = root.getBoundingClientRect();
+  const scrollRect = scrollElement.getBoundingClientRect();
+  return rootRect.top - scrollRect.top - scrollElement.clientTop + scrollElement.scrollTop;
+}
+
 /** Virtualize rows against the existing reader master scroller. */
 export function VirtualWindow({
   count,
@@ -42,16 +48,47 @@ export function VirtualWindow({
   useLayoutEffect(() => {
     const nextScrollElement = rootRef.current?.closest<HTMLElement>(".wreader-master-scroll") ?? null;
     if (nextScrollElement !== scrollElement) setScrollElement(nextScrollElement);
-    const nextMargin = rootRef.current?.offsetTop ?? 0;
-    if (nextMargin !== scrollMargin) setScrollMargin(nextMargin);
+    if (rootRef.current && nextScrollElement) {
+      const nextMargin = measureScrollMargin(rootRef.current, nextScrollElement);
+      if (nextMargin !== scrollMargin) setScrollMargin(nextMargin);
+    }
+  });
+
+  useLayoutEffect(() => {
     virtualizer.measure();
   }, [scrollElement, scrollMargin, virtualizer]);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || !scrollElement) return;
+    const updateMargin = () => {
+      const nextMargin = measureScrollMargin(root, scrollElement);
+      setScrollMargin((current) => current === nextMargin ? current : nextMargin);
+    };
+    updateMargin();
+
+    const ResizeObserverConstructor = scrollElement.ownerDocument.defaultView?.ResizeObserver;
+    const observer = ResizeObserverConstructor ? new ResizeObserverConstructor(updateMargin) : null;
+    let ancestor: HTMLElement | null = root;
+    while (observer && ancestor) {
+      observer.observe(ancestor);
+      if (ancestor === scrollElement) break;
+      ancestor = ancestor.parentElement;
+    }
+    const targetWindow = scrollElement.ownerDocument.defaultView;
+    targetWindow?.addEventListener("resize", updateMargin);
+    return () => {
+      observer?.disconnect();
+      targetWindow?.removeEventListener("resize", updateMargin);
+    };
+  }, [scrollElement]);
 
   return (
     <div
       ref={rootRef}
       className={className}
       data-virtual-count={count}
+      data-virtual-scroll-margin={scrollMargin}
       style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}
     >
       {virtualizer.getVirtualItems().map((virtualRow) => (

@@ -64,7 +64,7 @@ import {
   getUnreadArticleIds,
 } from "./services/articleVisibility";
 import { applyFeedUnreadCounts, deriveArticleMetrics } from "./services/articleMetrics";
-import { buildArticleIndexById, buildArticleLookup, derivePlayablePlaylist } from "./services/articleIndex";
+import { buildArticleIndexById, buildArticleLookup, derivePlayablePlaylist, getArticleByLogicalOffset } from "./services/articleIndex";
 import { BatchMutationCoordinator } from "./services/batchMutation";
 import { OptimisticArticleMutationTracker, type ArticleMutationToken } from "./services/optimisticArticleMutation";
 import {
@@ -1114,8 +1114,10 @@ export default function App() {
     });
   }, [activeTab, navigateToRoute, searchQuery, selectedCategory, selectedFeedId]);
 
-  const visibleArticleIds = new Set(articles.map((article) => article.id));
-  const visibleArticleNotes = articleNotes.filter((note) => visibleArticleIds.has(note.articleId));
+  const visibleArticleNotes = useMemo(
+    () => articleNotes.filter((note) => articleLookup.byId.has(note.articleId)),
+    [articleLookup, articleNotes]
+  );
 
   const handleOpenNote = useCallback((note: ArticleNote) => {
     setIsImmersive(false);
@@ -1334,21 +1336,21 @@ export default function App() {
         // Next article
         const currentArticles = visibleArticlesRef.current;
         if (currentArticles.length > 0) {
-          const currentIndex = selectedArticle
-            ? visibleIndexByIdRef.current.get(selectedArticle.id) ?? -1
-            : -1;
-          const nextIndex = Math.min(currentIndex + 1, currentArticles.length - 1);
-          handleSelectArticle(currentArticles[nextIndex]);
+          const nextArticle = selectedArticle
+            ? visibleIndexByIdRef.current.has(selectedArticle.id)
+              ? getArticleByLogicalOffset(currentArticles, visibleIndexByIdRef.current, selectedArticle.id, 1) ?? currentArticles.at(-1)
+              : currentArticles[0]
+            : currentArticles[0];
+          if (nextArticle) handleSelectArticle(nextArticle);
         }
       } else if (e.key === "k" || e.key === "K") {
         // Previous article
         const currentArticles = visibleArticlesRef.current;
         if (currentArticles.length > 0) {
-          const currentIndex = selectedArticle
-            ? visibleIndexByIdRef.current.get(selectedArticle.id) ?? 0
-            : 0;
-          const prevIndex = Math.max(currentIndex - 1, 0);
-          handleSelectArticle(currentArticles[prevIndex]);
+          const previousArticle = selectedArticle
+            ? getArticleByLogicalOffset(currentArticles, visibleIndexByIdRef.current, selectedArticle.id, -1) ?? currentArticles[0]
+            : currentArticles[0];
+          handleSelectArticle(previousArticle);
         }
       } else if (e.key === "s" || e.key === "S") {
         if (selectedArticle) handleToggleStar(selectedArticle.id);
@@ -1435,15 +1437,14 @@ export default function App() {
     if (activeTab !== "search" && searchQuery) setSearchQuery("");
   }, [activeTab, searchQuery]);
 
-  const selectedIndex = selectedArticle
-    ? visibleIndexById.get(selectedArticle.id) ?? -1
-    : -1;
-  const handleNextArticle = selectedIndex >= 0 && selectedIndex < visibleArticles.length - 1
-    ? () => setSelectedArticleId(visibleArticles[selectedIndex + 1].id)
+  const nextArticle = selectedArticle
+    ? getArticleByLogicalOffset(visibleArticles, visibleIndexById, selectedArticle.id, 1)
     : undefined;
-  const handlePrevArticle = selectedIndex > 0
-    ? () => setSelectedArticleId(visibleArticles[selectedIndex - 1].id)
+  const previousArticle = selectedArticle
+    ? getArticleByLogicalOffset(visibleArticles, visibleIndexById, selectedArticle.id, -1)
     : undefined;
+  const handleNextArticle = nextArticle ? () => setSelectedArticleId(nextArticle.id) : undefined;
+  const handlePrevArticle = previousArticle ? () => setSelectedArticleId(previousArticle.id) : undefined;
 
   const handleOpenSettings = useCallback(() => {
     readerScrollTopBeforeSettings.current = mainScrollRef.current?.scrollTop || 0;

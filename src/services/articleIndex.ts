@@ -27,3 +27,14 @@ export function derivePlayablePlaylist(
 export function buildArticleIndexById(articles: Article[]): Map<string, number> {
   return new Map(articles.map((article, index) => [article.id, index]));
 }
+
+export function getArticleByLogicalOffset(
+  articles: Article[],
+  indexById: Map<string, number>,
+  currentArticleId: string,
+  offset: -1 | 1,
+): Article | undefined {
+  const currentIndex = indexById.get(currentArticleId);
+  if (currentIndex === undefined) return undefined;
+  return articles[currentIndex + offset];
+}
