@@ -185,6 +185,17 @@ type AudioProgressWriteState = {
   rejecters: Array<(error: Error) => void>;
 };
 const audioProgressWriteStates = new Map<string, AudioProgressWriteState>();
+const audioProgressArticleIdRedirects = new Map<string, string>();
+
+function resolveAudioProgressArticleId(articleId: string): string {
+  let resolved = articleId;
+  const seen = new Set<string>();
+  while (audioProgressArticleIdRedirects.has(resolved) && !seen.has(resolved)) {
+    seen.add(resolved);
+    resolved = audioProgressArticleIdRedirects.get(resolved)!;
+  }
+  return resolved;
+}
 
 async function writeLatestAudioProgress(articleId: string, state: AudioProgressWriteState): Promise<void> {
   const candidate = state.pending;
@@ -192,13 +203,15 @@ async function writeLatestAudioProgress(articleId: string, state: AudioProgressW
   if (!candidate) return;
   try {
     const db = await getDB();
+    const targetArticleId = resolveAudioProgressArticleId(candidate.articleId);
+    const targetCandidate = targetArticleId === candidate.articleId ? candidate : { ...candidate, articleId: targetArticleId };
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_AUDIO_PROGRESS, "readwrite");
       const store = tx.objectStore(STORE_AUDIO_PROGRESS);
-      const request = store.get(articleId);
+      const request = store.get(targetArticleId);
       request.onsuccess = () => {
         const existing = request.result as AudioProgressRecord | undefined;
-        const selected = chooseNewerAudioProgress(existing, candidate);
+        const selected = chooseNewerAudioProgress(existing, targetCandidate);
         if (selected !== existing) store.put(selected);
       };
       request.onerror = () => tx.abort();
@@ -226,19 +239,28 @@ async function writeLatestAudioProgress(articleId: string, state: AudioProgressW
  * active per article; a newer position queued while it runs is written next.
  */
 export function saveAudioProgressToDB(progress: AudioProgressRecord): Promise<void> {
-  let state = audioProgressWriteStates.get(progress.articleId);
+  const articleId = resolveAudioProgressArticleId(progress.articleId);
+  const targetProgress = articleId === progress.articleId ? progress : { ...progress, articleId };
+  let state = audioProgressWriteStates.get(articleId);
   if (!state) {
     state = { writing: false, resolvers: [], rejecters: [] };
-    audioProgressWriteStates.set(progress.articleId, state);
+    audioProgressWriteStates.set(articleId, state);
   }
-  state.pending = !state.pending || progress.updatedAt >= state.pending.updatedAt ? progress : state.pending;
+  state.pending = !state.pending || targetProgress.updatedAt >= state.pending.updatedAt ? targetProgress : state.pending;
   return new Promise((resolve, reject) => {
     state!.resolvers.push(resolve);
     state!.rejecters.push(reject);
     if (!state!.writing) {
       state!.writing = true;
-      void writeLatestAudioProgress(progress.articleId, state!);
+      void writeLatestAudioProgress(articleId, state!);
     }
+  });
+}
+
+/** Redirect queued progress writes after a successful article-ID migration. */
+export function redirectAudioProgressWrites(articleIdMap: Map<string, string>): void {
+  articleIdMap.forEach((targetId, sourceId) => {
+    if (sourceId !== targetId) audioProgressArticleIdRedirects.set(sourceId, resolveAudioProgressArticleId(targetId));
   });
 }
 

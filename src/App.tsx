@@ -82,6 +82,7 @@ import {
   saveArticleNoteToDB,
   migrateFeedsAndAppStateFromLocalStorageIfNeeded,
   replaceFeedsInDB,
+  redirectAudioProgressWrites,
   saveAudioProgressToDB,
   saveAppStateToDB,
   updateFeedAndDeleteArticlesFromDB,
@@ -957,6 +958,8 @@ export default function App() {
             merged.articleIdMap,
             { playlistIds: nextPlaylistIds }
           );
+          redirectAudioProgressWrites(merged.articleIdMap);
+          audioPlayerRef.current?.migrateArticleId(merged.articleIdMap);
         } catch (error) {
           const message = error instanceof Error ? error.message : "本地保存失败";
           const failedFeeds = successfulResults.map((result) => ({
@@ -1024,6 +1027,8 @@ export default function App() {
         merged.articleIdMap,
         { playlistIds: nextPlaylistIds }
       );
+      redirectAudioProgressWrites(merged.articleIdMap);
+      audioPlayerRef.current?.migrateArticleId(merged.articleIdMap);
       articlesRef.current = merged.articles;
       setArticles(merged.articles);
       playlistIdsRef.current = nextPlaylistIds;

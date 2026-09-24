@@ -42,6 +42,7 @@ export interface SharedAudioPlayer {
   handleLoadedMetadata: () => void;
   handleTimeUpdate: () => void;
   handleEnded: () => void;
+  migrateArticleId: (articleIdMap: Map<string, string>) => void;
 }
 
 /**
@@ -55,6 +56,8 @@ export function useSharedAudioPlayer(
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoplayRef = useRef(false);
   const restoreTimeRef = useRef(0);
+  const activeArticleIdRef = useRef<string | null>(null);
+  const loadedAudioRef = useRef<{ articleId: string | null; src?: string }>({ articleId: null });
   const progressRef = useRef<{ articleId: string | null; currentTime: number; duration: number }>({ articleId: null, currentTime: 0, duration: 0 });
   const lastPersistedRef = useRef<{ articleId: string | null; currentTime: number }>({ articleId: null, currentTime: 0 });
   const lastProgressPersistedAtRef = useRef(0);
@@ -112,7 +115,7 @@ export function useSharedAudioPlayer(
     autoplay: boolean,
   ) => {
     const audio = audioRef.current;
-    if (articleId === nextArticleId) {
+    if (activeArticleIdRef.current === nextArticleId) {
       if (autoplay && !isPlaying) void startPlayback();
       return;
     }
@@ -120,6 +123,7 @@ export function useSharedAudioPlayer(
     audio?.pause();
     setIsPlaying(false);
     setAudioPlayError(null);
+    activeArticleIdRef.current = nextArticleId;
     setArticleId(nextArticleId);
     setOriginalUrl(nextAudioUrl);
     setAudioSrc(resolveAudioUrl(nextAudioUrl));
@@ -130,11 +134,13 @@ export function useSharedAudioPlayer(
     lastPersistedRef.current = { articleId: nextArticleId, currentTime: savedProgress?.currentTime || 0 };
     lastProgressPersistedAtRef.current = Date.now();
     pendingAutoplayRef.current = autoplay;
-  }, [articleId, flushProgress, isPlaying, startPlayback]);
+  }, [flushProgress, isPlaying, startPlayback]);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !articleId || !audioSrc) return;
+    if (loadedAudioRef.current.articleId === articleId && loadedAudioRef.current.src === audioSrc) return;
+    loadedAudioRef.current = { articleId, src: audioSrc };
     audio.src = audioSrc;
     audio.load();
     if (restoreTimeRef.current > 0) {
@@ -173,7 +179,7 @@ export function useSharedAudioPlayer(
     activateArticle(id, url, progress, false);
   }, [activateArticle]);
   const toggleArticle = useCallback((id: string, url: string, progress?: { currentTime: number; duration: number }) => {
-    if (articleId !== id) {
+    if (activeArticleIdRef.current !== id) {
       activateArticle(id, url, progress, true);
       return;
     }
@@ -185,7 +191,7 @@ export function useSharedAudioPlayer(
     } else {
       void startPlayback();
     }
-  }, [activateArticle, articleId, isPlaying, startPlayback]);
+  }, [activateArticle, isPlaying, startPlayback]);
   const stop = useCallback(() => {
     flushProgress(true);
     audioRef.current?.pause();
@@ -195,6 +201,8 @@ export function useSharedAudioPlayer(
     }
     pendingAutoplayRef.current = false;
     restoreTimeRef.current = 0;
+    activeArticleIdRef.current = null;
+    loadedAudioRef.current = { articleId: null };
     progressRef.current = { articleId: null, currentTime: 0, duration: 0 };
     lastPersistedRef.current = { articleId: null, currentTime: 0 };
     lastProgressPersistedAtRef.current = 0;
@@ -206,13 +214,26 @@ export function useSharedAudioPlayer(
     setDuration(0);
     setAudioPlayError(null);
   }, [flushProgress]);
+  const migrateArticleId = useCallback((articleIdMap: Map<string, string>) => {
+    const currentArticleId = activeArticleIdRef.current;
+    if (!currentArticleId) return;
+    const nextArticleId = articleIdMap.get(currentArticleId);
+    if (!nextArticleId || nextArticleId === currentArticleId) return;
+    activeArticleIdRef.current = nextArticleId;
+    progressRef.current = { ...progressRef.current, articleId: nextArticleId };
+    lastPersistedRef.current = { articleId: nextArticleId, currentTime: lastPersistedRef.current.currentTime };
+    if (loadedAudioRef.current.articleId === currentArticleId) {
+      loadedAudioRef.current = { ...loadedAudioRef.current, articleId: nextArticleId };
+    }
+    setArticleId(nextArticleId);
+  }, []);
   const seekTo = useCallback((seconds: number) => {
     const value = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, seconds));
     setCurrentTime(value);
     if (audioRef.current) audioRef.current.currentTime = value;
-    progressRef.current = { articleId, currentTime: value, duration };
+    progressRef.current = { articleId: activeArticleIdRef.current, currentTime: value, duration };
     flushProgress(true);
-  }, [articleId, duration, flushProgress]);
+  }, [duration, flushProgress]);
   const cyclePlaybackRate = useCallback(() => {
     setPlaybackRate((rate) => PLAYBACK_RATES[(PLAYBACK_RATES.indexOf(rate) + 1) % PLAYBACK_RATES.length]);
   }, []);
@@ -231,18 +252,20 @@ export function useSharedAudioPlayer(
   }, []);
   const handleTimeUpdate = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !articleId) return;
+    const currentArticleId = activeArticleIdRef.current;
+    if (!audio || !currentArticleId) return;
     const nextDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
     setCurrentTime(audio.currentTime);
     setDuration(nextDuration);
-    progressRef.current = { articleId, currentTime: audio.currentTime, duration: nextDuration };
+    progressRef.current = { articleId: currentArticleId, currentTime: audio.currentTime, duration: nextDuration };
     flushProgress(false);
-  }, [articleId, flushProgress]);
+  }, [flushProgress]);
   const handleEnded = useCallback(() => {
     flushProgress(true);
     setIsPlaying(false);
-    if (articleId) onEnded?.(articleId);
-  }, [articleId, flushProgress, onEnded]);
+    const currentArticleId = activeArticleIdRef.current;
+    if (currentArticleId) onEnded?.(currentArticleId);
+  }, [flushProgress, onEnded]);
   const handleAudioError = useCallback(() => {
     if (originalUrl && /^https?:\/\//i.test(originalUrl) && !audioSrc?.includes("/api/proxy-audio")) {
       setAudioSrc(`/api/proxy-audio?url=${encodeURIComponent(originalUrl)}`);
@@ -257,6 +280,6 @@ export function useSharedAudioPlayer(
   return {
     audioRef, articleId, audioSrc, isPlaying, currentTime, duration, playbackRate, audioPlayError,
     loadArticle, playArticle, toggleArticle, stop, seekTo, cyclePlaybackRate, rewind, forward,
-    handleAudioError, handlePlay, handlePause, handleLoadedMetadata, handleTimeUpdate, handleEnded,
+    handleAudioError, handlePlay, handlePause, handleLoadedMetadata, handleTimeUpdate, handleEnded, migrateArticleId,
   };
 }
