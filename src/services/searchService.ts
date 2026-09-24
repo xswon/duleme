@@ -20,6 +20,23 @@ export interface HighlightSegment {
   highlighted: boolean;
 }
 
+export interface PreparedSearchQuery {
+  terms: string[];
+}
+
+export interface PreparedSearchDocument {
+  fields: Record<SearchField, string>;
+  normalizedFields?: Record<SearchField, string>;
+  normalizedText: string;
+}
+
+interface CachedSearchDocument {
+  source: [string, string, string, string, string, string];
+  document: PreparedSearchDocument;
+}
+
+const preparedDocumentCache = new WeakMap<Article, CachedSearchDocument>();
+
 /** Convert feed HTML into searchable/displayable text without executing markup. */
 export function stripHtml(value: string | undefined | null): string {
   if (!value) return "";
@@ -67,6 +84,10 @@ export function tokenizeSearchQuery(query: string): string[] {
   return normalize(query).split(/\s+/).filter(Boolean);
 }
 
+export function prepareSearchQuery(query: string): PreparedSearchQuery {
+  return { terms: tokenizeSearchQuery(query) };
+}
+
 export function getSearchableFields(article: Article): Record<SearchField, string> {
   return {
     title: stripHtml(article.title),
@@ -77,17 +98,50 @@ export function getSearchableFields(article: Article): Record<SearchField, strin
   };
 }
 
-function fieldContainsTerms(value: string, terms: string[]): boolean {
-  const normalizedValue = normalize(value);
-  return terms.every((term) => normalizedValue.includes(term));
+export function getPreparedSearchDocument(article: Article): PreparedSearchDocument {
+  const source: CachedSearchDocument["source"] = [
+    article.title || "",
+    article.content || "",
+    article.snippet || "",
+    article.aiSummary || "",
+    article.feedTitle || "",
+    article.author || "",
+  ];
+  const cached = preparedDocumentCache.get(article);
+  if (cached && cached.source.every((value, index) => value === source[index])) return cached.document;
+
+  const fields = getSearchableFields(article);
+  const document = {
+    fields,
+    normalizedText: normalize(Object.values(fields).join(" ")),
+  };
+  preparedDocumentCache.set(article, { source, document });
+  return document;
+}
+
+function getNormalizedSearchFields(document: PreparedSearchDocument): Record<SearchField, string> {
+  if (!document.normalizedFields) {
+    document.normalizedFields = {
+      title: normalize(document.fields.title),
+      content: normalize(document.fields.content),
+      summary: normalize(document.fields.summary),
+      source: normalize(document.fields.source),
+      author: normalize(document.fields.author),
+    };
+  }
+  return document.normalizedFields;
+}
+
+export function matchesPreparedSearch(
+  document: PreparedSearchDocument,
+  preparedQuery: PreparedSearchQuery,
+): boolean {
+  return preparedQuery.terms.every((term) => document.normalizedText.includes(term));
 }
 
 export function matchesSearchQuery(article: Article, query: string): boolean {
-  const terms = tokenizeSearchQuery(query);
-  if (terms.length === 0) return true;
-
-  const searchableText = Object.values(getSearchableFields(article)).join(" ");
-  return fieldContainsTerms(searchableText, terms);
+  const preparedQuery = prepareSearchQuery(query);
+  return preparedQuery.terms.length === 0 || matchesPreparedSearch(getPreparedSearchDocument(article), preparedQuery);
 }
 
 export function searchArticles(
@@ -95,26 +149,27 @@ export function searchArticles(
   query: string,
   filters: SearchFilters = {},
 ): SearchResult[] {
-  const terms = tokenizeSearchQuery(query);
+  const preparedQuery = prepareSearchQuery(query);
+  const results: SearchResult[] = [];
 
-  return articles
-    .filter((article) => {
-      if (terms.length > 0 && !matchesSearchQuery(article, query)) return false;
-      if (filters.feedId && article.feedId !== filters.feedId) return false;
-      if (filters.read === "UNREAD" && article.read) return false;
-      if (filters.read === "READ" && !article.read) return false;
-      if (filters.starredOnly && !article.starred) return false;
-      return true;
-    })
-    .map((article) => ({
+  articles.forEach((article) => {
+    if (filters.feedId && article.feedId !== filters.feedId) return;
+    if (filters.read === "UNREAD" && article.read) return;
+    if (filters.read === "READ" && !article.read) return;
+    if (filters.starredOnly && !article.starred) return;
+
+    const document = preparedQuery.terms.length > 0 ? getPreparedSearchDocument(article) : null;
+    if (document && !matchesPreparedSearch(document, preparedQuery)) return;
+    results.push({
       article,
-      matchedFields:
-        terms.length === 0
-          ? []
-          : (Object.entries(getSearchableFields(article)) as [SearchField, string][])
-              .filter(([, value]) => terms.some((term) => normalize(value).includes(term)))
-              .map(([field]) => field),
-    }));
+      matchedFields: document
+        ? (Object.entries(getNormalizedSearchFields(document)) as [SearchField, string][])
+            .filter(([, value]) => preparedQuery.terms.some((term) => value.includes(term)))
+            .map(([field]) => field)
+        : [],
+    });
+  });
+  return results;
 }
 
 /** Split plain text into safe React-renderable pieces; callers should render pieces as text nodes. */
@@ -153,8 +208,8 @@ export function getHighlightSegments(text: string | undefined | null, query: str
 }
 
 export function getSearchExcerpt(article: Article, query: string, maxLength = 220): string {
-  const fields = getSearchableFields(article);
-  const terms = tokenizeSearchQuery(query);
+  const { fields } = getPreparedSearchDocument(article);
+  const terms = prepareSearchQuery(query).terms;
   const candidates = [fields.content, fields.summary, fields.title].filter(Boolean);
   const candidate = terms.length
     ? candidates.find((value) => terms.some((term) => normalize(value).includes(term))) ?? candidates[0] ?? ""

@@ -2,6 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { SearchView } from "../src/components/SearchView";
+import { searchArticles } from "../src/services/searchService";
 import type { Article, Feed } from "../src/types";
 
 const feed: Feed = {
@@ -30,7 +31,7 @@ const article: Article = {
 function render(query = "search") {
   return renderToStaticMarkup(
     <SearchView
-      articles={[article]}
+      results={searchArticles([article], query)}
       feeds={[feed]}
       searchQuery={query}
       setSearchQuery={vi.fn()}
@@ -62,7 +63,7 @@ describe("SearchView", () => {
   it("uses compact document rows and marks the selected result", () => {
     const html = renderToStaticMarkup(
       <SearchView
-        articles={[article]}
+        results={searchArticles([article], "search")}
         feeds={[feed]}
         searchQuery="search"
         setSearchQuery={vi.fn()}

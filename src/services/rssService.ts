@@ -815,38 +815,105 @@ export function attachBidclubSelfReferences<T extends { link?: string; enrichmen
   });
 }
 
-function findMatchingArticle(
-  fresh: Article,
-  oldArticles: Article[],
-  usedOldIds: Set<string>
+interface FeedArticleMatchIndex {
+  byId: Map<string, Article[]>;
+  byEnrichmentId: Map<string, Article[]>;
+  byEpisodeKey: Map<string, Article[]>;
+  backReferencesByEpisodeKey: Map<string, Set<Article>>;
+  episodeKeysByArticle: Map<Article, string[]>;
+  byTitle: Map<string, Article[]>;
+  position: Map<Article, number>;
+  cursorByCandidates: WeakMap<Article[], number>;
+}
+
+function appendArticleIndex(index: Map<string, Article[]>, key: string | undefined, article: Article) {
+  if (!key) return;
+  const matches = index.get(key);
+  if (matches) matches.push(article);
+  else index.set(key, [article]);
+}
+
+function buildFeedArticleMatchIndex(articles: Article[]): FeedArticleMatchIndex {
+  const index: FeedArticleMatchIndex = {
+    byId: new Map(),
+    byEnrichmentId: new Map(),
+    byEpisodeKey: new Map(),
+    backReferencesByEpisodeKey: new Map(),
+    episodeKeysByArticle: new Map(),
+    byTitle: new Map(),
+    position: new Map(),
+    cursorByCandidates: new WeakMap(),
+  };
+  articles.forEach((article, position) => {
+    index.position.set(article, position);
+    appendArticleIndex(index.byId, article.id, article);
+    appendArticleIndex(index.byEnrichmentId, getArticleEnrichmentId(article), article);
+    const episodeKeys = getEpisodeMatchKeys(article);
+    index.episodeKeysByArticle.set(article, episodeKeys);
+    episodeKeys.forEach((key) => {
+      appendArticleIndex(index.byEpisodeKey, key, article);
+      const backReferences = index.backReferencesByEpisodeKey.get(key) || new Set<Article>();
+      backReferences.add(article);
+      index.backReferencesByEpisodeKey.set(key, backReferences);
+    });
+    appendArticleIndex(index.byTitle, normalizeEpisodeTitle(article.title), article);
+  });
+  return index;
+}
+
+function removeBackReferenceCandidate(index: FeedArticleMatchIndex, article: Article) {
+  index.episodeKeysByArticle.get(article)?.forEach((key) => {
+    index.backReferencesByEpisodeKey.get(key)?.delete(article);
+  });
+}
+
+function firstUnused(
+  index: FeedArticleMatchIndex,
+  candidates: Article[] | undefined,
+  usedOldIds: Set<string>,
 ): Article | undefined {
-  const freshKeys = new Set(getEpisodeMatchKeys(fresh));
-  const slug = getArticleEnrichmentId(fresh);
-  let best: { article: Article; score: number } | undefined;
-  oldArticles.forEach((old) => {
-    if (usedOldIds.has(old.id)) return;
-    if (old.feedId !== fresh.feedId) return;
+  if (!candidates) return undefined;
+  let cursor = index.cursorByCandidates.get(candidates) || 0;
+  while (cursor < candidates.length && usedOldIds.has(candidates[cursor].id)) cursor += 1;
+  index.cursorByCandidates.set(candidates, cursor);
+  return candidates[cursor];
+}
 
-    let score = old.id === fresh.id ? 1000 : 0;
-    const oldSlug = getArticleEnrichmentId(old);
-    if (slug && oldSlug && slug === oldSlug) score = Math.max(score, 900);
-
-    if (getEpisodeMatchKeys(old).some((key) => freshKeys.has(key))) {
-      score = Math.max(score, 700);
-    }
-
-    const freshTitle = normalizeEpisodeTitle(fresh.title);
-    const oldTitle = normalizeEpisodeTitle(old.title);
-    if (freshTitle && oldTitle && freshTitle === oldTitle) {
-      score = Math.max(score, 500);
-    }
-
-    if (score > 0 && (!best || score > best.score)) {
-      best = { article: old, score };
+function firstUnusedForKeys(
+  keys: string[],
+  candidatesByKey: Map<string, Article[]>,
+  index: FeedArticleMatchIndex,
+  usedOldIds: Set<string>,
+): Article | undefined {
+  let first: Article | undefined;
+  let firstPosition = Number.POSITIVE_INFINITY;
+  keys.forEach((key) => {
+    const candidate = firstUnused(index, candidatesByKey.get(key), usedOldIds);
+    if (candidate) {
+      const position = index.position.get(candidate) ?? Number.POSITIVE_INFINITY;
+      if (position < firstPosition) {
+        first = candidate;
+        firstPosition = position;
+      }
     }
   });
+  return first;
+}
 
-  return best?.article;
+function findIndexedMatchingArticle(
+  fresh: Article,
+  index: FeedArticleMatchIndex,
+  usedOldIds: Set<string>,
+): Article | undefined {
+  const exact = firstUnused(index, index.byId.get(fresh.id), usedOldIds);
+  if (exact) return exact;
+  const enrichmentId = getArticleEnrichmentId(fresh);
+  const enriched = firstUnused(index, enrichmentId ? index.byEnrichmentId.get(enrichmentId) : undefined, usedOldIds);
+  if (enriched) return enriched;
+  const episode = firstUnusedForKeys(getEpisodeMatchKeys(fresh), index.byEpisodeKey, index, usedOldIds);
+  if (episode) return episode;
+  const title = normalizeEpisodeTitle(fresh.title);
+  return firstUnused(index, title ? index.byTitle.get(title) : undefined, usedOldIds);
 }
 
 export function mergeFetchedFeedArticles(
@@ -862,17 +929,28 @@ export function mergeFetchedFeedArticles(
     fetchedByFeedId.set(article.feedId, group);
   });
 
-  const unchangedArticles = existingArticles.filter((article) => !refreshedFeedIds.has(article.feedId));
+  const existingByFeedId = new Map<string, Article[]>();
+  const unchangedArticles: Article[] = [];
+  existingArticles.forEach((article) => {
+    if (!refreshedFeedIds.has(article.feedId)) {
+      unchangedArticles.push(article);
+      return;
+    }
+    const group = existingByFeedId.get(article.feedId) || [];
+    group.push(article);
+    existingByFeedId.set(article.feedId, group);
+  });
   const mergedRefreshedArticles: Article[] = [];
 
   refreshedFeedIds.forEach((feedId) => {
-    const oldForFeed = existingArticles.filter((article) => article.feedId === feedId);
+    const oldForFeed = existingByFeedId.get(feedId) || [];
     const freshForFeed = fetchedByFeedId.get(feedId) || [];
+    const matchIndex = buildFeedArticleMatchIndex(oldForFeed);
     const usedOldIds = new Set<string>();
     const emittedFreshIds = new Set<string>();
 
     freshForFeed.forEach((fresh) => {
-      const old = findMatchingArticle(fresh, oldForFeed, usedOldIds);
+      const old = findIndexedMatchingArticle(fresh, matchIndex, usedOldIds);
       if (old) {
         usedOldIds.add(old.id);
         if (old.id !== fresh.id) articleIdMap.set(old.id, fresh.id);
@@ -894,13 +972,20 @@ export function mergeFetchedFeedArticles(
         mergedRefreshedArticles.push(migrated);
       }
 
-      const freshKeys = new Set(getEpisodeMatchKeys(fresh));
-      oldForFeed.forEach((candidate) => {
-        if (candidate.id === fresh.id || articleIdMap.has(candidate.id)) return;
-        if (getEpisodeMatchKeys(candidate).some((key) => freshKeys.has(key))) {
-          articleIdMap.set(candidate.id, fresh.id);
-        }
+      const backReferenceCandidates = new Set<Article>();
+      getEpisodeMatchKeys(fresh).forEach((key) => {
+        matchIndex.backReferencesByEpisodeKey.get(key)?.forEach((candidate) => {
+          if (articleIdMap.has(candidate.id)) removeBackReferenceCandidate(matchIndex, candidate);
+          else backReferenceCandidates.add(candidate);
+        });
       });
+      [...backReferenceCandidates]
+        .sort((a, b) => (matchIndex.position.get(a) ?? 0) - (matchIndex.position.get(b) ?? 0))
+        .forEach((candidate) => {
+          if (candidate.id === fresh.id || articleIdMap.has(candidate.id)) return;
+          articleIdMap.set(candidate.id, fresh.id);
+          removeBackReferenceCandidate(matchIndex, candidate);
+        });
     });
 
     oldForFeed.forEach((old) => {

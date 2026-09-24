@@ -1,19 +1,20 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { FileText, Search as SearchIcon, X } from "lucide-react";
 import { Article, Feed } from "../types";
-import { getHighlightSegments, searchArticles, stripHtml } from "../services/searchService";
+import { getHighlightSegments, getPreparedSearchDocument, type SearchResult } from "../services/searchService";
+import { VirtualWindow } from "./VirtualWindow";
 
 export interface SearchViewProps {
-  articles: Article[];
+  results: SearchResult[];
   feeds: Feed[];
   searchQuery: string;
+  resultQuery?: string;
   setSearchQuery: (q: string) => void;
   onSelectArticle: (article: Article) => void;
   onToggleStar: (articleId: string) => void;
   onToggleRead: (articleId: string) => void;
   onSummarizeAI: (article: Article) => void;
   onResolveThumbnail?: (articleId: string, url: string) => void;
-  onResultsChange?: (articles: Article[]) => void;
   selectedArticleId?: string | null;
 }
 
@@ -37,16 +38,14 @@ function formatRelativeTime(pubDate: string) {
 }
 
 export const SearchView: React.FC<SearchViewProps> = ({
-  articles,
+  results,
   searchQuery,
+  resultQuery = searchQuery,
   setSearchQuery,
   onSelectArticle,
-  onResultsChange,
   selectedArticleId,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const results = useMemo(() => searchArticles(articles, searchQuery), [articles, searchQuery]);
-
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -59,12 +58,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
 
-  useEffect(() => {
-    onResultsChange?.(results.map(({ article }) => article));
-  }, [results, onResultsChange]);
-
   return (
-    <div className="wreader-tool-view wreader-search-view h-full overflow-y-auto">
+    <div className="wreader-tool-view wreader-search-view min-h-full">
       <header className="wreader-search-heading">
         <span>工具</span>
         <h2>搜索</h2>
@@ -89,7 +84,17 @@ export const SearchView: React.FC<SearchViewProps> = ({
       </label>
 
       <div className="wreader-search-results" aria-live="polite">
-        {results.length > 0 ? results.map(({ article }) => (
+        {results.length > 0 ? <VirtualWindow
+          count={results.length}
+          estimateSize={66}
+          gap={4}
+          overscan={10}
+          className="wreader-search-virtual-window"
+          getItemKey={(index) => results[index].article.id}
+          renderItem={(index) => {
+          const article = results[index].article;
+          const fields = getPreparedSearchDocument(article).fields;
+          return (
           <button
             type="button"
             key={article.id}
@@ -98,15 +103,16 @@ export const SearchView: React.FC<SearchViewProps> = ({
           >
             <span className="wreader-search-result-icon"><FileText /></span>
             <span className="wreader-search-result-copy">
-              <strong><HighlightedText text={stripHtml(article.title)} query={searchQuery} /></strong>
+              <strong><HighlightedText text={fields.title} query={resultQuery} /></strong>
               <small>
-                <HighlightedText text={stripHtml(article.feedTitle)} query={searchQuery} />
-                {article.author && article.author !== article.feedTitle ? <> · <HighlightedText text={stripHtml(article.author)} query={searchQuery} /></> : null}
+                <HighlightedText text={fields.source} query={resultQuery} />
+                {article.author && article.author !== article.feedTitle ? <> · <HighlightedText text={fields.author} query={resultQuery} /></> : null}
               </small>
             </span>
             <time dateTime={article.pubDate}>{formatRelativeTime(article.pubDate)}</time>
           </button>
-        )) : (
+          );
+        }} /> : (
           <div className="wreader-search-empty">
             <SearchIcon />
             <strong>{searchQuery.trim() ? "未找到匹配文章" : "暂无可显示文章"}</strong>

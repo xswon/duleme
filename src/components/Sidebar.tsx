@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActiveTab, Feed, FilterType } from "../types";
 import type { ReaderRoute } from "../services/router";
 import type { SortMode } from "../services/feedSorting";
 import { formatUnreadCount, getUnreadCountAriaLabel } from "../services/unreadCount";
-import { orderFeedsInFolder, sortCategories, sortFeeds, type FeedOrderByFolder } from "../services/feedSorting";
+import { compareNames, orderFeedsInFolder, sortFeeds, type FeedOrderByFolder } from "../services/feedSorting";
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -78,14 +78,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Keep expansion state local to the sidebar. The initial tree is intentionally
   // compact: only the folder containing the current selection is open. Once the
   // user starts toggling folders, refreshes must not reset those choices.
-  const allCategoryNames = Array.from(
-    new Set([...categories, ...feeds.map((feed) => feed.category || "未分类")])
-  ).filter((category) =>
-    feeds.some((feed) => (feed.category || "未分类") === category)
-  );
-  const selectedFeedCategory = selectedFeedId
-    ? feeds.find((feed) => feed.id === selectedFeedId)?.category || "未分类"
-    : null;
+  const { allCategoryNames, feedsByCategory, categoryUnreadCounts, selectedFeedCategory } = useMemo(() => {
+    const grouped: Record<string, Feed[]> = {};
+    const unreadCounts = new Map<string, number>();
+    let selectedCategoryForFeed: string | null = null;
+    feeds.forEach((feed) => {
+      const category = feed.category || "未分类";
+      (grouped[category] ||= []).push(feed);
+      unreadCounts.set(category, (unreadCounts.get(category) || 0) + feed.unreadCount);
+      if (feed.id === selectedFeedId) selectedCategoryForFeed = category;
+    });
+    const names = Array.from(new Set([...categories, ...Object.keys(grouped)]))
+      .filter((category) => grouped[category]?.length > 0);
+    return {
+      allCategoryNames: names,
+      feedsByCategory: grouped,
+      categoryUnreadCounts: unreadCounts,
+      selectedFeedCategory: selectedCategoryForFeed,
+    };
+  }, [categories, feeds, selectedFeedId]);
   const selectedExpansionCategory = selectedCategory || selectedFeedCategory;
   const categoryKey = [...allCategoryNames].sort().join("\u0000");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(() =>
@@ -149,14 +160,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   }, [selectedExpansionCategory]);
 
-  const feedsByCategory = allCategoryNames.reduce((acc, category) => {
-    acc[category] = feeds.filter(
-      (feed) => (feed.category || "未分类") === category
-    );
-    return acc;
-  }, {} as Record<string, Feed[]>);
-
-  const sortedCategories = sortCategories(allCategoryNames, feeds, effectiveFolderSortMode);
+  const sortedCategories = useMemo(() => {
+    if (effectiveFolderSortMode === "default") return [...allCategoryNames];
+    return [...allCategoryNames].sort((a, b) => {
+      if (effectiveFolderSortMode === "unread") {
+        const difference = (categoryUnreadCounts.get(b) || 0) - (categoryUnreadCounts.get(a) || 0);
+        if (difference !== 0) return difference;
+      }
+      return compareNames(a, b);
+    });
+  }, [allCategoryNames, categoryUnreadCounts, effectiveFolderSortMode]);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) => ({
@@ -325,10 +338,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ? orderFeedsInFolder(rawFeeds, category, feedOrderByFolder)
                   : sortFeeds(rawFeeds, effectiveFeedSortMode);
                 const isExpanded = expandedCategories[category] ?? false;
-                const categoryUnread = rawFeeds.reduce(
-                  (sum, feed) => sum + feed.unreadCount,
-                  0
-                );
+                const categoryUnread = categoryUnreadCounts.get(category) || 0;
                 const isSelectedCategory =
                   activeTab === "feeds" && selectedCategory === category;
 

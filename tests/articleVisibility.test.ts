@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canAutoMarkRead, countOlderArticles, getLocalCalendarDayWindow, getUnreadArticleIds, isOlderThanHistoryWindow, isOlderThanRecencyWindow, isRecentUnreadArticle, isRecencyLimitedTab, isVisibleInHistoryWindow, isWithinHistoryWindow, isWithinRecencyWindow, sortArticlesByPubDate } from "../src/services/articleVisibility";
+import { canAutoMarkRead, countOlderArticles, deriveTimeline, getLocalCalendarDayWindow, getUnreadArticleIds, isOlderThanHistoryWindow, isOlderThanRecencyWindow, isRecentUnreadArticle, isRecencyLimitedTab, isVisibleInHistoryWindow, isWithinHistoryWindow, isWithinRecencyWindow, sortArticlesByPubDate } from "../src/services/articleVisibility";
 import type { Article, Feed } from "../src/types";
 
 const localTime = (year: number, month: number, day: number, hour = 0, minute = 0, second = 0) =>
@@ -73,8 +73,15 @@ describe("article recency scope", () => {
     expect(isVisibleInHistoryWindow(localIso(2026, 8, 31, 12, 0, 1), 30, now)).toBe(false);
   });
 
-  it("limits batch mark-as-read IDs to the rendered collection", () => {
+  it("limits batch mark-as-read IDs to the supplied logical collection", () => {
     expect(getUnreadArticleIds([article("shown-unread", "f1", "2026-08-30T00:00:00Z"), article("shown-read", "f1", "2026-08-30T00:00:00Z", true)])).toEqual(["shown-unread"]);
+  });
+
+  it("returns every unread ID from a large logical list, not a virtual window", () => {
+    const logicalList = Array.from({ length: 50_000 }, (_, index) => article(`item-${index}`, "f1", "2026-08-30T00:00:00Z", index % 2 === 0));
+    const ids = getUnreadArticleIds(logicalList);
+    expect(ids).toHaveLength(25_000);
+    expect(ids.at(-1)).toBe("item-49999");
   });
 
   it("does not auto-mark older unread history when it is opened", () => {
@@ -111,5 +118,36 @@ describe("article recency scope", () => {
     const sorted = sortArticlesByPubDate(input);
     expect(sorted.map((item) => item.id)).toEqual(["new", "same-a", "same-b", "old", "invalid-a", "invalid-b"]);
     expect(input.map((item) => item.id)).toEqual(["same-a", "invalid-a", "old", "same-b", "invalid-b", "new"]);
+  });
+
+  it("derives category, feed, filters, older counts and full-list unread counts together", () => {
+    const input = [
+      article("a-new", "f1", localIso(2026, 8, 30)),
+      { ...article("a-audio", "f1", localIso(2026, 8, 29)), audioUrl: "https://example.com/a.mp3" },
+      { ...article("a-star", "f1", localIso(2026, 8, 28), true), starred: true },
+      article("a-old", "f1", localIso(2026, 7, 1)),
+      article("b-new", "f2", localIso(2026, 8, 31)),
+    ];
+
+    const category = deriveTimeline(input, feeds, { selectedCategory: "A", now });
+    expect(category.visibleArticles.map((item) => item.id)).toEqual(["a-new", "a-audio", "a-star"]);
+    expect(category.olderArticleCount).toBe(1);
+    expect(category.visibleUnreadCount).toBe(2);
+    expect(deriveTimeline(input, feeds, { selectedFeedId: "f2", now }).visibleArticles.map((item) => item.id)).toEqual(["b-new"]);
+    expect(deriveTimeline(input, feeds, { selectedCategory: "A", filterType: "unread", now }).visibleArticles.map((item) => item.id)).toEqual(["a-new", "a-audio"]);
+    expect(deriveTimeline(input, feeds, { selectedCategory: "A", filterType: "starred", contentType: "article", now }).visibleArticles.map((item) => item.id)).toEqual(["a-star"]);
+    expect(deriveTimeline(input, feeds, { selectedCategory: "A", contentType: "podcast", now }).visibleArticles.map((item) => item.id)).toEqual(["a-audio"]);
+  });
+
+  it("preserves newest/oldest tie behavior and excludes invalid and future dates", () => {
+    const input = [
+      article("same-a", "f1", localIso(2026, 8, 30)),
+      article("same-b", "f1", localIso(2026, 8, 30)),
+      article("invalid", "f1", "invalid"),
+      article("future", "f1", localIso(2026, 9, 1)),
+      article("older", "f1", localIso(2026, 8, 20)),
+    ];
+    expect(deriveTimeline(input, feeds, { now }).visibleArticles.map((item) => item.id)).toEqual(["same-a", "same-b", "older"]);
+    expect(deriveTimeline(input, feeds, { now, sortOrder: "oldest" }).visibleArticles.map((item) => item.id)).toEqual(["older", "same-b", "same-a"]);
   });
 });

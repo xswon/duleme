@@ -75,4 +75,19 @@ describe("searchService", () => {
     expect(excerpt).toContain("needle");
     expect(excerpt.length).toBeLessThanOrEqual(52);
   });
+
+  it("preserves NFKC/case matching and reports every matching field", () => {
+    const item = article({ title: "Ｆｕｌｌ Reader", content: "<p>reader body</p>", author: "READER team" });
+    const [result] = searchArticles([item], "full READER");
+    expect(result.article).toBe(item);
+    expect(result.matchedFields).toEqual(["title", "content", "author"]);
+  });
+
+  it("recomputes cached preprocessing when searchable content changes", () => {
+    const item = article({ content: "<p>before</p>" });
+    expect(searchArticles([item], "before")).toHaveLength(1);
+    item.content = "<p>after</p>";
+    expect(searchArticles([item], "before")).toHaveLength(0);
+    expect(searchArticles([item], "after")).toHaveLength(1);
+  });
 });

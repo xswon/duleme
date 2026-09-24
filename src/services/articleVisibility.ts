@@ -1,6 +1,6 @@
 import type { ActiveTab, Article, Feed, FilterType } from "../types";
 import type { TimelineContentFilter } from "./router";
-import { matchesSearchQuery } from "./searchService";
+import { getPreparedSearchDocument, matchesPreparedSearch, prepareSearchQuery } from "./searchService";
 
 export const DEFAULT_HISTORY_WINDOW_DAYS = 30;
 export const HISTORY_WINDOW_STEP_DAYS = 30;
@@ -40,6 +40,76 @@ export function getLocalCalendarDayWindow(
 function publicationTimestamp(pubDate: string): number | null {
   const publishedAt = new Date(pubDate).getTime();
   return Number.isFinite(publishedAt) ? publishedAt : null;
+}
+
+export interface TimelineDerivationOptions {
+  selectedFeedId?: string | null;
+  selectedCategory?: string | null;
+  filterType?: FilterType;
+  contentType?: TimelineContentFilter;
+  searchQuery?: string;
+  historyWindowDays?: number;
+  sortOrder?: "newest" | "oldest";
+  now?: number;
+}
+
+export interface TimelineDerivation {
+  visibleArticles: Article[];
+  olderArticleCount: number;
+  visibleUnreadCount: number;
+}
+
+/** Derive the full logical feed timeline with one article pass and one stable sort. */
+export function deriveTimeline(
+  articles: Article[],
+  feeds: Feed[],
+  options: TimelineDerivationOptions = {},
+): TimelineDerivation {
+  const {
+    selectedFeedId,
+    selectedCategory,
+    filterType = "all",
+    contentType = "all",
+    searchQuery = "",
+    historyWindowDays = DEFAULT_HISTORY_WINDOW_DAYS,
+    sortOrder = "newest",
+    now = Date.now(),
+  } = options;
+  const categoryFeedIds = selectedCategory
+    ? new Set(feeds.filter((feed) => feed.category === selectedCategory).map((feed) => feed.id))
+    : null;
+  const window = getLocalCalendarDayWindow(historyWindowDays, now);
+  const preparedQuery = prepareSearchQuery(searchQuery.trim());
+  const visible: Array<{ article: Article; index: number; timestamp: number }> = [];
+  let olderArticleCount = 0;
+  let visibleUnreadCount = 0;
+
+  articles.forEach((article, index) => {
+    if (selectedFeedId && article.feedId !== selectedFeedId) return;
+    if (categoryFeedIds && !categoryFeedIds.has(article.feedId)) return;
+    if (filterType === "unread" && article.read) return;
+    if (filterType === "starred" && !article.starred) return;
+    if (filterType !== "starred" && contentType === "podcast" && !article.audioUrl?.trim()) return;
+    if (filterType !== "starred" && contentType === "article" && article.audioUrl?.trim()) return;
+    if (preparedQuery.terms.length > 0 && !matchesPreparedSearch(getPreparedSearchDocument(article), preparedQuery)) return;
+
+    const timestamp = publicationTimestamp(article.pubDate);
+    if (timestamp === null || !window || timestamp > window.end) return;
+    if (timestamp < window.start) {
+      olderArticleCount += 1;
+      return;
+    }
+    visible.push({ article, index, timestamp });
+    if (!article.read) visibleUnreadCount += 1;
+  });
+
+  visible.sort((a, b) => b.timestamp - a.timestamp || a.index - b.index);
+  if (sortOrder === "oldest") visible.reverse();
+  return {
+    visibleArticles: visible.map(({ article }) => article),
+    olderArticleCount,
+    visibleUnreadCount,
+  };
 }
 
 /**
@@ -93,24 +163,15 @@ export function countOlderArticles(
   options: { filterType?: FilterType; contentType?: TimelineContentFilter; searchQuery?: string; historyWindowDays?: number } = {},
   now = Date.now(),
 ): number {
-  const categoryFeedIds = selectedCategory
-    ? new Set(feeds.filter((feed) => feed.category === selectedCategory).map((feed) => feed.id))
-    : null;
-  const query = options.searchQuery?.trim() || "";
-  const windowDays = options.historyWindowDays ?? DEFAULT_HISTORY_WINDOW_DAYS;
-  return articles.filter((article) =>
-    isOlderThanHistoryWindow(article.pubDate, windowDays, now) &&
-    (!selectedFeedId || article.feedId === selectedFeedId) &&
-    (!categoryFeedIds || categoryFeedIds.has(article.feedId)) &&
-    (options.filterType !== "unread" || !article.read) &&
-    (options.filterType !== "starred" || article.starred) &&
-    (options.filterType === "starred" || options.contentType !== "podcast" || !!article.audioUrl?.trim()) &&
-    (options.filterType === "starred" || options.contentType !== "article" || !article.audioUrl?.trim()) &&
-    (!query || matchesSearchQuery(article, query))
-  ).length;
+  return deriveTimeline(articles, feeds, {
+    ...options,
+    selectedFeedId,
+    selectedCategory,
+    now,
+  }).olderArticleCount;
 }
 
-/** Batch actions consume the already-rendered collection, never the backing store. */
+/** Batch actions consume the full logical visible collection, never only mounted virtual rows. */
 export function getUnreadArticleIds(visibleArticles: Article[]): string[] {
   return visibleArticles.filter((article) => !article.read).map((article) => article.id);
 }

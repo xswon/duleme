@@ -1,6 +1,7 @@
 import React from "react";
 import { Article } from "../types";
 import { resolveArticlePresentation } from "../services/articlePresentation";
+import { VirtualWindow } from "./VirtualWindow";
 
 function TimelineIcon({ type }: { type: "mail" | "headphones" }) {
   return (
@@ -210,7 +211,14 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           </button>
         </div>
       )}
-      {articles.map((article) => {
+      <VirtualWindow
+        count={articles.length}
+        estimateSize={88}
+        overscan={10}
+        className="wreader-article-virtual-window"
+        getItemKey={(index) => articles[index].id}
+        renderItem={(index) => {
+        const article = articles[index];
         const timeAgoStr = formatArticleRelativeTime(article.pubDate);
         const presentation = resolveArticlePresentation(article);
         const audioDurationLabel = presentation.capabilities.hasAudio
@@ -219,7 +227,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
 
         return (
           <article
-            key={article.id}
+            data-article-id={article.id}
             onClick={() => onSelectArticle(article)}
             className={`wreader-story-row group flex cursor-pointer flex-row gap-2 rounded-lg p-2 transition-colors hover:bg-slate-100/70 ${
               selectedArticleId === article.id ? "is-selected bg-blue-50" : ""
@@ -256,7 +264,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
             </div>
           </article>
         );
-      })}
+      }} />
       {hasOlderArticles && onShowOlder && (
         <div className="wreader-timeline-load-more flex flex-col items-center gap-2 px-2 pt-5 pb-2 text-center">
           <button

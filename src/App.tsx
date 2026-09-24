@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useDeferredValue, useRef } from "react";
 import { Headphones } from "lucide-react";
 import {
   ActiveTab,
@@ -55,18 +55,16 @@ import { SearchView } from "./components/SearchView";
 import { PlaylistView } from "./components/PlaylistView";
 import { NotesView } from "./components/NotesView";
 import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
-import { matchesSearchQuery } from "./services/searchService";
+import { searchArticles } from "./services/searchService";
 import {
   DEFAULT_HISTORY_WINDOW_DAYS,
   HISTORY_WINDOW_STEP_DAYS,
   canAutoMarkRead,
-  countOlderArticles,
+  deriveTimeline,
   getUnreadArticleIds,
-  isRecencyLimitedTab,
-  isVisibleInHistoryWindow,
-  sortArticlesByPubDate,
 } from "./services/articleVisibility";
-import { countRecentUnreadArticles } from "./services/unreadCount";
+import { applyFeedUnreadCounts, deriveArticleMetrics } from "./services/articleMetrics";
+import { buildArticleIndexById, buildArticleLookup, derivePlayablePlaylist } from "./services/articleIndex";
 import { BatchMutationCoordinator } from "./services/batchMutation";
 import { OptimisticArticleMutationTracker, type ArticleMutationToken } from "./services/optimisticArticleMutation";
 import {
@@ -155,10 +153,8 @@ export default function App() {
   const [detailOpenIntent, setDetailOpenIntent] = useState<
     { tab: "notes" } | { tab: "transcript"; note: ArticleNote } | undefined
   >();
-  const selectedArticle = useMemo(
-    () => articles.find((article) => article.id === selectedArticleId) || null,
-    [articles, selectedArticleId]
-  );
+  const articleLookup = useMemo(() => buildArticleLookup(articles), [articles]);
+  const selectedArticle = selectedArticleId ? articleLookup.byId.get(selectedArticleId) || null : null;
 
   useEffect(() => {
     if (!isInitializing && selectedArticleId && !selectedArticle) {
@@ -167,14 +163,12 @@ export default function App() {
       setInvalidArticleId(null);
     }
   }, [isInitializing, selectedArticle, selectedArticleId]);
-  const playablePlaylistIds = useMemo(
-    () => playlistIds.filter((id) => articles.some((article) => article.id === id && !!article.audioUrl?.trim())),
-    [articles, playlistIds]
+  const playablePlaylist = useMemo(
+    () => derivePlayablePlaylist(playlistIds, articleLookup),
+    [articleLookup, playlistIds]
   );
-  const playlistArticles = useMemo(
-    () => playablePlaylistIds.map((id) => articles.find((article) => article.id === id)).filter((article): article is Article => !!article),
-    [articles, playablePlaylistIds]
-  );
+  const playablePlaylistIds = playablePlaylist.ids;
+  const playlistArticles = playablePlaylist.articles;
   const [isAddFeedOpen, setIsAddFeedOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(initialRoute.activeTab === "settings");
   const [settingsInitialTab, setSettingsInitialTab] = useState<"feeds" | "folders" | "transcript" | "insight" | "data" | "shortcuts">("feeds");
@@ -192,8 +186,6 @@ export default function App() {
     finishedAt?: number;
   }>({ completed: 0, total: 0, successful: 0, failed: [], newArticles: 0 });
   const [pendingRefreshFeedIds, setPendingRefreshFeedIds] = useState<string[] | null>(null);
-  const [searchVisibleArticles, setSearchVisibleArticles] = useState<Article[]>([]);
-  const [searchResultsReady, setSearchResultsReady] = useState(false);
   const [historyWindowDays, setHistoryWindowDays] = useState(initialRoute.historyWindowDays);
   const [localDayVersion, setLocalDayVersion] = useState(0);
   const mainScrollRef = useRef<HTMLElement | null>(null);
@@ -208,6 +200,7 @@ export default function App() {
   const autoPlayNextRef = useRef<string | null>(null);
   const audioPlayerRef = useRef<SharedAudioPlayer | null>(null);
   const visibleArticlesRef = useRef<Article[]>([]);
+  const visibleIndexByIdRef = useRef<Map<string, number>>(new Map());
   const articlesRef = useRef(articles);
   const playlistIdsRef = useRef(playlistIds);
   const audioProgressMapRef = useRef(audioProgressMap);
@@ -439,7 +432,7 @@ export default function App() {
         const nextId = currentIndex >= 0
           ? playablePlaylistIds[currentIndex + 1] ?? playablePlaylistIds[currentIndex - 1]
           : undefined;
-        const nextArticle = nextId ? articles.find((item) => item.id === nextId) : undefined;
+        const nextArticle = nextId ? articleLookup.byId.get(nextId) : undefined;
         if (audioPlayerRef.current?.articleId === articleId) {
           audioPlayerRef.current.stop();
           if (nextArticle?.audioUrl) audioPlayerRef.current.loadArticle(nextArticle.id, nextArticle.audioUrl, audioProgressMap[nextArticle.id]);
@@ -448,7 +441,7 @@ export default function App() {
         setSelectedArticleId(nextId || null);
       }
     },
-    [articles, audioProgressMap, playlistIds, playablePlaylistIds, selectedArticleId, showToast]
+    [articleLookup, audioProgressMap, playlistIds, playablePlaylistIds, selectedArticleId, showToast]
   );
 
   const handleRemoveFromPlaylist = useCallback(
@@ -459,7 +452,7 @@ export default function App() {
         const nextId = currentIndex >= 0
           ? playablePlaylistIds[currentIndex + 1] ?? playablePlaylistIds[currentIndex - 1]
           : undefined;
-        const nextArticle = nextId ? articles.find((item) => item.id === nextId) : undefined;
+        const nextArticle = nextId ? articleLookup.byId.get(nextId) : undefined;
         if (audioPlayerRef.current?.articleId === articleId) {
           audioPlayerRef.current.stop();
           if (nextArticle?.audioUrl) audioPlayerRef.current.loadArticle(nextArticle.id, nextArticle.audioUrl, audioProgressMap[nextArticle.id]);
@@ -469,7 +462,7 @@ export default function App() {
       }
       showToast("已从播放列表中移除");
     },
-    [articles, audioProgressMap, playablePlaylistIds, selectedArticleId, showToast]
+    [articleLookup, audioProgressMap, playablePlaylistIds, selectedArticleId, showToast]
   );
 
   const handleUndoPlaylistClear = useCallback(() => {
@@ -489,14 +482,14 @@ export default function App() {
     const currentAudioId = audioPlayerRef.current?.articleId;
     if (currentAudioId && ids.has(currentAudioId)) {
       const nextId = playablePlaylistIds.find((id) => !ids.has(id));
-      const nextArticle = nextId ? articles.find((item) => item.id === nextId) : undefined;
+      const nextArticle = nextId ? articleLookup.byId.get(nextId) : undefined;
       audioPlayerRef.current?.stop();
       if (nextArticle?.audioUrl) audioPlayerRef.current?.loadArticle(nextArticle.id, nextArticle.audioUrl, audioProgressMap[nextArticle.id]);
       setSelectedArticleId(nextId || null);
     }
     showToastWithAction(`已从播放列表移除 ${articleIds.length} 集`, { label: "撤销", run: handleUndoPlaylistClear });
     playlistUndoTimer.current = setTimeout(() => { playlistUndoRef.current = null; }, 5000);
-  }, [articles, audioProgressMap, handleUndoPlaylistClear, playablePlaylistIds, playlistIds, showToastWithAction]);
+  }, [articleLookup, audioProgressMap, handleUndoPlaylistClear, playablePlaylistIds, playlistIds, showToastWithAction]);
 
   const handleClearPlaylist = useCallback(() => {
     if (playlistIds.length === 0) return;
@@ -553,11 +546,6 @@ export default function App() {
     });
   }, []);
 
-  const handleSearchResultsChange = useCallback((results: Article[]) => {
-    setSearchVisibleArticles(results);
-    setSearchResultsReady(true);
-  }, []);
-
   const handleAudioEnded = useCallback((articleId: string) => {
     const currentIndex = playablePlaylistIds.indexOf(articleId);
     const nextId = currentIndex >= 0 ? playablePlaylistIds[currentIndex + 1] : undefined;
@@ -565,11 +553,11 @@ export default function App() {
       showToast("本集播放完毕，已到播放列表末尾");
       return;
     }
-    const nextArticle = articles.find((article) => article.id === nextId);
+    const nextArticle = articleLookup.byId.get(nextId);
     if (!nextArticle) return;
     autoPlayNextRef.current = nextId;
     setSelectedArticleId(nextId);
-  }, [articles, playablePlaylistIds, showToast]);
+  }, [articleLookup, playablePlaylistIds, showToast]);
 
   const handleUpdateAudioProgress = useCallback(
     (articleId: string, currentTime: number, duration: number) => {
@@ -688,17 +676,15 @@ export default function App() {
     })();
   }, [articles, bidclubFeedConfigFingerprint, feeds, isInitializing, showToast]);
 
-  // Sync feed unread counts based on article state
+  const articleMetrics = useMemo(
+    () => deriveArticleMetrics(articles, Date.now()),
+    [articles, localDayVersion]
+  );
+
+  // Sync feed unread counts from the single-pass article aggregation.
   useEffect(() => {
-    setFeeds((prevFeeds) =>
-      prevFeeds.map((feed) => {
-        const unreadCount = countRecentUnreadArticles(
-          articles.filter((article) => article.feedId === feed.id)
-        );
-        return { ...feed, unreadCount };
-      })
-    );
-  }, [articles, localDayVersion]);
+    setFeeds((prevFeeds) => applyFeedUnreadCounts(prevFeeds, articleMetrics.recentUnreadByFeedId));
+  }, [articleMetrics]);
 
   // Handler: Add New Feed
   const handleAddFeed = async (newFeed: Feed, newArticles: Article[] = []) => {
@@ -1017,7 +1003,8 @@ export default function App() {
       if (refreshGeneration.current !== generation || !feedsRef.current.some((item) => item.id === feedId)) return;
       const matched = helper ? matchBidclubItems(parsedItems, helper.items).items : parsedItems;
       const refreshed = (matched || []).map((item) => ({ ...item, feedId: feed.id, feedTitle: feed.title, feedFavicon: parsed.feedImage || parsed.favicon || feed.favicon, read: false, starred: false }));
-      const newArticleCount = refreshed.filter((item) => !articlesRef.current.some((existing) => existing.id === item.id)).length;
+      const existingIds = new Set(articlesRef.current.map((existing) => existing.id));
+      const newArticleCount = refreshed.filter((item) => !existingIds.has(item.id)).length;
       const merged = mergeFetchedFeedArticles(articlesRef.current, refreshed, new Set([feed.id]));
       const nextPlaylistIds = migrateArticleBackrefs(playlistIdsRef.current, merged.articleIdMap);
       const nextAudioProgressMap = migrateAudioProgressMap(audioProgressMapRef.current, merged.articleIdMap);
@@ -1348,7 +1335,7 @@ export default function App() {
         const currentArticles = visibleArticlesRef.current;
         if (currentArticles.length > 0) {
           const currentIndex = selectedArticle
-            ? currentArticles.findIndex((a) => a.id === selectedArticle.id)
+            ? visibleIndexByIdRef.current.get(selectedArticle.id) ?? -1
             : -1;
           const nextIndex = Math.min(currentIndex + 1, currentArticles.length - 1);
           handleSelectArticle(currentArticles[nextIndex]);
@@ -1358,7 +1345,7 @@ export default function App() {
         const currentArticles = visibleArticlesRef.current;
         if (currentArticles.length > 0) {
           const currentIndex = selectedArticle
-            ? currentArticles.findIndex((a) => a.id === selectedArticle.id)
+            ? visibleIndexByIdRef.current.get(selectedArticle.id) ?? 0
             : 0;
           const prevIndex = Math.max(currentIndex - 1, 0);
           handleSelectArticle(currentArticles[prevIndex]);
@@ -1380,9 +1367,9 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedArticle, articles, activeTab, filterType, searchQuery, selectedFeedId, selectedCategory]);
 
-  // Totals
-  const totalUnread = countRecentUnreadArticles(articles, Date.now());
-  const totalSaved = articles.filter((a) => a.starred).length;
+  // Totals share the same single-pass aggregation used by feed badges.
+  const totalUnread = articleMetrics.totalRecentUnread;
+  const totalSaved = articleMetrics.totalSaved;
   // Compute Active Title
   const activeTitle = useMemo(() => {
     if (activeTab === "playlist") return "音频";
@@ -1407,71 +1394,49 @@ export default function App() {
   }, [activeTab, filterType, playlistArticles.length, selectedCategory, selectedFeedId, totalSaved, visibleArticleNotes.length]);
   const effectiveContentType = selectedFeedId ? "all" : contentType;
   const showTimelineFilters = activeTab === "feeds" && filterType !== "starred" && !selectedFeedId;
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  // Compute Visible Articles according to current tab & filters
-  const visibleArticles = useMemo(() => {
-    const now = Date.now();
-
-    if (activeTab === "search" && searchResultsReady) return searchVisibleArticles;
-
-    const filteredArticles = articles.filter((article) => {
-      if (activeTab === "search") {
-        return matchesSearchQuery(article, searchQuery);
-      }
-      // 0. Feed lists load history in 30-day chunks.
-      if (isRecencyLimitedTab(activeTab) && !isVisibleInHistoryWindow(article.pubDate, historyWindowDays, now)) {
-        return false;
-      }
-
-      // 1. Tab Scope
-      if (activeTab === "saved" && !article.starred) return false;
-
-      // 2. Feed / Category Scope
-      if (activeTab === "feeds") {
-        if (selectedFeedId && article.feedId !== selectedFeedId) return false;
-        if (selectedCategory) {
-          const categoryFeedIds = new Set(
-            feeds.filter((f) => f.category === selectedCategory).map((f) => f.id)
-          );
-          if (!categoryFeedIds.has(article.feedId)) return false;
-        }
-      }
-
-      // 3. Header Filters
-      if (activeTab === "feeds") {
-        if (filterType === "unread" && article.read) return false;
-        if (filterType === "starred" && !article.starred) return false;
-        if (filterType !== "starred" && effectiveContentType === "podcast" && !article.audioUrl?.trim()) return false;
-        if (filterType !== "starred" && effectiveContentType === "article" && article.audioUrl?.trim()) return false;
-      }
-
-      // 4. Quick Header Search
-      if (searchQuery.trim() && activeTab !== "search" && !matchesSearchQuery(article, searchQuery)) {
-        return false;
-      }
-
-      return true;
-    });
-    if (activeTab !== "feeds") return filteredArticles;
-    const sortedArticles = sortArticlesByPubDate(filteredArticles);
-    return timelineSortOrder === "newest" ? sortedArticles : [...sortedArticles].reverse();
-  }, [articles, activeTab, selectedFeedId, selectedCategory, filterType, effectiveContentType, searchQuery, feeds, historyWindowDays, localDayVersion, searchResultsReady, searchVisibleArticles, timelineSortOrder]);
-
+  const searchResults = useMemo(
+    () => activeTab === "search" ? searchArticles(articles, deferredSearchQuery) : [],
+    [activeTab, articles, deferredSearchQuery]
+  );
+  const timelineDerivation = useMemo(() => activeTab === "feeds"
+    ? deriveTimeline(articles, feeds, {
+        selectedFeedId,
+        selectedCategory,
+        filterType,
+        contentType: effectiveContentType,
+        searchQuery,
+        historyWindowDays,
+        sortOrder: timelineSortOrder,
+      })
+    : null,
+  [activeTab, articles, effectiveContentType, feeds, filterType, historyWindowDays, localDayVersion, searchQuery, selectedCategory, selectedFeedId, timelineSortOrder]);
+  const visibleDerivation = useMemo(() => {
+    if (timelineDerivation) return timelineDerivation;
+    const visibleArticles = activeTab === "search"
+      ? searchResults.map(({ article }) => article)
+      : activeTab === "saved"
+        ? articles.filter((article) => article.starred)
+        : articles;
+    return {
+      visibleArticles,
+      olderArticleCount: 0,
+      visibleUnreadCount: visibleArticles.reduce((count, article) => count + (article.read ? 0 : 1), 0),
+    };
+  }, [activeTab, articles, searchResults, timelineDerivation]);
+  const { visibleArticles, olderArticleCount, visibleUnreadCount } = visibleDerivation;
+  const visibleIndexById = useMemo(() => buildArticleIndexById(visibleArticles), [visibleArticles]);
   visibleArticlesRef.current = visibleArticles;
-
-  const olderArticleCount = useMemo(() => {
-    if (activeTab !== "feeds") return 0;
-    return countOlderArticles(articles, feeds, selectedFeedId, selectedCategory, { filterType, contentType: effectiveContentType, searchQuery, historyWindowDays });
-  }, [activeTab, articles, effectiveContentType, feeds, filterType, historyWindowDays, localDayVersion, searchQuery, selectedCategory, selectedFeedId]);
+  visibleIndexByIdRef.current = visibleIndexById;
 
   useEffect(() => {
     if (activeTab !== "feeds") setFilterType("all");
     if (activeTab !== "search" && searchQuery) setSearchQuery("");
-    if (activeTab !== "search") setSearchResultsReady(false);
   }, [activeTab, searchQuery]);
 
   const selectedIndex = selectedArticle
-    ? visibleArticles.findIndex((a) => a.id === selectedArticle.id)
+    ? visibleIndexById.get(selectedArticle.id) ?? -1
     : -1;
   const handleNextArticle = selectedIndex >= 0 && selectedIndex < visibleArticles.length - 1
     ? () => setSelectedArticleId(visibleArticles[selectedIndex + 1].id)
@@ -1579,9 +1544,10 @@ export default function App() {
     <NotesView notes={visibleArticleNotes} articles={articles} onOpen={handleOpenNote} onUpdate={handleUpdateNote} onDelete={handleDeleteNote} />
   ) : activeTab === "search" ? (
     <SearchView
-      articles={articles}
+      results={searchResults}
       feeds={feeds}
       searchQuery={searchQuery}
+      resultQuery={deferredSearchQuery}
       setSearchQuery={(query) => {
         setSearchQuery(query);
         navigateToRoute({ activeTab: "search", searchQuery: query, articleId: selectedArticleId }, true);
@@ -1590,7 +1556,6 @@ export default function App() {
       onToggleStar={handleToggleStar}
       onToggleRead={handleToggleRead}
       onSummarizeAI={handleSelectArticle}
-      onResultsChange={handleSearchResultsChange}
       selectedArticleId={selectedArticleId}
     />
   ) : articleListView;
@@ -1708,7 +1673,7 @@ export default function App() {
           onNavigateSearch={() => {
             navigateToRoute({ activeTab: "search", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined });
           }}
-          unreadCount={visibleArticles.filter((a) => !a.read).length}
+          unreadCount={visibleUnreadCount}
           showTimelineFilters={showTimelineFilters}
           contentType={effectiveContentType}
           onContentTypeChange={(nextContentType) => navigateToRoute({ activeTab: "feeds", contentType: nextContentType, articleId: null })}
