@@ -328,7 +328,7 @@ export function replaceStoredArticlesForFeedsAndMigrateReferences(
   feedIds: Iterable<string>,
   articles: Article[],
   articleIdMap: Map<string, string>,
-  appStatePatch?: { playlistIds: string[]; audioProgressMap: Record<string, AudioProgress> }
+  appStatePatch?: { playlistIds: string[] }
 ) {
   return replaceArticlesForFeedsAndMigrateReferencesInDB(feedIds, articles, articleIdMap, appStatePatch);
 }

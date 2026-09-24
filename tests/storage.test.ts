@@ -10,7 +10,10 @@ import {
   getAllArticlesFromDB,
   getFeedsFromDB,
   getAllArticleNotesFromDB,
+  getAudioProgressMapFromDB,
   getArticleNotesFromDB,
+  getAppStateFromDB,
+  getDB,
   getSecretFromDB,
   migrateArticleNoteIdsInDB,
   migrateFromLocalStorageIfNeeded,
@@ -18,6 +21,7 @@ import {
   replaceArticlesForFeedsAndMigrateReferencesInDB,
   replaceFeedsInDB,
   restoreDataBackup,
+  saveAudioProgressToDB,
   saveAppStateToDB,
   saveArticlesToDB,
   saveSecretToDB,
@@ -56,7 +60,90 @@ beforeEach(async () => {
   localStorage.clear();
 });
 
+async function createVersion5Database(
+  appState: Record<string, unknown>,
+  existingProgress?: { articleId: string; currentTime: number; duration: number; updatedAt: number },
+) {
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open("WReaderDB", 5);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      const settings = db.createObjectStore("settings", { keyPath: "key" });
+      settings.put({ key: "app", value: appState });
+      if (existingProgress) {
+        const progress = db.createObjectStore("audioProgress", { keyPath: "articleId" });
+        progress.put(existingProgress);
+      }
+    };
+    request.onsuccess = () => { request.result.close(); resolve(); };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function backupChecksum(data: unknown) {
+  const value = JSON.stringify(data);
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
 describe("article IndexedDB persistence", () => {
+  it("upgrades to v6 with a dedicated audio-progress store", async () => {
+    const db = await getDB();
+    expect(db.version).toBe(6);
+    expect(db.objectStoreNames.contains("audioProgress")).toBe(true);
+  });
+
+  it("migrates legacy audio progress during upgrade and removes the legacy map", async () => {
+    await createVersion5Database({
+      audioProgressMap: { episode: { currentTime: 42, duration: 300, updatedAt: 10 } },
+    });
+
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      episode: { currentTime: 42, duration: 300, updatedAt: 10 },
+    });
+    await expect(getAppStateFromDB()).resolves.not.toHaveProperty("audioProgressMap");
+  });
+
+  it("keeps newer dedicated progress when migration encounters a conflict", async () => {
+    await createVersion5Database(
+      { audioProgressMap: { episode: { currentTime: 80, duration: 300, updatedAt: 10 } } },
+      { articleId: "episode", currentTime: 60, duration: 300, updatedAt: 20 },
+    );
+
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      episode: { currentTime: 60, duration: 300, updatedAt: 20 },
+    });
+  });
+
+  it("persists dedicated progress across a database reload", async () => {
+    await saveAudioProgressToDB({ articleId: "episode", currentTime: 125, duration: 3600, updatedAt: 12345 });
+    await closeDB();
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      episode: { currentTime: 125, duration: 3600, updatedAt: 12345 },
+    });
+  });
+
+  it("coalesces overlapping audio-progress writes without dropping the newest position", async () => {
+    const originalPut = IDBObjectStore.prototype.put;
+    const puts = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value: unknown) {
+      return originalPut.call(this, value);
+    });
+    await Promise.all([1, 2, 3, 4, 5].map((currentTime) => saveAudioProgressToDB({
+      articleId: "episode",
+      currentTime,
+      duration: 600,
+      updatedAt: currentTime,
+    })));
+
+    expect(puts.mock.calls.filter(([value]) => (value as { articleId?: string }).articleId === "episode").length).toBeLessThan(5);
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      episode: { currentTime: 5, duration: 600, updatedAt: 5 },
+    });
+  });
   it("removes the obsolete Taixian demo article from existing storage", async () => {
     const obsolete = article("init-taixian-1", "feed-taixian");
     const retained = article("retained");
@@ -381,7 +468,7 @@ describe("article IndexedDB persistence", () => {
       ["feed-1"],
       [{ ...article("canonical"), read: true }],
       new Map([["legacy", "canonical"]]),
-      { playlistIds: ["canonical"], audioProgressMap: {} }
+      { playlistIds: ["canonical"] }
     )).rejects.toThrow("simulated refresh persistence failure");
 
     await expect(getAllArticlesFromDB()).resolves.toEqual([legacy]);
@@ -394,14 +481,14 @@ describe("article IndexedDB persistence", () => {
       ["feed-1"],
       [{ ...article("canonical"), starred: true }],
       new Map([["legacy", "canonical"]]),
-      { playlistIds: ["canonical"], audioProgressMap: { canonical: { currentTime: 20, duration: 30, updatedAt: 1 } } }
+      { playlistIds: ["canonical"] }
     );
 
     await expect(getAllArticlesFromDB()).resolves.toEqual([
       expect.objectContaining({ id: "canonical", starred: true }),
     ]);
     await expect(createDataBackup()).resolves.toMatchObject({
-      data: { appState: { playlistIds: ["canonical"], audioProgressMap: { canonical: { currentTime: 20 } } } },
+      data: { appState: { playlistIds: ["canonical"] }, audioProgress: [] },
     });
   });
 
@@ -525,5 +612,43 @@ describe("article IndexedDB persistence", () => {
     await expect(getAllArticlesFromDB()).resolves.toMatchObject([{ id: "backup-article" }]);
     await expect(getFeedsFromDB()).resolves.toMatchObject([{ id: "feed-1" }]);
     await expect(restoreDataBackup(JSON.stringify({ ...backup, checksum: "bad" }))).rejects.toThrow("校验");
+  });
+
+  it("includes dedicated audio progress in version-1 backups and restores it", async () => {
+    await saveAudioProgressToDB({ articleId: "backup-episode", currentTime: 88, duration: 600, updatedAt: 9 });
+    const backup = await createDataBackup();
+    expect(backup.version).toBe(1);
+    expect(backup.data.audioProgress).toEqual([
+      { articleId: "backup-episode", currentTime: 88, duration: 600, updatedAt: 9 },
+    ]);
+
+    await restoreDataBackup(JSON.stringify(backup));
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      "backup-episode": { currentTime: 88, duration: 600, updatedAt: 9 },
+    });
+  });
+
+  it("restores legacy version-1 backups that keep progress in appState", async () => {
+    const data = {
+      feeds: [],
+      articles: [],
+      notes: [],
+      appState: {
+        playlistIds: ["legacy-episode"],
+        audioProgressMap: { "legacy-episode": { currentTime: 33, duration: 600, updatedAt: 4 } },
+      },
+    };
+    const legacyBackup = {
+      version: 1 as const,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      checksum: backupChecksum(data),
+      data,
+    };
+
+    await restoreDataBackup(JSON.stringify(legacyBackup));
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      "legacy-episode": { currentTime: 33, duration: 600, updatedAt: 4 },
+    });
+    await expect(getAppStateFromDB()).resolves.not.toHaveProperty("audioProgressMap");
   });
 });

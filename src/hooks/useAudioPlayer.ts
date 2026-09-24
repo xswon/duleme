@@ -17,6 +17,7 @@ export function formatAudioTime(sec: number) {
 }
 
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
+const NORMAL_PROGRESS_PERSIST_INTERVAL_MS = 20_000;
 
 export interface SharedAudioPlayer {
   audioRef: RefObject<HTMLAudioElement | null>;
@@ -56,6 +57,7 @@ export function useSharedAudioPlayer(
   const restoreTimeRef = useRef(0);
   const progressRef = useRef<{ articleId: string | null; currentTime: number; duration: number }>({ articleId: null, currentTime: 0, duration: 0 });
   const lastPersistedRef = useRef<{ articleId: string | null; currentTime: number }>({ articleId: null, currentTime: 0 });
+  const lastProgressPersistedAtRef = useRef(0);
   const progressCallbackRef = useRef(onUpdateAudioProgress);
   const [articleId, setArticleId] = useState<string | null>(null);
   const [originalUrl, setOriginalUrl] = useState<string | undefined>();
@@ -72,9 +74,11 @@ export function useSharedAudioPlayer(
     if (!progress.articleId || progress.duration <= 0) return;
     const previous = lastPersistedRef.current;
     const delta = Math.abs(progress.currentTime - previous.currentTime);
-    if (previous.articleId === progress.articleId && (delta < 0.25 || (!force && delta < 5))) return;
+    if (previous.articleId === progress.articleId && delta < 0.01) return;
+    if (!force && previous.articleId === progress.articleId && Date.now() - lastProgressPersistedAtRef.current < NORMAL_PROGRESS_PERSIST_INTERVAL_MS) return;
     progressCallbackRef.current?.(progress.articleId, progress.currentTime, progress.duration);
     lastPersistedRef.current = { articleId: progress.articleId, currentTime: progress.currentTime };
+    lastProgressPersistedAtRef.current = Date.now();
   }, []);
 
   const startPlayback = useCallback(async () => {
@@ -124,6 +128,7 @@ export function useSharedAudioPlayer(
     setDuration(savedProgress?.duration || 0);
     progressRef.current = { articleId: nextArticleId, currentTime: savedProgress?.currentTime || 0, duration: savedProgress?.duration || 0 };
     lastPersistedRef.current = { articleId: nextArticleId, currentTime: savedProgress?.currentTime || 0 };
+    lastProgressPersistedAtRef.current = Date.now();
     pendingAutoplayRef.current = autoplay;
   }, [articleId, flushProgress, isPlaying, startPlayback]);
 
@@ -192,6 +197,7 @@ export function useSharedAudioPlayer(
     restoreTimeRef.current = 0;
     progressRef.current = { articleId: null, currentTime: 0, duration: 0 };
     lastPersistedRef.current = { articleId: null, currentTime: 0 };
+    lastProgressPersistedAtRef.current = 0;
     setArticleId(null);
     setOriginalUrl(undefined);
     setAudioSrc(undefined);

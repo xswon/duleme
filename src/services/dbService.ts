@@ -1,16 +1,75 @@
-import { AiConfig, Article, ArticleNote, Feed } from "../types";
+import { AiConfig, Article, ArticleNote, AudioProgress, Feed } from "../types";
 
 const DB_NAME = "WReaderDB";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const STORE_ARTICLES = "articles";
 const STORE_FEEDS = "feeds";
 const STORE_NOTES = "notes";
 const STORE_SETTINGS = "settings";
 const STORE_SECRETS = "secrets";
+const STORE_AUDIO_PROGRESS = "audioProgress";
 export const NOTES_CHANGED_EVENT = "wreader:notes-changed";
 export const TRANSCRIPTION_SETTINGS_CHANGED_EVENT = "wreader:transcription-settings-changed";
 
 let dbPromise: Promise<IDBDatabase> | null = null;
+
+export interface AudioProgressRecord extends AudioProgress {
+  articleId: string;
+}
+
+function isAudioProgress(value: unknown): value is AudioProgress {
+  if (!value || typeof value !== "object") return false;
+  const progress = value as AudioProgress;
+  return Number.isFinite(progress.currentTime) && Number.isFinite(progress.duration) && Number.isFinite(progress.updatedAt);
+}
+
+function chooseNewerAudioProgress(
+  existing: AudioProgressRecord | undefined,
+  candidate: AudioProgressRecord,
+): AudioProgressRecord {
+  if (!existing || candidate.updatedAt > existing.updatedAt) return candidate;
+  // A tie is deterministic and never replaces a record that was already in
+  // the dedicated store. This prevents an older migration source from moving
+  // a listener backwards when clocks have insufficient resolution.
+  return existing;
+}
+
+function migrateLegacyAudioProgressInTransaction(tx: IDBTransaction) {
+  const settingsStore = tx.objectStore(STORE_SETTINGS);
+  const progressStore = tx.objectStore(STORE_AUDIO_PROGRESS);
+  const appRequest = settingsStore.get("app");
+  appRequest.onsuccess = () => {
+    const state = appRequest.result?.value as PersistedAppState | undefined;
+    const legacyProgress = state?.audioProgressMap;
+    if (!legacyProgress) return;
+
+    const entries = Object.entries(legacyProgress)
+      .filter(([, progress]) => isAudioProgress(progress))
+      .map(([articleId, progress]) => ({ articleId, ...progress }));
+    if (entries.length === 0) {
+      const { audioProgressMap: _legacy, ...withoutLegacyProgress } = state;
+      settingsStore.put({ key: "app", value: withoutLegacyProgress });
+      return;
+    }
+
+    let pending = entries.length;
+    const finish = () => {
+      pending -= 1;
+      if (pending !== 0) return;
+      const { audioProgressMap: _legacy, ...withoutLegacyProgress } = state;
+      settingsStore.put({ key: "app", value: withoutLegacyProgress });
+    };
+    entries.forEach((candidate) => {
+      const progressRequest = progressStore.get(candidate.articleId);
+      progressRequest.onsuccess = () => {
+        const existing = progressRequest.result as AudioProgressRecord | undefined;
+        const selected = chooseNewerAudioProgress(existing, candidate);
+        if (selected !== existing) progressStore.put(selected);
+        finish();
+      };
+    });
+  };
+}
 
 function notifyNotesChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(NOTES_CHANGED_EVENT));
@@ -29,6 +88,7 @@ export function getDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const tx = (event.target as IDBOpenDBRequest).transaction!;
 
       if (!db.objectStoreNames.contains(STORE_ARTICLES)) {
         const articleStore = db.createObjectStore(STORE_ARTICLES, { keyPath: "id" });
@@ -52,6 +112,10 @@ export function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_SECRETS)) {
         db.createObjectStore(STORE_SECRETS, { keyPath: "key" });
       }
+      if (!db.objectStoreNames.contains(STORE_AUDIO_PROGRESS)) {
+        db.createObjectStore(STORE_AUDIO_PROGRESS, { keyPath: "articleId" });
+      }
+      if ((event as IDBVersionChangeEvent).oldVersion < 6) migrateLegacyAudioProgressInTransaction(tx);
     };
 
     request.onsuccess = () => {
@@ -74,6 +138,108 @@ export interface PersistedAppState {
   playlistIds?: string[];
   audioProgressMap?: Record<string, { currentTime: number; duration: number; updatedAt: number }>;
   aiConfig?: AiConfig;
+}
+
+/** Covers maps introduced by localStorage migration or a legacy backup after v6 exists. */
+async function migrateLegacyAudioProgressIfNeeded(): Promise<void> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction([STORE_SETTINGS, STORE_AUDIO_PROGRESS], "readwrite");
+    migrateLegacyAudioProgressInTransaction(tx);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("Failed to migrate legacy audio progress"));
+    tx.onabort = () => reject(tx.error || new Error("Failed to migrate legacy audio progress"));
+  });
+}
+
+/** Load the compatibility map used by React without putting it back in settings. */
+export async function getAudioProgressMapFromDB(): Promise<Record<string, AudioProgress>> {
+  await migrateLegacyAudioProgressIfNeeded();
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE_AUDIO_PROGRESS, "readonly").objectStore(STORE_AUDIO_PROGRESS).getAll();
+    request.onsuccess = () => {
+      const progressMap: Record<string, AudioProgress> = {};
+      (request.result as AudioProgressRecord[]).forEach(({ articleId, currentTime, duration, updatedAt }) => {
+        progressMap[articleId] = { currentTime, duration, updatedAt };
+      });
+      resolve(progressMap);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getAllAudioProgressFromDB(): Promise<AudioProgressRecord[]> {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(STORE_AUDIO_PROGRESS, "readonly").objectStore(STORE_AUDIO_PROGRESS).getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+type AudioProgressWriteState = {
+  pending?: AudioProgressRecord;
+  writing: boolean;
+  resolvers: Array<() => void>;
+  rejecters: Array<(error: Error) => void>;
+};
+const audioProgressWriteStates = new Map<string, AudioProgressWriteState>();
+
+async function writeLatestAudioProgress(articleId: string, state: AudioProgressWriteState): Promise<void> {
+  const candidate = state.pending;
+  state.pending = undefined;
+  if (!candidate) return;
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_AUDIO_PROGRESS, "readwrite");
+      const store = tx.objectStore(STORE_AUDIO_PROGRESS);
+      const request = store.get(articleId);
+      request.onsuccess = () => {
+        const existing = request.result as AudioProgressRecord | undefined;
+        const selected = chooseNewerAudioProgress(existing, candidate);
+        if (selected !== existing) store.put(selected);
+      };
+      request.onerror = () => tx.abort();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("Failed to save audio progress"));
+      tx.onabort = () => reject(tx.error || new Error("Failed to save audio progress"));
+    });
+    if (state.pending) {
+      await writeLatestAudioProgress(articleId, state);
+      return;
+    }
+    state.resolvers.splice(0).forEach((resolve) => resolve());
+    state.rejecters.length = 0;
+    audioProgressWriteStates.delete(articleId);
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error("Failed to save audio progress");
+    state.rejecters.splice(0).forEach((reject) => reject(failure));
+    state.resolvers.length = 0;
+    audioProgressWriteStates.delete(articleId);
+  }
+}
+
+/**
+ * Coalesces concurrent updates for one article. At most one IndexedDB write is
+ * active per article; a newer position queued while it runs is written next.
+ */
+export function saveAudioProgressToDB(progress: AudioProgressRecord): Promise<void> {
+  let state = audioProgressWriteStates.get(progress.articleId);
+  if (!state) {
+    state = { writing: false, resolvers: [], rejecters: [] };
+    audioProgressWriteStates.set(progress.articleId, state);
+  }
+  state.pending = !state.pending || progress.updatedAt >= state.pending.updatedAt ? progress : state.pending;
+  return new Promise((resolve, reject) => {
+    state!.resolvers.push(resolve);
+    state!.rejecters.push(reject);
+    if (!state!.writing) {
+      state!.writing = true;
+      void writeLatestAudioProgress(progress.articleId, state!);
+    }
+  });
 }
 
 export interface TranscriptionSettings { provider: "aliyun"; apiKey: string; language: string; diarization: boolean; contextEnhancement: boolean; }
@@ -283,6 +449,8 @@ interface DataBackupPayload {
   articles: Article[];
   notes: ArticleNote[];
   appState: PersistedAppState | null;
+  /** Optional so version-1 backups written before audioProgress existed restore unchanged. */
+  audioProgress?: AudioProgressRecord[];
 }
 
 export interface WReaderBackup {
@@ -302,13 +470,14 @@ function checksum(value: string): string {
 }
 
 export async function createDataBackup(): Promise<WReaderBackup> {
-  const [feeds, articles, notes, appState] = await Promise.all([
+  const [feeds, articles, notes, appState, audioProgress] = await Promise.all([
     getFeedsFromDB(),
     getAllArticlesFromDB(),
     getAllArticleNotesFromDB(),
     getAppStateFromDB(),
+    getAllAudioProgressFromDB(),
   ]);
-  const data = { feeds, articles, notes, appState };
+  const data = { feeds, articles, notes, appState, audioProgress };
   return {
     version: 1,
     createdAt: new Date().toISOString(),
@@ -323,24 +492,39 @@ export async function restoreDataBackup(raw: string): Promise<{ feeds: Feed[]; a
   const serialized = JSON.stringify(backup.data);
   if (checksum(serialized) !== backup.checksum) throw new Error("备份校验失败，文件可能已损坏");
   const data = backup.data as DataBackupPayload;
-  if (!Array.isArray(data.feeds) || !Array.isArray(data.articles) || !Array.isArray(data.notes)) throw new Error("备份内容不完整");
+  if (!Array.isArray(data.feeds) || !Array.isArray(data.articles) || !Array.isArray(data.notes) || (data.audioProgress !== undefined && !Array.isArray(data.audioProgress))) throw new Error("备份内容不完整");
   const currentAppState = await getAppStateFromDB();
   const normalizeEndpoint = (value?: string) => (value || "").trim().replace(/\/+$/, "");
   const currentEndpoint = normalizeEndpoint(currentAppState?.aiConfig?.baseURL);
   const restoredEndpoint = normalizeEndpoint(data.appState?.aiConfig?.baseURL);
   const canReuseCurrentAiSecret = Boolean(currentEndpoint && restoredEndpoint && currentEndpoint === restoredEndpoint);
+  const legacyAudioProgress = Object.entries(data.appState?.audioProgressMap || {})
+    .filter(([, progress]) => isAudioProgress(progress))
+    .map(([articleId, progress]) => ({ articleId, ...progress }));
+  const restoredAudioProgressByArticle = new Map<string, AudioProgressRecord>();
+  legacyAudioProgress.forEach((progress) => restoredAudioProgressByArticle.set(progress.articleId, progress));
+  (data.audioProgress || []).forEach((progress) => {
+    if (typeof progress.articleId !== "string" || !isAudioProgress(progress)) return;
+    const existing = restoredAudioProgressByArticle.get(progress.articleId);
+    // The dedicated backup record is authoritative for equal timestamps.
+    if (!existing || progress.updatedAt >= existing.updatedAt) restoredAudioProgressByArticle.set(progress.articleId, progress);
+  });
+  const restoredAudioProgress = Array.from(restoredAudioProgressByArticle.values());
+  const { audioProgressMap: _legacyAudioProgress, ...restoredAppState } = data.appState || {};
   const db = await getDB();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS, STORE_SECRETS], "readwrite");
+    const tx = db.transaction([STORE_FEEDS, STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS, STORE_SECRETS, STORE_AUDIO_PROGRESS], "readwrite");
     tx.objectStore(STORE_FEEDS).clear();
     tx.objectStore(STORE_ARTICLES).clear();
     tx.objectStore(STORE_NOTES).clear();
     tx.objectStore(STORE_SETTINGS).clear();
+    tx.objectStore(STORE_AUDIO_PROGRESS).clear();
     if (!canReuseCurrentAiSecret) tx.objectStore(STORE_SECRETS).delete("ai");
     data.feeds.forEach((feed) => tx.objectStore(STORE_FEEDS).put(feed));
     data.articles.forEach((article) => tx.objectStore(STORE_ARTICLES).put(article));
     data.notes.forEach((note) => tx.objectStore(STORE_NOTES).put(note));
-    if (data.appState) tx.objectStore(STORE_SETTINGS).put({ key: "app", value: data.appState });
+    restoredAudioProgress.forEach((progress) => tx.objectStore(STORE_AUDIO_PROGRESS).put(progress));
+    if (data.appState) tx.objectStore(STORE_SETTINGS).put({ key: "app", value: restoredAppState });
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error || new Error("备份恢复失败"));
@@ -552,7 +736,7 @@ export async function replaceArticlesForFeedsAndMigrateReferencesInDB(
   feedIds: Iterable<string>,
   articles: Article[],
   articleIdMap: Map<string, string>,
-  appStatePatch?: Pick<PersistedAppState, "playlistIds" | "audioProgressMap">
+  appStatePatch?: Pick<PersistedAppState, "playlistIds">
 ): Promise<void> {
   const ids = Array.from(new Set(feedIds));
   if (ids.length === 0) return;
@@ -560,11 +744,12 @@ export async function replaceArticlesForFeedsAndMigrateReferencesInDB(
   const db = await getDB();
   return new Promise((resolve, reject) => {
     const stores = appStatePatch
-      ? [STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS]
-      : [STORE_ARTICLES, STORE_NOTES];
+      ? [STORE_ARTICLES, STORE_NOTES, STORE_SETTINGS, STORE_AUDIO_PROGRESS]
+      : [STORE_ARTICLES, STORE_NOTES, STORE_AUDIO_PROGRESS];
     const tx = db.transaction(stores, "readwrite");
     const articleStore = tx.objectStore(STORE_ARTICLES);
     const noteStore = tx.objectStore(STORE_NOTES);
+    const audioProgressStore = tx.objectStore(STORE_AUDIO_PROGRESS);
     const index = articleStore.index("feedId");
     const keysToDelete: IDBValidKey[] = [];
     let pendingKeyRequests = ids.length;
@@ -594,6 +779,24 @@ export async function replaceArticlesForFeedsAndMigrateReferencesInDB(
           cursor.continue();
         };
         cursorRequest.onerror = () => abort(cursorRequest.error || new Error("Failed to read article notes"));
+
+        const progressRequest = audioProgressStore.getAll();
+        progressRequest.onsuccess = () => {
+          (progressRequest.result as AudioProgressRecord[]).forEach((oldProgress) => {
+            const articleId = articleIdMap.get(oldProgress.articleId);
+            if (!articleId || articleId === oldProgress.articleId) return;
+            const existingRequest = audioProgressStore.get(articleId);
+            existingRequest.onsuccess = () => {
+              const existing = existingRequest.result as AudioProgressRecord | undefined;
+              const candidate = { ...oldProgress, articleId };
+              const selected = chooseNewerAudioProgress(existing, candidate);
+              if (selected !== existing) audioProgressStore.put(selected);
+              audioProgressStore.delete(oldProgress.articleId);
+            };
+            existingRequest.onerror = () => abort(existingRequest.error || new Error("Failed to migrate audio progress references"));
+          });
+        };
+        progressRequest.onerror = () => abort(progressRequest.error || new Error("Failed to read audio progress references"));
       }
 
       if (appStatePatch) {

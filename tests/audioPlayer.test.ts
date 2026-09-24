@@ -46,14 +46,76 @@ describe("audio player helpers", () => {
     Object.defineProperty(audio, "duration", { configurable: true, value: 180 });
     audio.currentTime = 31;
     await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
-    expect(onProgress).toHaveBeenLastCalledWith("two", 31, 180);
     await act(async () => audio.dispatchEvent(new Event("ended", { bubbles: true })));
+    expect(onProgress).toHaveBeenLastCalledWith("two", 31, 180);
     expect(onEnded).toHaveBeenCalledWith("two");
+    act(() => root.unmount());
+  });
+
+  it("coalesces normal progress and flushes the latest position for lifecycle events", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(0));
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    const onProgress = vi.fn();
+    let player: SharedAudioPlayer | undefined;
+    function Harness() {
+      player = useSharedAudioPlayer(onProgress);
+      return React.createElement("audio", {
+        ref: player.audioRef,
+        onTimeUpdate: player.handleTimeUpdate,
+        onPause: player.handlePause,
+        onEnded: player.handleEnded,
+      });
+    }
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(Harness)));
+    await act(async () => player?.loadArticle("one", "/one.mp3"));
+    const audio = container.querySelector("audio") as HTMLAudioElement;
+    Object.defineProperty(audio, "duration", { configurable: true, value: 180 });
+
+    for (const currentTime of [1, 5, 10, 15]) {
+      audio.currentTime = currentTime;
+      await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+      await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    }
+    expect(onProgress).toHaveBeenCalledTimes(0);
+    audio.currentTime = 20;
+    await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+    expect(onProgress).toHaveBeenLastCalledWith("one", 20, 180);
+
+    audio.currentTime = 21;
+    await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+    await act(async () => audio.dispatchEvent(new Event("pause", { bubbles: true })));
+    expect(onProgress).toHaveBeenLastCalledWith("one", 21, 180);
+
+    audio.currentTime = 30;
+    await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+    await act(async () => player?.loadArticle("two", "/two.mp3"));
+    expect(onProgress).toHaveBeenLastCalledWith("one", 30, 180);
+
+    audio.currentTime = 7;
+    await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(onProgress).toHaveBeenLastCalledWith("two", 7, 180);
+
+    audio.currentTime = 8;
+    await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    await act(async () => document.dispatchEvent(new Event("visibilitychange")));
+    expect(onProgress).toHaveBeenLastCalledWith("two", 8, 180);
+
+    audio.currentTime = 9;
+    await act(async () => audio.dispatchEvent(new Event("timeupdate", { bubbles: true })));
+    await act(async () => player?.stop());
+    expect(onProgress).toHaveBeenLastCalledWith("two", 9, 180);
     act(() => root.unmount());
   });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
   document.body.innerHTML = "";
 });

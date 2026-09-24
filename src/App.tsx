@@ -74,6 +74,7 @@ import {
   deleteArticleNotesFromDB,
   deleteFeedAndArticlesFromDB,
   getAllArticleNotesFromDB,
+  getAudioProgressMapFromDB,
   getAppStateFromDB,
   createDataBackup,
   restoreDataBackup,
@@ -81,6 +82,7 @@ import {
   saveArticleNoteToDB,
   migrateFeedsAndAppStateFromLocalStorageIfNeeded,
   replaceFeedsInDB,
+  saveAudioProgressToDB,
   saveAppStateToDB,
   updateFeedAndDeleteArticlesFromDB,
 } from "./services/dbService";
@@ -342,13 +344,14 @@ export default function App() {
       feedOrderByFolder,
       playlistIds,
       audioProgressMap,
-    }).then(({ feeds: storedFeeds, state }) => {
+    }).then(async ({ feeds: storedFeeds, state }) => {
+      const storedAudioProgress = await getAudioProgressMapFromDB();
       if (cancelled) return;
       if (storedFeeds.length > 0) setFeeds(storedFeeds);
       if (state.categories) setCategories(state.categories);
       if (state.feedOrderByFolder) setFeedOrderByFolder(normalizeFeedOrder(storedFeeds.length > 0 ? storedFeeds : feeds, state.feedOrderByFolder));
       if (state.playlistIds) setPlaylistIds(state.playlistIds);
-      if (state.audioProgressMap) setAudioProgressMap(state.audioProgressMap);
+      setAudioProgressMap(storedAudioProgress);
       setIsAppStateReady(true);
       ["inoreader_feeds_v2", "wreader_categories_v1", STORAGE_KEY_FEED_ORDER_BY_FOLDER, "wreader_playlist", "wreader_audio_progress"].forEach((key) => localStorage.removeItem(key));
       localStorage.setItem("wreader_idb_migrated_v3", "1");
@@ -373,9 +376,9 @@ export default function App() {
 
   useEffect(() => {
     if (!isAppStateReady) return;
-    void saveAppStateToDB({ categories, feedOrderByFolder, playlistIds, audioProgressMap })
+    void saveAppStateToDB({ categories, feedOrderByFolder, playlistIds })
       .catch((error) => showToast(`本地数据保存失败：${error instanceof Error ? error.message : "请重试"}`));
-  }, [audioProgressMap, categories, feedOrderByFolder, isAppStateReady, playlistIds, showToast]);
+  }, [categories, feedOrderByFolder, isAppStateReady, playlistIds, showToast]);
 
   useEffect(() => {
     saveStoredSortMode(STORAGE_KEY_FEED_SORT_MODE, feedSortMode);
@@ -569,26 +572,18 @@ export default function App() {
 
   const handleUpdateAudioProgress = useCallback(
     (articleId: string, currentTime: number, duration: number) => {
-      setAudioProgressMap((prev) => {
-        const existing = prev[articleId];
-        if (
-          existing &&
-          Math.abs(existing.currentTime - currentTime) < 1 &&
-          existing.duration === duration
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          [articleId]: {
-            currentTime,
-            duration,
-            updatedAt: Date.now(),
-          },
-        };
-      });
+      const existing = audioProgressMapRef.current[articleId];
+      if (existing && Math.abs(existing.currentTime - currentTime) < 1 && existing.duration === duration) return;
+      // Date.now() can repeat for rapid seek/pause events; keep writes totally
+      // ordered so a queued flush always represents the latest position.
+      const progress = { currentTime, duration, updatedAt: Math.max(Date.now(), (existing?.updatedAt || 0) + 1) };
+      const nextProgressMap = { ...audioProgressMapRef.current, [articleId]: progress };
+      audioProgressMapRef.current = nextProgressMap;
+      setAudioProgressMap(nextProgressMap);
+      void saveAudioProgressToDB({ articleId, ...progress })
+        .catch((error) => showToast(`播放进度保存失败：${error instanceof Error ? error.message : "请重试"}`));
     },
-    []
+    [showToast]
   );
 
   const audioPlayer = useSharedAudioPlayer(handleUpdateAudioProgress, handleAudioEnded);
@@ -960,7 +955,7 @@ export default function App() {
             refreshedFeedIds,
             merged.articles.filter((article) => refreshedFeedIds.has(article.feedId)),
             merged.articleIdMap,
-            { playlistIds: nextPlaylistIds, audioProgressMap: nextAudioProgressMap }
+            { playlistIds: nextPlaylistIds }
           );
         } catch (error) {
           const message = error instanceof Error ? error.message : "本地保存失败";
@@ -1027,7 +1022,7 @@ export default function App() {
         new Set([feed.id]),
         merged.articles.filter((item) => item.feedId === feed.id),
         merged.articleIdMap,
-        { playlistIds: nextPlaylistIds, audioProgressMap: nextAudioProgressMap }
+        { playlistIds: nextPlaylistIds }
       );
       articlesRef.current = merged.articles;
       setArticles(merged.articles);
@@ -1530,14 +1525,14 @@ export default function App() {
   const handleImportBackup = useCallback(async (file: File) => {
     try {
       const result = await restoreDataBackup(await file.text());
-      const state = await getAppStateFromDB();
+      const [state, storedAudioProgress] = await Promise.all([getAppStateFromDB(), getAudioProgressMapFromDB()]);
       setFeeds(result.feeds);
       setArticles(result.articles);
       setArticleNotes(result.notes);
       if (state?.categories) setCategories(state.categories);
       if (state?.feedOrderByFolder) setFeedOrderByFolder(state.feedOrderByFolder);
       if (state?.playlistIds) setPlaylistIds(state.playlistIds);
-      if (state?.audioProgressMap) setAudioProgressMap(state.audioProgressMap);
+      setAudioProgressMap(storedAudioProgress);
       showToast(`已恢复备份：${result.feeds.length} 个订阅源、${result.articles.length} 篇文章`);
     } catch (error) {
       showToast(`备份恢复失败：${error instanceof Error ? error.message : "文件无效"}`);
