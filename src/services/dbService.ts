@@ -204,15 +204,31 @@ async function writeLatestAudioProgress(articleId: string, state: AudioProgressW
   try {
     const db = await getDB();
     const targetArticleId = resolveAudioProgressArticleId(candidate.articleId);
-    const targetCandidate = targetArticleId === candidate.articleId ? candidate : { ...candidate, articleId: targetArticleId };
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(STORE_AUDIO_PROGRESS, "readwrite");
       const store = tx.objectStore(STORE_AUDIO_PROGRESS);
       const request = store.get(targetArticleId);
       request.onsuccess = () => {
-        const existing = request.result as AudioProgressRecord | undefined;
-        const selected = chooseNewerAudioProgress(existing, targetCandidate);
-        if (selected !== existing) store.put(selected);
+        const capturedProgress = request.result as AudioProgressRecord | undefined;
+        const finalArticleId = resolveAudioProgressArticleId(candidate.articleId);
+        const finalCandidate = finalArticleId === candidate.articleId ? candidate : { ...candidate, articleId: finalArticleId };
+        const writeProgress = (existing: AudioProgressRecord | undefined) => {
+          let selected = chooseNewerAudioProgress(existing, finalCandidate);
+          if (finalArticleId !== targetArticleId && capturedProgress) {
+            selected = chooseNewerAudioProgress(selected, { ...capturedProgress, articleId: finalArticleId });
+          }
+          if (selected !== existing) store.put(selected);
+          // The transaction may have been queued before a refresh installed
+          // its redirect. Remove its captured legacy key in that same write.
+          if (finalArticleId !== targetArticleId) store.delete(targetArticleId);
+        };
+        if (finalArticleId === targetArticleId) {
+          writeProgress(capturedProgress);
+          return;
+        }
+        const finalRequest = store.get(finalArticleId);
+        finalRequest.onsuccess = () => writeProgress(finalRequest.result as AudioProgressRecord | undefined);
+        finalRequest.onerror = () => tx.abort();
       };
       request.onerror = () => tx.abort();
       tx.oncomplete = () => resolve();

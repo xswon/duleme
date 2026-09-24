@@ -21,6 +21,7 @@ import {
   replaceArticlesForFeedsInDB,
   replaceArticlesForFeedsAndMigrateReferencesInDB,
   replaceFeedsInDB,
+  redirectAudioProgressWrites,
   restoreDataBackup,
   saveAudioProgressToDB,
   saveAppStateToDB,
@@ -143,6 +144,28 @@ describe("article IndexedDB persistence", () => {
     expect(puts.mock.calls.filter(([value]) => (value as { articleId?: string }).articleId === "episode").length).toBeLessThan(5);
     await expect(getAudioProgressMapFromDB()).resolves.toEqual({
       episode: { currentTime: 5, duration: 600, updatedAt: 5 },
+    });
+  });
+
+  it("re-resolves a redirect when an old-ID progress transaction was queued behind refresh", async () => {
+    await saveAudioProgressToDB({ articleId: "race-old", currentTime: 100, duration: 600, updatedAt: 1 });
+    const db = await getDB();
+    const refreshTx = db.transaction("audioProgress", "readwrite");
+    const refreshStore = refreshTx.objectStore("audioProgress");
+    refreshStore.put({ articleId: "race-canonical", currentTime: 100, duration: 600, updatedAt: 1 });
+    refreshStore.delete("race-old");
+    const queuedWrite = saveAudioProgressToDB({ articleId: "race-old", currentTime: 200, duration: 600, updatedAt: 2 });
+    const refreshComplete = new Promise<void>((resolve, reject) => {
+      refreshTx.oncomplete = () => {
+        redirectAudioProgressWrites(new Map([["race-old", "race-canonical"]]));
+        resolve();
+      };
+      refreshTx.onerror = refreshTx.onabort = () => reject(refreshTx.error || new Error("refresh transaction failed"));
+    });
+
+    await Promise.all([refreshComplete, queuedWrite]);
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      "race-canonical": { currentTime: 200, duration: 600, updatedAt: 2 },
     });
   });
 
