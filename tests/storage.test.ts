@@ -24,6 +24,7 @@ import {
   saveArticleNoteToDB,
   updateArticleInDB,
   updateArticlesInDB,
+  updateFeedAndDeleteArticlesFromDB,
 } from "../src/services/dbService";
 import {
   mergeFetchedFeedArticles,
@@ -315,6 +316,39 @@ describe("article IndexedDB persistence", () => {
       await expect(getAllArticlesFromDB()).resolves.toEqual([storedArticle]);
     } finally {
       remove.mockRestore();
+    }
+  });
+
+  it("updates a feed and removes its old articles in one transaction", async () => {
+    const original = { id: "feed-1", title: "Old", feedUrl: "https://example.com/old", siteUrl: "https://example.com", category: "未分类", unreadCount: 1 };
+    const updated = { ...original, title: "Updated", feedUrl: "https://example.com/new" };
+    await replaceFeedsInDB([original]);
+    await saveArticlesToDB([article("old-article")]);
+
+    await updateFeedAndDeleteArticlesFromDB(updated);
+
+    await expect(getFeedsFromDB()).resolves.toEqual([updated]);
+    await expect(getAllArticlesFromDB()).resolves.toEqual([]);
+  });
+
+  it("rolls back a feed URL update when its transaction aborts", async () => {
+    const original = { id: "feed-1", title: "Old", feedUrl: "https://example.com/old", siteUrl: "https://example.com", category: "未分类", unreadCount: 1 };
+    const updated = { ...original, feedUrl: "https://example.com/new" };
+    const storedArticle = article("old-article");
+    await replaceFeedsInDB([original]);
+    await saveArticlesToDB([storedArticle]);
+    const originalPut = IDBObjectStore.prototype.put;
+    const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value: unknown) {
+      if (this.name === "feeds") throw new Error("simulated feed update abort");
+      return originalPut.call(this, value);
+    });
+
+    try {
+      await expect(updateFeedAndDeleteArticlesFromDB(updated)).rejects.toThrow("simulated feed update abort");
+      await expect(getFeedsFromDB()).resolves.toEqual([original]);
+      await expect(getAllArticlesFromDB()).resolves.toEqual([storedArticle]);
+    } finally {
+      put.mockRestore();
     }
   });
 
