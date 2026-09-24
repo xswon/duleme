@@ -242,6 +242,32 @@ export function saveAudioProgressToDB(progress: AudioProgressRecord): Promise<vo
   });
 }
 
+async function migrateAudioProgressRecordsToDB(records: AudioProgressRecord[]): Promise<void> {
+  const validRecords = records.filter((record) => typeof record.articleId === "string" && isAudioProgress(record));
+  if (validRecords.length === 0) return;
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_AUDIO_PROGRESS, "readwrite");
+    const store = tx.objectStore(STORE_AUDIO_PROGRESS);
+    validRecords.forEach((candidate) => {
+      const request = store.get(candidate.articleId);
+      request.onsuccess = () => {
+        try {
+          const existing = request.result as AudioProgressRecord | undefined;
+          const selected = chooseNewerAudioProgress(existing, candidate);
+          if (selected !== existing) store.put(selected);
+        } catch {
+          tx.abort();
+        }
+      };
+      request.onerror = () => tx.abort();
+    });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("Failed to migrate audio progress"));
+    tx.onabort = () => reject(tx.error || new Error("Failed to migrate audio progress"));
+  });
+}
+
 export interface TranscriptionSettings { provider: "aliyun"; apiKey: string; language: string; diarization: boolean; contextEnhancement: boolean; }
 const TRANSCRIPTION_SETTINGS_KEY = "transcription";
 export async function getTranscriptionSettings(): Promise<TranscriptionSettings | null> {
@@ -429,19 +455,31 @@ export async function migrateFeedsAndAppStateFromLocalStorageIfNeeded(
   legacyFeeds: Feed[],
   legacyState: PersistedAppState,
 ): Promise<{ feeds: Feed[]; state: PersistedAppState }> {
-  const existingFeeds = await getFeedsFromDB();
-  const existingState = await getAppStateFromDB();
-  if (existingFeeds.length > 0 || existingState) {
-    return { feeds: existingFeeds, state: existingState || legacyState };
+  let storedFeeds = await getFeedsFromDB();
+  let storedState = await getAppStateFromDB();
+  const { audioProgressMap: legacyAudioProgressMap, ...legacySettings } = legacyState;
+
+  // Migrate each legacy area independently. A retry can therefore finish
+  // progress migration after a previous run wrote feeds but failed on settings.
+  if (storedFeeds.length === 0) {
+    await replaceFeedsInDB(legacyFeeds);
+    storedFeeds = await getFeedsFromDB();
+    if (storedFeeds.length !== legacyFeeds.length) {
+      throw new Error("IndexedDB subscription migration verification failed");
+    }
   }
-  await replaceFeedsInDB(legacyFeeds);
-  await saveAppStateToDB(legacyState);
-  const verifiedFeeds = await getFeedsFromDB();
-  const verifiedState = await getAppStateFromDB();
-  if (verifiedFeeds.length !== legacyFeeds.length || !verifiedState) {
-    throw new Error("IndexedDB subscription migration verification failed");
+  // Never merge old localStorage settings over an existing IndexedDB record.
+  if (!storedState) {
+    await saveAppStateToDB(legacySettings);
+    storedState = await getAppStateFromDB();
+    if (!storedState) throw new Error("IndexedDB app-state migration verification failed");
   }
-  return { feeds: verifiedFeeds, state: verifiedState };
+  await migrateAudioProgressRecordsToDB(
+    Object.entries(legacyAudioProgressMap || {})
+      .filter(([, progress]) => isAudioProgress(progress))
+      .map(([articleId, progress]) => ({ articleId, ...progress })),
+  );
+  return { feeds: storedFeeds, state: storedState };
 }
 
 interface DataBackupPayload {
@@ -782,16 +820,40 @@ export async function replaceArticlesForFeedsAndMigrateReferencesInDB(
 
         const progressRequest = audioProgressStore.getAll();
         progressRequest.onsuccess = () => {
-          (progressRequest.result as AudioProgressRecord[]).forEach((oldProgress) => {
-            const articleId = articleIdMap.get(oldProgress.articleId);
-            if (!articleId || articleId === oldProgress.articleId) return;
-            const existingRequest = audioProgressStore.get(articleId);
+          const migrationByTarget = new Map<string, { candidate: AudioProgressRecord; sourceIds: string[] }>();
+          (progressRequest.result as AudioProgressRecord[])
+            .slice()
+            .sort((left, right) => left.articleId.localeCompare(right.articleId))
+            .forEach((oldProgress) => {
+              const targetId = articleIdMap.get(oldProgress.articleId);
+              if (!targetId || targetId === oldProgress.articleId) return;
+              const existing = migrationByTarget.get(targetId);
+              const candidate = { ...oldProgress, articleId: targetId };
+              if (!existing) {
+                migrationByTarget.set(targetId, { candidate, sourceIds: [oldProgress.articleId] });
+                return;
+              }
+              existing.sourceIds.push(oldProgress.articleId);
+              if (candidate.updatedAt > existing.candidate.updatedAt) existing.candidate = candidate;
+            });
+
+          migrationByTarget.forEach(({ candidate, sourceIds }, targetId) => {
+            const existingRequest = audioProgressStore.get(targetId);
             existingRequest.onsuccess = () => {
-              const existing = existingRequest.result as AudioProgressRecord | undefined;
-              const candidate = { ...oldProgress, articleId };
-              const selected = chooseNewerAudioProgress(existing, candidate);
-              if (selected !== existing) audioProgressStore.put(selected);
-              audioProgressStore.delete(oldProgress.articleId);
+              try {
+                const existing = existingRequest.result as AudioProgressRecord | undefined;
+                const selected = chooseNewerAudioProgress(existing, candidate);
+                if (selected !== existing) {
+                  const putRequest = audioProgressStore.put(selected);
+                  putRequest.onerror = () => abort(putRequest.error || new Error("Failed to migrate audio progress references"));
+                }
+                sourceIds.forEach((sourceId) => {
+                  const deleteRequest = audioProgressStore.delete(sourceId);
+                  deleteRequest.onerror = () => abort(deleteRequest.error || new Error("Failed to remove migrated audio progress"));
+                });
+              } catch (error) {
+                abort(error instanceof Error ? error : new Error("Failed to migrate audio progress references"));
+              }
             };
             existingRequest.onerror = () => abort(existingRequest.error || new Error("Failed to migrate audio progress references"));
           });

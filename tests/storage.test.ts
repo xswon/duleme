@@ -16,6 +16,7 @@ import {
   getDB,
   getSecretFromDB,
   migrateArticleNoteIdsInDB,
+  migrateFeedsAndAppStateFromLocalStorageIfNeeded,
   migrateFromLocalStorageIfNeeded,
   replaceArticlesForFeedsInDB,
   replaceArticlesForFeedsAndMigrateReferencesInDB,
@@ -142,6 +143,43 @@ describe("article IndexedDB persistence", () => {
     expect(puts.mock.calls.filter(([value]) => (value as { articleId?: string }).articleId === "episode").length).toBeLessThan(5);
     await expect(getAudioProgressMapFromDB()).resolves.toEqual({
       episode: { currentTime: 5, duration: 600, updatedAt: 5 },
+    });
+  });
+
+  it("resumes a partial localStorage migration when feeds already exist", async () => {
+    const legacyFeed = {
+      id: "feed-1", title: "Feed", feedUrl: "https://example.com/feed.xml", siteUrl: "https://example.com",
+      category: "legacy", unreadCount: 0,
+    };
+    await replaceFeedsInDB([legacyFeed]);
+
+    await migrateFeedsAndAppStateFromLocalStorageIfNeeded([legacyFeed], {
+      categories: ["legacy"],
+      audioProgressMap: { episode: { currentTime: 120, duration: 600, updatedAt: 20 } },
+    });
+
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      episode: { currentTime: 120, duration: 600, updatedAt: 20 },
+    });
+  });
+
+  it("does not overwrite current settings or newer progress while resuming migration", async () => {
+    const legacyFeed = {
+      id: "feed-1", title: "Feed", feedUrl: "https://example.com/feed.xml", siteUrl: "https://example.com",
+      category: "current", unreadCount: 0,
+    };
+    await replaceFeedsInDB([legacyFeed]);
+    await saveAppStateToDB({ categories: ["current"] });
+    await saveAudioProgressToDB({ articleId: "episode", currentTime: 300, duration: 600, updatedAt: 30 });
+
+    await migrateFeedsAndAppStateFromLocalStorageIfNeeded([legacyFeed], {
+      categories: ["stale"],
+      audioProgressMap: { episode: { currentTime: 120, duration: 600, updatedAt: 20 } },
+    });
+
+    await expect(getAppStateFromDB()).resolves.toMatchObject({ categories: ["current"] });
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      episode: { currentTime: 300, duration: 600, updatedAt: 30 },
     });
   });
   it("removes the obsolete Taixian demo article from existing storage", async () => {
@@ -490,6 +528,66 @@ describe("article IndexedDB persistence", () => {
     await expect(createDataBackup()).resolves.toMatchObject({
       data: { appState: { playlistIds: ["canonical"] }, audioProgress: [] },
     });
+  });
+
+  it("migrates multiple old audio-progress records to one canonical article by newest updatedAt", async () => {
+    await saveArticlesToDB([article("old-a"), article("old-b"), article("old-c")]);
+    await Promise.all([
+      saveAudioProgressToDB({ articleId: "old-a", currentTime: 100, duration: 600, updatedAt: 100 }),
+      saveAudioProgressToDB({ articleId: "old-b", currentTime: 200, duration: 600, updatedAt: 200 }),
+      saveAudioProgressToDB({ articleId: "old-c", currentTime: 150, duration: 600, updatedAt: 150 }),
+    ]);
+
+    await replaceArticlesForFeedsAndMigrateReferencesInDB(
+      ["feed-1"],
+      [article("canonical")],
+      new Map([["old-a", "canonical"], ["old-b", "canonical"], ["old-c", "canonical"]]),
+    );
+
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      canonical: { currentTime: 200, duration: 600, updatedAt: 200 },
+    });
+  });
+
+  it("keeps a newer canonical audio-progress record during article-id migration", async () => {
+    await saveArticlesToDB([article("old")]);
+    await Promise.all([
+      saveAudioProgressToDB({ articleId: "old", currentTime: 200, duration: 600, updatedAt: 200 }),
+      saveAudioProgressToDB({ articleId: "canonical", currentTime: 300, duration: 600, updatedAt: 300 }),
+    ]);
+
+    await replaceArticlesForFeedsAndMigrateReferencesInDB(
+      ["feed-1"],
+      [article("canonical")],
+      new Map([["old", "canonical"]]),
+    );
+
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      canonical: { currentTime: 300, duration: 600, updatedAt: 300 },
+    });
+  });
+
+  it("rolls back article and audio-progress migration together when writing canonical progress fails", async () => {
+    const old = article("old");
+    await saveArticlesToDB([old]);
+    await saveAudioProgressToDB({ articleId: "old", currentTime: 200, duration: 600, updatedAt: 200 });
+    const originalPut = IDBObjectStore.prototype.put;
+    const put = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value: unknown) {
+      if ((value as { articleId?: string }).articleId === "canonical") throw new Error("simulated progress migration failure");
+      return originalPut.call(this, value);
+    });
+
+    await expect(replaceArticlesForFeedsAndMigrateReferencesInDB(
+      ["feed-1"],
+      [article("canonical")],
+      new Map([["old", "canonical"]]),
+    )).rejects.toThrow("simulated progress migration failure");
+
+    await expect(getAllArticlesFromDB()).resolves.toEqual([old]);
+    await expect(getAudioProgressMapFromDB()).resolves.toEqual({
+      old: { currentTime: 200, duration: 600, updatedAt: 200 },
+    });
+    put.mockRestore();
   });
 
   it("keeps legacy data when the IndexedDB migration write fails", async () => {
