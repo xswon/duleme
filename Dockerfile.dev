@@ -17,4 +17,4 @@ ENV DOCKER=true
 
 EXPOSE 4387 4388
 
-CMD ["npm", "run", "dev"]
+CMD ["sh", "./scripts/docker-dev-entrypoint.sh"]
