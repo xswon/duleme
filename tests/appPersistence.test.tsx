@@ -198,6 +198,28 @@ afterEach(() => {
 });
 
 describe("App persistence rollback", () => {
+  it("composes bootstrap, article mutation, navigation and refresh without losing local state", async () => {
+    await replaceFeedsInDB([feed]);
+    await saveArticlesToDB([article("a")]);
+    rss.fetchRssFeed.mockRejectedValueOnce(new Error("initial refresh failure"));
+    const refreshed = article("a", { snippet: "refreshed" });
+
+    const { container, root } = await renderApp();
+    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:unread:plain");
+    await waitFor(() => container.textContent?.includes("1 个订阅源同步失败") === true);
+    await act(async () => click(container, "select-a"));
+    expect(window.location.search).toContain("article=a");
+    await act(async () => click(container, "test-toggle-read"));
+    await waitFor(() => rss.updateArticle.mock.calls.length === 1);
+
+    rss.fetchRssFeed.mockResolvedValueOnce(remoteFeed(refreshed));
+    await act(async () => click(container, "test-refresh"));
+    await waitFor(() => rss.replaceRefreshSnapshot.mock.calls.length === 1);
+    expect(container.querySelector('[data-testid="detail"]')?.textContent).toContain("a");
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")).toBe("a:read:plain");
+    await act(async () => root.unmount());
+  });
+
   it("does not rebuild a full article-ID Set during audio progress renders", async () => {
     const storedArticles = Array.from({ length: 500 }, (_, index) => article(`perf-${index}`));
     await replaceFeedsInDB([feed]);
