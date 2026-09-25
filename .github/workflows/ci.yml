@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, integration/latest-ui-ai]
+    branches: ["**"]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
@@ -25,8 +25,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Typecheck
+        run: npm run typecheck
+      - name: ESLint
         run: npm run lint
-      - name: Test
-        run: npm test
+      - name: Test and coverage
+        run: npm run test:coverage
       - name: Build
         run: npm run build
+      - name: Bundle budget
+        run: npm run check:bundle
+      - name: Architecture boundaries
+        run: npm run check:architecture

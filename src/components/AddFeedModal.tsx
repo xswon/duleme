@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Existing feed-service rejection values have no typed error contract. */
 import {
   X,
   Plus,

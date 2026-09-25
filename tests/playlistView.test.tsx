@@ -104,8 +104,8 @@ describe("PlaylistView", () => {
       setData: vi.fn(),
       getData: vi.fn(() => "one"),
     };
-    act(() => rows[0].dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer })));
-    act(() => rows[2].dispatchEvent(Object.assign(new Event("drop", { bubbles: true }), { dataTransfer })));
+    void act(() => rows[0].dispatchEvent(Object.assign(new Event("dragstart", { bubbles: true }), { dataTransfer })));
+    void act(() => rows[2].dispatchEvent(Object.assign(new Event("drop", { bubbles: true }), { dataTransfer })));
     expect(onReorder).toHaveBeenCalledWith(["two", "three", "one"]);
     act(() => root.unmount());
   });

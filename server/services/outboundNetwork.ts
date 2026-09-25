@@ -1,9 +1,10 @@
 import { lookup } from "node:dns/promises";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Node and Undici transport errors are narrowed by existing runtime branches. */
 import { isIP } from "node:net";
 import { Agent, fetch as undiciFetch, type Dispatcher } from "undici";
 
 export const DEFAULT_OUTBOUND_MAX_BYTES = 15 * 1024 * 1024;
-export const DEFAULT_OUTBOUND_TIMEOUT_MS = 15_000;
+export const DEFAULT_OUTBOUND_TIMEOUT_MS = 30_000;
 
 type AddressPolicy =
   | { kind: "public" }

@@ -1,4 +1,5 @@
 import fs from "fs";
+/* eslint-disable @typescript-eslint/no-explicit-any -- NextEcho is an untyped external payload boundary scheduled for dedicated schema hardening. */
 import path from "path";
 import { spawn } from "child_process";
 import { fetchDockerHostHttp, fetchLoopbackHttp } from "./outboundNetwork";

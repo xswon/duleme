@@ -1,4 +1,5 @@
 import { Router } from "express";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Legacy RSS route error adapter preserves its existing response shape. */
 import { fetchSafeExternal, isSafeExternalUrl, MAX_PROXY_BYTES, readResponseBodyLimited } from "../services/proxyService";
 import { parseFeedXml } from "../services/rssParser";
 

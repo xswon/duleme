@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test fixtures intentionally model untyped provider JSON. */
 import { AliyunTranscriptionProvider, TranscriptionError, validatePublicAudioUrl } from "../server/services/transcriptionProvider";
 import { outboundTransport } from "../server/services/outboundNetwork";
 describe("cloud transcription provider", () => {

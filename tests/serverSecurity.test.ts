@@ -1,4 +1,5 @@
 // @vitest-environment node
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test DNS and transport doubles intentionally model untyped Node callback values. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 const { lookupMock } = vi.hoisted(() => ({ lookupMock: vi.fn() }));
 vi.mock("node:dns/promises", () => ({

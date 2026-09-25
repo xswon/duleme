@@ -1,4 +1,5 @@
 import { assertSafePublicHttpUrl, fetchPublicHttp } from "./outboundNetwork";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Provider JSON is an untyped external payload boundary scheduled for schema hardening. */
 
 export type TranscriptionErrorCode = "invalid_credentials" | "permission_required" | "quota_exceeded" | "audio_unreachable" | "audio_unsupported" | "provider_unavailable" | "timeout" | "unknown";
 export class TranscriptionError extends Error {

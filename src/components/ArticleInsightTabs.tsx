@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Existing local AI digest payload is externally shaped and will be schema-hardened separately. */
 import {
   ArrowRight,
   AudioLines,
@@ -502,6 +503,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   const renderLocalAiSummary = () => {
     if (!localDigest) return <LoadingContent />;
     const oneSentence = localDigest.one_sentence || localDigest.overview;
+    const oneSentenceText = typeof oneSentence === "string" ? oneSentence : null;
     const sections = [localDigest.content_map, localDigest.distinctions, localDigest.uncovered].filter(Boolean);
     const chapters = Array.isArray(localDigest.chapters) ? localDigest.chapters : [];
     const deepSummaryAvailable = sections.length > 0 || chapters.length > 0;
@@ -509,7 +511,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <section className="audio-highlight-body">
           <div className="reader-content bidclub-overview">
-          {oneSentence && <p>{String(oneSentence)}</p>}
+          {oneSentenceText && <p>{oneSentenceText}</p>}
           {renderList(localDigest.key_insights)}
           {renderList(localDigest.listen_again)}
           </div>

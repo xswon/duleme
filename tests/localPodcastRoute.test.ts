@@ -1,4 +1,4 @@
-import express from "express";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test doubles intentionally model untyped local provider JSON. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const service = vi.hoisted(() => ({ request: vi.fn(), artifact: vi.fn() }));

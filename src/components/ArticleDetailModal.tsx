@@ -352,10 +352,12 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!article?.audioUrl || !autoPlay || autoPlayStartedRef.current === article.id) return;
-    autoPlayStartedRef.current = article.id;
+    const articleId = article?.id;
+    const audioUrl = article?.audioUrl;
+    if (!articleId || !audioUrl || !autoPlay || autoPlayStartedRef.current === articleId) return;
+    autoPlayStartedRef.current = articleId;
     const timer = window.setTimeout(() => {
-      audioPlayer?.playArticle(article.id, article.audioUrl, savedProgress);
+      audioPlayer?.playArticle(articleId, audioUrl, savedProgress);
       onAutoPlayStarted?.();
     }, 0);
     return () => window.clearTimeout(timer);
@@ -430,8 +432,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         setPipelineStage("idle");
       }
       return true;
-    } catch (err: any) {
-      const message = err.message || "AI 总结生成失败，请稍后重试。";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "AI 总结生成失败，请稍后重试。";
       if (activeArticleIdRef.current === articleId) {
         setSummaryError(message);
         if (source === "transcript") {
@@ -466,11 +468,14 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       setPipelineStage("failed");
       setPipelineError(result.error || "逐字稿生成失败，请重试。");
     }
+  // The callback intentionally subscribes to the stable start method, not the controller object.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Replacing the controller object would restart an in-flight pipeline.
   }, [article?.audioUrl, cloudTranscription.start, generateSummary, getTranscriptText]);
 
   useEffect(() => {
     if (!pipelinePendingSummary || !article) return;
-    const status = article.transcription?.status;
+    const transcription = article.transcription;
+    const status = transcription?.status;
     if (status === "processing") {
       setPipelineStage("transcribing");
       return;
@@ -478,11 +483,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (status === "failed") {
       setPipelinePendingSummary(false);
       setPipelineStage("failed");
-      setPipelineError(article.transcription.error || "逐字稿生成失败，请重试。");
+      setPipelineError(transcription?.error || "逐字稿生成失败，请重试。");
       return;
     }
     if (status === "completed") {
-      if (!article.transcription.segments?.length) {
+      if (!transcription?.segments?.length) {
         setPipelinePendingSummary(false);
         setPipelineStage("failed");
         setPipelineError("逐字稿为空，请重新生成后再试。");
@@ -531,6 +536,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (initialDetailTab || initialOpenTarget?.tab || isNewArticle) {
       setDetailTab(initialDetailTab || initialOpenTarget?.tab || resolveArticleDefaultTab(article));
     }
+  // Article identity resets local reader state; using the whole article would reset it on status-only updates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- This effect intentionally captures the article selected at reset time.
   }, [article?.id, initialDetailTab, initialOpenTarget]);
 
   useEffect(() => {
@@ -554,6 +561,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         }
       });
     return () => { cancelled = true; };
+  // Notes reload only when the selected article changes, not when an article field is patched.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- The ID is the persistence key and intentional dependency.
   }, [article?.id]);
 
   // Verified enrichment becomes the default once its real capabilities arrive,
@@ -584,6 +593,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       const timed = container.querySelector(`[data-transcript-start-ms="${target.transcriptStartMs}"]`);
       timed?.scrollIntoView?.({ block: "center", behavior: "smooth" });
     }, 0);
+  // Seeking must follow the selected article, not unrelated article object updates.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Article ID is the intentional target identity.
   }, [article?.id, initialOpenTarget, localPodcast.artifacts, bidclub?.transcriptHtml, seekTo]);
 
   useEffect(() => {
@@ -894,7 +905,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (!notesEnabledForCurrentTab) return;
     const clickedHighlight = event?.target instanceof Element && !!event.target.closest("mark[data-note-id]");
     window.setTimeout(() => {
-      if (detailTab === "notes") return;
       const container = selectableContentRef.current;
       const selection = window.getSelection();
       if (!container || !selection || selection.rangeCount === 0 || selection.isCollapsed) {

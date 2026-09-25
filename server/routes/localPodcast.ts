@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Legacy NextEcho payload adapter preserves the established provider contract. */
 import { NextEchoError, nextEchoRequest, readNextEchoArtifact } from "../services/nextEchoService";
-import { isLoopbackAddress, requireLocalAccess } from "../middleware/localAccess";
+import { requireLocalAccess } from "../middleware/localAccess";
 
 export { isLoopbackAddress } from "../middleware/localAccess";
 export const requireLoopback = requireLocalAccess;

@@ -1,8 +1,9 @@
 import { XMLParser } from "fast-xml-parser";
+/* eslint-disable @typescript-eslint/no-explicit-any -- XML parser output is an untyped external payload boundary scheduled for schema hardening. */
 
 export type ParsedFeed = { title: string; description: string; link: string; feedImage: string; items: Array<Record<string, unknown>> };
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", parseAttributeValue: true, trimValues: true });
-const value = (v: any, fallback = ""): string => typeof v === "string" || typeof v === "number" ? String(v) : v && typeof v === "object" && v["#text"] != null ? String(v["#text"]) : fallback;
+const value = (v: any, fallback = ""): string => typeof v === "string" || typeof v === "number" ? String(v) : v && typeof v === "object" && v["#text"] !== null && v["#text"] !== undefined ? String(v["#text"]) : fallback;
 const decode = (s: string) => (s || "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 const strip = (s: any) => decode(value(s)).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 function imageFromObject(obj: any): string | undefined {

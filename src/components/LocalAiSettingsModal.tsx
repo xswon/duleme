@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Existing settings request rejection values have no typed error contract. */
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Eye, EyeOff, Info, KeyRound, X } from "lucide-react";
 import { clearTranscriptionSettings, getTranscriptionSettings, saveTranscriptionSettings, type TranscriptionSettings } from "../services/dbService";
 import {

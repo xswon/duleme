@@ -46,4 +46,7 @@ async function startServer() {
   app.listen(port, host, () => console.log(`Inoreader server running on http://${host}:${port}`));
 }
 
-startServer();
+void startServer().catch((error: unknown) => {
+  console.error("Unable to start server", error);
+  process.exitCode = 1;
+});

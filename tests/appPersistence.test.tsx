@@ -1,5 +1,6 @@
 import React, { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test doubles intentionally model untyped persistence callbacks. */
+import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article, Feed, RssParseResponse } from "../src/types";
 import {
@@ -225,7 +226,9 @@ describe("App persistence rollback", () => {
     await replaceFeedsInDB([feed]);
     await saveArticlesToDB(storedArticles);
     const { container, root } = await renderApp();
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("perf-499:"));
+    await waitFor(() => {
+      return container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("perf-499:") ?? false;
+    });
 
     const NativeSet = globalThis.Set;
     let fullArticleIdCollections = 0;
@@ -290,7 +293,9 @@ describe("App persistence rollback", () => {
     await saveArticlesToDB([article("a", { starred: true }), article("b", { starred: true })]);
     rss.updateArticles.mockReturnValueOnce(pending.promise);
     const { container, root } = await renderApp();
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:"));
+    await waitFor(() => {
+      return container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:") ?? false;
+    });
     await act(async () => click(container, "test-starred-filter"));
     await act(async () => click(container, "test-mark-all"));
     await act(async () => click(container, "test-newer-star"));
@@ -311,7 +316,9 @@ describe("App persistence rollback", () => {
     await saveArticlesToDB([article("a"), article("b")]);
     rss.updateArticles.mockReturnValueOnce(pending.promise);
     const { container, root } = await renderApp();
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:unread"));
+    await waitFor(() => {
+      return container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:unread") ?? false;
+    });
     await act(async () => click(container, "test-mark-all"));
     await act(async () => click(container, "test-newer-read"));
     await act(async () => click(container, "test-newer-read"));

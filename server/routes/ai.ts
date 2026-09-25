@@ -1,4 +1,5 @@
 import { Router } from "express";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Legacy Express response adapter preserves existing untyped upstream response handling. */
 import {
   AiServiceError,
   getResolvedAiConfig,

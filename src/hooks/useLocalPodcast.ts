@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Existing local-podcast request rejection values have no typed error contract. */
 import type { Article, LocalPodcastArtifacts, LocalPodcastProcessing, LocalTaskStatus } from "../types";
 import { localPodcastApi, type LocalSessionStatus } from "../services/localPodcastService";
 
@@ -73,7 +74,7 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
     if (!task?.sessionId || (task.transcriptionStatus !== "processing" && task.insightStatus !== "processing")) return;
     const timer = window.setInterval(() => void refresh(), 2000);
     return () => window.clearInterval(timer);
-  }, [article?.localPodcast?.sessionId, article?.localPodcast?.transcriptionStatus, article?.localPodcast?.insightStatus, refresh]);
+  }, [article?.localPodcast?.sessionId, article?.localPodcast?.transcriptionStatus, article?.localPodcast?.insightStatus, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- Polling follows task fields without restarting for unrelated article updates.
 
   const startTranscription = useCallback(async () => {
     const current = articleRef.current;

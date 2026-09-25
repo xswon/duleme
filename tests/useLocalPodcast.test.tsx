@@ -1,4 +1,5 @@
 import React, { act, useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test mock rejection values intentionally mirror untyped service boundaries. */
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article } from "../src/types";

@@ -1,7 +1,7 @@
 import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Article, ArticleNote, BidclubEpisode } from "../src/types";
+import type { Article, ArticleNote, BidclubEpisode, DetailTab } from "../src/types";
 import { closeDB, getArticleNotesFromDB, saveArticleNoteToDB } from "../src/services/dbService";
 
 const hookState = vi.hoisted(() => ({
@@ -65,8 +65,8 @@ function renderDetail(
     onScrollPositionChange?: (articleId: string, scrollTop: number) => void;
     onReadingProgressChange?: (articleId: string, progress: number) => void;
     initialOpenTarget?: { tab: "notes" } | { tab: "transcript"; note: ArticleNote };
-    initialDetailTab?: "body" | "overview" | "transcript";
-    onDetailTabChange?: (tab: "body" | "overview" | "transcript") => void;
+    initialDetailTab?: Extract<DetailTab, "body" | "overview" | "transcript">;
+    onDetailTabChange?: (tab: DetailTab | "notes") => void;
     onOpenAiSettings?: () => void;
     onOpenTranscriptionSettings?: () => void;
   } = {},
@@ -586,7 +586,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const rerender = () => renderDetail(root, plainArticle, {
       initialDetailTab,
       onDetailTabChange: (tab) => {
-        initialDetailTab = tab;
+        if (tab === "body" || tab === "overview" || tab === "transcript") initialDetailTab = tab;
         rerender();
       },
     });

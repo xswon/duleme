@@ -1,4 +1,5 @@
 import { Router } from "express";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Legacy transcription route error adapter preserves its existing response shape. */
 import { transcriptionProvider, TranscriptionError, transcriptionErrorMessage } from "../services/transcriptionProvider";
 const respond = (res: any, error: unknown) => { const known = error instanceof TranscriptionError ? error : new TranscriptionError("unknown"); res.status(known.status).json({ code: known.code, message: transcriptionErrorMessage(known.code) }); };
 export function createTranscriptionRouter() { const router = Router();

@@ -1,4 +1,5 @@
 import { marked } from "marked";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Bidclub is an untyped external payload boundary scheduled for dedicated schema hardening. */
 import { fetchSafeExternal, MAX_PROXY_BYTES, readResponseBodyLimited } from "./proxyService";
 
 export function formatTranscript(md: string | null | undefined): string {

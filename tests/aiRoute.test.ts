@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Tests intentionally model untyped Express request and response doubles. */
 
 const service = vi.hoisted(() => ({
   summarize: vi.fn(),

@@ -160,13 +160,14 @@ export function useSharedAudioPlayer(
     if (audioRef.current) audioRef.current.playbackRate = playbackRate;
   }, [playbackRate]);
   useEffect(() => {
+    const audio = audioRef.current;
     const flushWhenHidden = () => flushProgress(true);
     const flushOnVisibilityChange = () => { if (document.visibilityState === "hidden") flushProgress(true); };
     window.addEventListener("pagehide", flushWhenHidden);
     document.addEventListener("visibilitychange", flushOnVisibilityChange);
     return () => {
       flushProgress(true);
-      audioRef.current?.pause();
+      audio?.pause();
       window.removeEventListener("pagehide", flushWhenHidden);
       document.removeEventListener("visibilitychange", flushOnVisibilityChange);
     };

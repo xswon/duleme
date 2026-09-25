@@ -52,6 +52,8 @@ export function useReaderPersistence(options: UseReaderPersistenceOptions) {
         }
       });
     return () => { cancelled = true; };
+  // Migration intentionally uses the boot-time snapshot exactly once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Re-running can overwrite newer IndexedDB state with legacy storage.
   }, []);
 
   useEffect(() => {

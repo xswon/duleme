@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+/* eslint-disable @typescript-eslint/no-explicit-any -- Test fixture mirrors untyped Bidclub provider JSON. */
 import { attachBidclubSelfReferences, matchBidclubItems } from "../src/services/rssService";
 import { resolveArticlePresentation } from "../src/services/articlePresentation";
 import type { Article } from "../src/types";
