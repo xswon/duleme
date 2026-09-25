@@ -18,7 +18,12 @@ export interface BundleSizeResult {
   gzipBytes: number;
 }
 
-export function findLargestJavaScriptBundle(assetsDirectory = defaultAssetsDirectory): BundleSizeResult {
+export interface BundleSizeReport {
+  largestRaw: BundleSizeResult;
+  largestGzip: BundleSizeResult;
+}
+
+export function findJavaScriptBundles(assetsDirectory = defaultAssetsDirectory): BundleSizeResult[] {
   const files = ts.sys.readDirectory(assetsDirectory, [".js"], undefined, ["**/*.js"]);
   if (files.length === 0) {
     throw new Error(`No JavaScript bundles found in ${assetsDirectory}. Run npm run build first.`);
@@ -29,23 +34,27 @@ export function findLargestJavaScriptBundle(assetsDirectory = defaultAssetsDirec
       const contents = readFileSync(filePath);
       return { filePath, rawBytes: contents.byteLength, gzipBytes: gzipSync(contents).byteLength };
     })
-    .sort((left, right) => right.rawBytes - left.rawBytes)[0];
+    .sort((left, right) => left.filePath.localeCompare(right.filePath));
 }
 
 export function checkBundleSize(
   assetsDirectory = defaultAssetsDirectory,
   rawLimit = MAX_LARGEST_JAVASCRIPT_BYTES,
   gzipLimit = MAX_LARGEST_JAVASCRIPT_GZIP_BYTES,
-): BundleSizeResult {
-  const bundle = findLargestJavaScriptBundle(assetsDirectory);
-  console.log(`Largest JS: ${path.relative(process.cwd(), bundle.filePath)} (${bundle.rawBytes} B raw, ${bundle.gzipBytes} B gzip)`);
+): BundleSizeReport {
+  const bundles = findJavaScriptBundles(assetsDirectory);
+  const largestRaw = bundles.reduce((largest, bundle) => bundle.rawBytes > largest.rawBytes ? bundle : largest);
+  const largestGzip = bundles.reduce((largest, bundle) => bundle.gzipBytes > largest.gzipBytes ? bundle : largest);
+  console.log(`Largest JS raw: ${path.relative(process.cwd(), largestRaw.filePath)} (${largestRaw.rawBytes} B)`);
+  console.log(`Largest JS gzip: ${path.relative(process.cwd(), largestGzip.filePath)} (${largestGzip.gzipBytes} B)`);
   console.log(`Budget: ${rawLimit} B raw, ${gzipLimit} B gzip`);
 
-  if (bundle.rawBytes > rawLimit || bundle.gzipBytes > gzipLimit) {
-    throw new Error("Largest JavaScript bundle exceeds its regression budget.");
+  const violations = bundles.filter((bundle) => bundle.rawBytes > rawLimit || bundle.gzipBytes > gzipLimit);
+  if (violations.length > 0) {
+    throw new Error(`JavaScript bundle exceeds its regression budget: ${violations.map((bundle) => path.basename(bundle.filePath)).join(", ")}.`);
   }
 
-  return bundle;
+  return { largestRaw, largestGzip };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

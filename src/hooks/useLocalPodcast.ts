@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Existing local-podcast request rejection values have no typed error contract. */
 import type { Article, LocalPodcastArtifacts, LocalPodcastProcessing, LocalTaskStatus } from "../types";
 import { localPodcastApi, type LocalSessionStatus } from "../services/localPodcastService";
 
@@ -54,6 +53,7 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
       applyStatus(payload);
       return payload;
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local-podcast request rejections have no typed error contract.
     catch (error: any) {
       // A transport failure does not mean the persisted NextEcho task failed.
       // Keep the lightweight reference intact so a later retry can restore it.
@@ -84,6 +84,7 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
     try {
       const session = await localPodcastApi.start({ audioUrl: current.audioUrl, title: current.title, showNotes: current.content || current.snippet || "" });
       patchRef.current?.(current.id, { localPodcast: { sessionId: session.session_id, jobId: session.job_id, sourceAudioUrl: current.audioUrl, transcriptionStatus: "processing", insightStatus: "not_started", updatedAt: new Date().toISOString() } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local-podcast request rejections have no typed error contract.
     } catch (error: any) {
       patchRef.current?.(current.id, { localPodcast: { sourceAudioUrl: current.audioUrl, transcriptionStatus: "failed", insightStatus: "not_started", error: error.message, updatedAt: new Date().toISOString() } });
     } finally { inFlight.current = false; }
@@ -108,6 +109,7 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
     patchRef.current?.(current.id, { localPodcast: { ...task, insightStatus: "processing", insightError: undefined, updatedAt: new Date().toISOString() } });
     inFlight.current = true;
     try { await localPodcastApi.createInsight(task.sessionId); }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local-podcast request rejections have no typed error contract.
     catch (error: any) { patchRef.current?.(current.id, { localPodcast: { ...task, insightStatus: "failed", insightError: error.message, updatedAt: new Date().toISOString() } }); }
     finally { inFlight.current = false; }
   }, []);

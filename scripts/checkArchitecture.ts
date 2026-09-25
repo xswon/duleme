@@ -134,6 +134,9 @@ export function checkArchitecture(options: ArchitectureOptions = {}): string[] {
       if ((sourceIsService || sourceIsHook) && importsUi) {
         errors.push(`${path.relative(projectRoot, sourceFile)} must not import UI module ${path.relative(projectRoot, dependency)}.`);
       }
+      if (sourceIsService && importsHooks) {
+        errors.push(`${path.relative(projectRoot, sourceFile)} must not import hook module ${path.relative(projectRoot, dependency)}.`);
+      }
       if (sourceIsServer && (importsUi || importsHooks)) {
         errors.push(`${path.relative(projectRoot, sourceFile)} must not import frontend module ${path.relative(projectRoot, dependency)}.`);
       }

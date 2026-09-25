@@ -1,5 +1,4 @@
 import { Router } from "express";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Legacy RSS route error adapter preserves its existing response shape. */
 import { fetchSafeExternal, isSafeExternalUrl, MAX_PROXY_BYTES, readResponseBodyLimited } from "../services/proxyService";
 import { parseFeedXml } from "../services/rssParser";
 
@@ -16,6 +15,7 @@ export function createRssRouter() {
       let favicon = "";
       try { favicon = `https://www.google.com/s2/favicons?domain=${new URL(feed.link).hostname}&sz=64`; } catch { /* empty */ }
       return res.json({ ...feed, feedUrl: url, favicon, feedImage: feed.feedImage || favicon, itemCount: feed.items.length });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing RSS fetch errors carry an optional provider status.
     } catch (error: any) {
       return res.status(500).json({ error: `Failed to fetch or parse RSS feed: ${error.message || "Unknown error"}` });
     }

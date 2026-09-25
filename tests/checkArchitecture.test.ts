@@ -18,4 +18,12 @@ describe("architecture boundary checker", () => {
       expect.stringContaining("Circular production import"),
     ]));
   });
+
+  it("rejects services importing hooks", () => {
+    const errors = checkArchitecture({ projectRoot: path.join(fixturesRoot, "service-to-hook"), appLineLimit: 500 });
+
+    expect(errors).toEqual(expect.arrayContaining([
+      expect.stringContaining("src/services/example.ts must not import hook module src/hooks/useSomething.ts"),
+    ]));
+  });
 });

@@ -1,5 +1,4 @@
 import React, { act, useState } from "react";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Test mock rejection values intentionally mirror untyped service boundaries. */
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article } from "../src/types";
@@ -33,6 +32,7 @@ describe("useLocalPodcast", () => {
 
   it("restores a persisted session and records completed state", async () => {
     api.status.mockResolvedValue({ session_id: "s1", job_id: "j1", job: { status: "completed", insight_status: "not_requested", progress: 100 }, artifacts: { transcript: [{ startMs: 0, text: "Recovered" }] } });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test records provider patch payloads without constraining their evolving shape.
     const patches: any[] = [];
     function Harness() { useLocalPodcast({ ...baseArticle, localPodcast: { sessionId: "s1", jobId: "j1", sourceAudioUrl: baseArticle.audioUrl!, transcriptionStatus: "processing", insightStatus: "not_started", updatedAt: "before" } }, (_id, patch) => patches.push(patch)); return null; }
     const root = createRoot(document.createElement("div"));
@@ -44,6 +44,7 @@ describe("useLocalPodcast", () => {
 
   it("keeps a completed session reference after a transient fetch failure and retries recovery without retranscribing", async () => {
     api.status.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test records provider patch payloads without constraining their evolving shape.
     const patches: any[] = [];
     let retry: (() => Promise<void>) | undefined;
     function Harness() {

@@ -1,5 +1,4 @@
 // @vitest-environment node
-/* eslint-disable @typescript-eslint/no-explicit-any -- Test DNS and transport doubles intentionally model untyped Node callback values. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 const { lookupMock } = vi.hoisted(() => ({ lookupMock: vi.fn() }));
 vi.mock("node:dns/promises", () => ({
@@ -21,6 +20,7 @@ const originalSyntheticDnsSetting = process.env.ALLOW_PROXY_SYNTHETIC_DNS;
 
 function errorCauseCodes(error: unknown): Array<string | undefined> {
   const codes: Array<string | undefined> = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test walks the intentionally untyped Node error cause chain.
   for (let cause: any = error; cause; cause = cause.cause) codes.push(cause.code);
   return codes;
 }
@@ -136,7 +136,9 @@ describe("outbound proxy safety", () => {
     lookupMock.mockResolvedValue([{ address: "192.168.1.10", family: 4 }]);
     const realFetch = outboundTransport.fetch;
     let transportError: unknown;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test forwards the transport mock's variadic fetch arguments.
     vi.spyOn(outboundTransport, "fetch").mockImplementation(async (...args: any[]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The preserved fetch mock has an intentionally generic test signature.
       try { return await (realFetch as any)(...args); } catch (error) { transportError = error; throw error; }
     });
 

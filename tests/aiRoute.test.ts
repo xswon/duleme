@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Tests intentionally model untyped Express request and response doubles. */
 
 const service = vi.hoisted(() => ({
   summarize: vi.fn(),
@@ -26,7 +25,9 @@ vi.mock("../server/services/aiService", async () => {
 import { createAiRouter } from "../server/routes/ai";
 
 function handler(path: string, method: "get" | "post") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
   const router: any = createAiRouter();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
   return router.stack.find((layer: any) => layer.route?.path === path && layer.route.methods[method])
     .route.stack[0].handle;
 }
@@ -52,6 +53,7 @@ describe("AI routes", () => {
       model: "model-1",
     });
     const res = response();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express response double for this route assertion.
     await handler("/status", "get")({}, res as any);
 
     expect(res.json).toHaveBeenCalledWith({
@@ -66,6 +68,7 @@ describe("AI routes", () => {
     service.list.mockResolvedValue([{ id: "model-1" }, { id: "model-2" }]);
     const res = response();
     const config = { baseURL: "https://api.example.com/v1", apiKey: "sk-secret" };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express response double for this route assertion.
     await handler("/models", "post")({ body: { config } }, res as any);
 
     expect(service.list).toHaveBeenCalledWith(config);
@@ -80,6 +83,7 @@ describe("AI routes", () => {
     const res = response();
     await handler("/test", "post")({
       body: { config: { baseURL: "http://127.0.0.1:11434/v1", model: "local" } },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express response double for this route assertion.
     }, res as any);
 
     expect(service.test).toHaveBeenCalledWith(expect.objectContaining({ model: "local" }));
@@ -92,6 +96,7 @@ describe("AI routes", () => {
     const config = { baseURL: "https://api.example.com/v1", apiKey: "sk-secret", model: "model-1" };
     await handler("/summarize", "post")({
       body: { title: "Title", content: "Body", snippet: "", config },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express response double for this route assertion.
     }, res as any);
 
     expect(service.summarize).toHaveBeenCalledWith("Title", "Body", "", config);

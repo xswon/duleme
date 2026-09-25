@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Test fixtures intentionally model untyped provider JSON. */
 import { AliyunTranscriptionProvider, TranscriptionError, validatePublicAudioUrl } from "../server/services/transcriptionProvider";
 import { outboundTransport } from "../server/services/outboundNetwork";
 describe("cloud transcription provider", () => {
@@ -14,6 +13,7 @@ describe("cloud transcription provider", () => {
     const provider = new AliyunTranscriptionProvider();
     // Public IP avoids DNS in this focused adapter test.
     await expect(provider.submit({ apiKey: "sk-test", audioUrl: "https://8.8.8.8/audio.mp3", diarization: true, language: "zh" })).resolves.toEqual({ taskId: "task-1" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects the vendor-specific request body emitted by the provider adapter.
     const init = fetchMock.mock.calls[0][1] as any; const body = JSON.parse(init.body);
     expect(init.headers).toMatchObject({ "X-DashScope-Async": "enable" }); expect(body).toMatchObject({ model: "qwen-audio-3.0-asr-flash-filetrans", input: { file_urls: ["https://8.8.8.8/audio.mp3"] }, parameters: { diarization_enabled: true, language_hints: ["zh"] } });
   });

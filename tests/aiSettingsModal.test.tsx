@@ -1,5 +1,4 @@
 import React from "react";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Test mock rejection values intentionally mirror untyped service boundaries. */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +23,7 @@ vi.mock("../src/services/insightSettingsService", () => ({
 
 import { LocalAiSettingsPanel } from "../src/components/LocalAiSettingsModal";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const saved = {
   provider: "aliyun" as const,

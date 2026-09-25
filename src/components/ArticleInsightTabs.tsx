@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-/* eslint-disable @typescript-eslint/no-explicit-any -- Existing local AI digest payload is externally shaped and will be schema-hardened separately. */
 import {
   ArrowRight,
   AudioLines,
@@ -521,6 +520,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <section className="audio-deep-summary" hidden={!deepSummaryExpanded}>
             <div className="reader-content bidclub-digest">
               {sections.map((section, index) => <section key={index}>{typeof section === "string" ? <p>{section}</p> : Array.isArray(section) ? renderList(section) : <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(section, null, 2)}</pre>}</section>)}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local AI chapter payload is externally shaped. */}
               {chapters.map((chapter: any, index: number) => <section key={index}><h3>{String(chapter.title || `第 ${index + 1} 节`)}</h3><p>{String(chapter.summary || "")}</p></section>)}
             </div>
           </section>
