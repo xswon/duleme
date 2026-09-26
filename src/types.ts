@@ -236,9 +236,13 @@ export interface CuratedFeedOption {
   id: string;
   title: string;
   feedUrl: string;
+  siteUrl?: string;
   category: string;
   description: string;
   favicon: string;
+  featured?: boolean;
+  bidclubFeedUrl?: string;
+  bidclubShowSlug?: string;
 }
 
 export interface BidclubEpisode {
