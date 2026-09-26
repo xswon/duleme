@@ -600,19 +600,4 @@ export const INITIAL_ARTICLES: Article[] = [
     read: false,
     starred: false,
   },
-  {
-    id: "init-sspai-1",
-    feedId: "feed-sspai",
-    feedTitle: "少数派 (sspai)",
-    feedFavicon: "https://www.google.com/s2/favicons?domain=sspai.com&sz=64",
-    title: "如何利用 RSS 建立高质量的信息过滤与知识管理工作流",
-    link: "https://sspai.com/post/78910",
-    snippet:
-      "在信息爆炸的时代，主动掌控信息来源至关重要。本文深入探讨如何通过 RSS 订阅源分类、星标收藏、稍后阅读与 AI 智能摘要构建无噪音的高效阅读体验。",
-    content: `<p>信息时代的悖论在于：我们每天接触的信息数量呈爆炸式增长，但真正有价值的信息却往往被社交媒体算法和标题党噪音所淹没。</p>`,
-    pubDate: new Date(Date.now() - 1000 * 3600 * 24 * 5).toISOString(), // 5d ago
-    author: "少数派编辑部",
-    read: false,
-    starred: true,
-  },
 ];
