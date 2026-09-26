@@ -319,13 +319,137 @@ export const LEGACY_DEFAULT_FEEDS: Feed[] = [
   },
 ];
 
+const CURRENT_CURATED_FEED_ADDITIONS: CuratedFeedOption[] = [
+  {
+    id: "feed-light-the-star",
+    title: "卫诗婕｜漫谈Light the Star",
+    feedUrl: "https://feed.xyzfm.space/4jjdlpq3khc9",
+    siteUrl: "https://www.xiaoyuzhoufm.com/podcast/6627fda4b56459544087d86a?utm_source=rss",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=www.xiaoyuzhoufm.com&sz=64",
+  },
+  {
+    id: "feed-shanghaojin",
+    title: "Shanghao Jin",
+    feedUrl: "https://bidclub.ai/feeds/shanghaojin.zh.xml",
+    siteUrl: "https://bidclub.ai/shows/shanghaojin",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=bidclub.ai&sz=64",
+  },
+  {
+    id: "feed-svvector",
+    title: "硅谷坐标 Silicon Valley Vector",
+    feedUrl: "https://bidclub.ai/feeds/svvector.zh.xml",
+    siteUrl: "https://bidclub.ai/shows/svvector",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=bidclub.ai&sz=64",
+  },
+  {
+    id: "feed-theprompt",
+    title: "the prompt",
+    feedUrl: "https://bidclub.ai/feeds/theprompt.zh.xml",
+    siteUrl: "https://bidclub.ai/shows/theprompt",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=bidclub.ai&sz=64",
+  },
+  {
+    id: "feed-aihot",
+    title: "AIHOT — 精选",
+    feedUrl: "https://aihot.virxact.com/feed.xml?aihot_actor=42463a82-20ed-4073-8681-05680b2172b1",
+    siteUrl: "https://aihot.virxact.com/",
+    category: "新闻｜公众号",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=aihot.virxact.com&sz=64",
+  },
+  {
+    id: "feed-mianji",
+    title: "面基",
+    feedUrl: "https://feed.xyzfm.space/6hpdgggtxpxb",
+    siteUrl: "https://feed.xyzfm.space/6hpdgggtxpxb",
+    category: "投资 | 理财",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-zhixing",
+    title: "知行小酒馆",
+    feedUrl: "https://feed.xyzfm.space/j8yp8gxkmgqr",
+    siteUrl: "https://feed.xyzfm.space/j8yp8gxkmgqr",
+    category: "投资 | 理财",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-touziabc",
+    title: "投资ABC",
+    feedUrl: "https://feed.xyzfm.space/9bmupxfae9qd",
+    siteUrl: "https://feed.xyzfm.space/9bmupxfae9qd",
+    category: "投资 | 理财",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-afterschool",
+    title: "放学以后After school",
+    feedUrl: "https://anchor.fm/s/81d05f80/podcast/rss",
+    siteUrl: "https://anchor.fm/s/81d05f80/podcast/rss",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=anchor.fm&sz=64",
+  },
+  {
+    id: "feed-zhankaijiangjiang",
+    title: "展开讲讲",
+    feedUrl: "https://feed.xyzfm.space/444v89dnlhkf",
+    siteUrl: "https://feed.xyzfm.space/444v89dnlhkf",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-zhiwubuyan",
+    title: "知无不言QA",
+    feedUrl: "https://feed.xyzfm.space/kthwg4quxknw",
+    siteUrl: "https://feed.xyzfm.space/kthwg4quxknw",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-liangshiyiting",
+    title: "两室一听",
+    feedUrl: "https://feed.xyzfm.space/fnrdh946mana",
+    siteUrl: "https://feed.xyzfm.space/fnrdh946mana",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-tongjing",
+    title: "铜镜",
+    feedUrl: "https://feed.xyzfm.space/xpa79uvcn9lw",
+    siteUrl: "https://feed.xyzfm.space/xpa79uvcn9lw",
+    category: "政 | 经 | 史",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+];
+
 export const FEATURED_CURATED_FEED_IDS = [
   "feed-crossing",
   "feed-42",
   "feed-sv101",
-  "feed-qianliang",
-  "feed-latentspace",
   "feed-dwarkesh",
+  "feed-hardfork",
+  "feed-acquired",
+  "feed-zhixing",
+  "feed-qianliang",
+  "feed-zhankaijiangjiang",
+  "feed-aihot",
 ] as const;
 
 const featuredCuratedFeedIds = new Set<string>(FEATURED_CURATED_FEED_IDS);
@@ -353,7 +477,12 @@ function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
   };
 }
 
-export const CURATED_FEEDS: CuratedFeedOption[] = LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption).map((feed) => ({
+export const CURATED_FEEDS: CuratedFeedOption[] = [
+  ...LEGACY_DEFAULT_FEEDS
+    .filter((feed) => feed.id !== "feed-sspai")
+    .map(asCuratedFeedOption),
+  ...CURRENT_CURATED_FEED_ADDITIONS,
+].map((feed) => ({
   ...feed,
   featured: featuredCuratedFeedIds.has(feed.id),
 }));
