@@ -188,7 +188,7 @@ import {
 } from "./dbService";
 import { normalizeBidclubEnrichmentReference, isVerifiedBidclubEnrichment } from "./bidclubEpisodeCache";
 
-const DEPRECATED_SEED_ARTICLE_IDS = new Set(["init-taixian-1"]);
+const DEPRECATED_SEED_ARTICLE_IDS = new Set(["init-taixian-1", "init-sspai-1"]);
 
 export async function loadStoredArticlesAsync(): Promise<Article[]> {
   // Migration errors intentionally propagate so callers can keep legacy data.
