@@ -1,72 +1,5 @@
 import { CuratedFeedOption, Feed, Article } from "../types";
 
-const BASE_CURATED_FEEDS: CuratedFeedOption[] = [
-  {
-    id: "curated-hn",
-    title: "Hacker News",
-    feedUrl: "https://hnrss.org/frontpage",
-    category: "Technology",
-    description: "Technology news, startup updates, and developer discussions.",
-    favicon: "https://news.ycombinator.com/favicon.ico",
-  },
-  {
-    id: "curated-sspai",
-    title: "少数派 (sspai)",
-    feedUrl: "https://sspai.com/feed",
-    category: "Technology",
-    description: "高效工作指南、数码硬件评测与生活方式指南。",
-    favicon: "https://cdn.sspai.com/sspai/assets/img/favicon/favicon.ico",
-  },
-  {
-    id: "curated-verge",
-    title: "The Verge",
-    feedUrl: "https://www.theverge.com/rss/index.xml",
-    category: "Technology",
-    description: "Covers the intersection of technology, science, art, and culture.",
-    favicon: "https://www.theverge.com/favicon.ico",
-  },
-  {
-    id: "curated-v2ex",
-    title: "V2EX 热门",
-    feedUrl: "https://www.v2ex.com/index.xml",
-    category: "Technology",
-    description: "创意工作者的社区，涵盖编程、职场与技术交流。",
-    favicon: "https://www.v2ex.com/favicon.ico",
-  },
-  {
-    id: "curated-devto",
-    title: "DEV Community",
-    feedUrl: "https://dev.to/feed",
-    category: "Developer",
-    description: "A constructive and inclusive social network for software developers.",
-    favicon: "https://dev.to/favicon.ico",
-  },
-  {
-    id: "curated-36kr",
-    title: "36氪 资讯",
-    feedUrl: "https://36kr.com/feed",
-    category: "Business",
-    description: "关注科技商业、创投风向与前沿企业动态。",
-    favicon: "https://36kr.com/favicon.ico",
-  },
-  {
-    id: "curated-bbc",
-    title: "BBC World News",
-    feedUrl: "http://feeds.bbci.co.uk/news/world/rss.xml",
-    category: "News",
-    description: "Global breaking news, in-depth reports, and world affairs.",
-    favicon: "https://www.bbc.com/favicon.ico",
-  },
-  {
-    id: "curated-mit",
-    title: "MIT Tech Review",
-    feedUrl: "https://www.technologyreview.com/feed/",
-    category: "AI & Science",
-    description: "In-depth insights on artificial intelligence, biotech, and energy.",
-    favicon: "https://www.technologyreview.com/favicon.ico",
-  },
-];
-
 export const LEGACY_DEFAULT_FEEDS: Feed[] = [
   {
     id: "feed-crossing",
@@ -387,10 +320,6 @@ export const LEGACY_DEFAULT_FEEDS: Feed[] = [
 ];
 
 export const FEATURED_CURATED_FEED_IDS = [
-  "curated-hn",
-  "curated-sspai",
-  "curated-mit",
-  "curated-36kr",
   "feed-crossing",
   "feed-42",
   "feed-sv101",
@@ -424,12 +353,7 @@ function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
   };
 }
 
-const curatedByFeedUrl = new Map<string, CuratedFeedOption>();
-[...BASE_CURATED_FEEDS, ...LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption)].forEach((feed) => {
-  if (!curatedByFeedUrl.has(feed.feedUrl)) curatedByFeedUrl.set(feed.feedUrl, feed);
-});
-
-export const CURATED_FEEDS: CuratedFeedOption[] = Array.from(curatedByFeedUrl.values()).map((feed) => ({
+export const CURATED_FEEDS: CuratedFeedOption[] = LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption).map((feed) => ({
   ...feed,
   featured: featuredCuratedFeedIds.has(feed.id),
 }));
