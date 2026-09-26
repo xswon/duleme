@@ -145,6 +145,27 @@ describe("audio player helpers", () => {
     act(() => root.unmount());
   });
 
+  it("pauses audio mounted after the player lifecycle effect on unmount", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    let player: SharedAudioPlayer | undefined;
+    function Harness({ renderAudio }: { renderAudio: boolean }) {
+      player = useSharedAudioPlayer();
+      return renderAudio ? React.createElement("audio", { ref: player.audioRef }) : null;
+    }
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    await act(async () => root.render(React.createElement(Harness, { renderAudio: false })));
+    await act(async () => root.render(React.createElement(Harness, { renderAudio: true })));
+    await act(async () => player?.playArticle("late-audio", "/episode.mp3"));
+    expect(play).toHaveBeenCalled();
+
+    act(() => root.unmount());
+    expect(pause).toHaveBeenCalled();
+  });
+
   it("keeps active playback and all future progress on the canonical ID after refresh", async () => {
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
