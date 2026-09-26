@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
     // categoryKey tracks folder additions/removals without treating every feed
     // refresh as a reason to recreate the user's expansion choices.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- categoryKey is the intentional structural dependency; feeds refresh independently.
   }, [categoryKey]);
 
   useEffect(() => {

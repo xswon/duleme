@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { transcriptionProvider, TranscriptionError, transcriptionErrorMessage } from "../services/transcriptionProvider";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Express response remains untyped in this legacy route adapter.
 const respond = (res: any, error: unknown) => { const known = error instanceof TranscriptionError ? error : new TranscriptionError("unknown"); res.status(known.status).json({ code: known.code, message: transcriptionErrorMessage(known.code) }); };
 export function createTranscriptionRouter() { const router = Router();
   router.post("/settings/test", async (req, res) => { try { await transcriptionProvider.testConnection(String(req.body?.apiKey || "")); res.json({ ok: true }); } catch (error) { respond(res, error); } });

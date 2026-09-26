@@ -90,7 +90,7 @@ export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = DEFAULT
 
     Object.entries(defaultFeed).forEach(([key, defaultValue]) => {
       // JSON storage omits undefined values; null is also treated as missing.
-      if (defaultValue !== undefined && defaultValue !== null && merged[key as keyof Feed] == null) {
+      if (defaultValue !== undefined && defaultValue !== null && (merged[key as keyof Feed] === null || merged[key as keyof Feed] === undefined)) {
         merged = { ...merged, [key]: defaultValue };
       }
     });
@@ -125,8 +125,8 @@ export function getStoredFeeds(): Feed[] {
         return mergedFeeds;
       }
     }
-  } catch (e) {
-    console.warn("Failed to load stored feeds:", e);
+  } catch (_error) {
+    console.warn("Failed to load stored feeds:", _error);
   }
   return DEFAULT_FEEDS;
 }
@@ -134,8 +134,8 @@ export function getStoredFeeds(): Feed[] {
 export function saveStoredFeeds(feeds: Feed[]) {
   try {
     localStorage.setItem(STORAGE_KEY_FEEDS, JSON.stringify(feeds));
-  } catch (e) {
-    console.error("Failed to save feeds to localStorage:", e);
+  } catch (_error) {
+    console.error("Failed to save feeds to localStorage:", _error);
   }
 }
 
@@ -155,8 +155,8 @@ export function getStoredSortMode(key: string, fallback: SortMode = "default"): 
 export function saveStoredSortMode(key: string, mode: SortMode) {
   try {
     localStorage.setItem(key, mode);
-  } catch (e) {
-    console.error("Failed to save sort mode to localStorage:", e);
+  } catch (_error) {
+    console.error("Failed to save sort mode to localStorage:", _error);
   }
 }
 
@@ -309,7 +309,7 @@ export function getStoredArticles(): Article[] {
         return sanitizeArticles(parsed as Article[]);
       }
     }
-  } catch (e) {
+  } catch {
     // ignore
   }
   return sanitizeArticles(INITIAL_ARTICLES);

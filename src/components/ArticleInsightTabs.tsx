@@ -502,6 +502,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   const renderLocalAiSummary = () => {
     if (!localDigest) return <LoadingContent />;
     const oneSentence = localDigest.one_sentence || localDigest.overview;
+    const oneSentenceText = typeof oneSentence === "string" ? oneSentence : null;
     const sections = [localDigest.content_map, localDigest.distinctions, localDigest.uncovered].filter(Boolean);
     const chapters = Array.isArray(localDigest.chapters) ? localDigest.chapters : [];
     const deepSummaryAvailable = sections.length > 0 || chapters.length > 0;
@@ -509,7 +510,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <section className="audio-highlight-body">
           <div className="reader-content bidclub-overview">
-          {oneSentence && <p>{String(oneSentence)}</p>}
+          {oneSentenceText && <p>{oneSentenceText}</p>}
           {renderList(localDigest.key_insights)}
           {renderList(localDigest.listen_again)}
           </div>
@@ -519,6 +520,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <section className="audio-deep-summary" hidden={!deepSummaryExpanded}>
             <div className="reader-content bidclub-digest">
               {sections.map((section, index) => <section key={index}>{typeof section === "string" ? <p>{section}</p> : Array.isArray(section) ? renderList(section) : <pre className="whitespace-pre-wrap text-sm">{JSON.stringify(section, null, 2)}</pre>}</section>)}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local AI chapter payload is externally shaped. */}
               {chapters.map((chapter: any, index: number) => <section key={index}><h3>{String(chapter.title || `第 ${index + 1} 节`)}</h3><p>{String(chapter.summary || "")}</p></section>)}
             </div>
           </section>

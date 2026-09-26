@@ -15,6 +15,7 @@ interface AddFeedModalProps {
   isOpen: boolean;
   onClose: () => void;
   existingFeeds: Feed[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Feed parser article payload predates a dedicated type at this callback boundary.
   onAddFeed: (feed: Feed, newArticles?: any[]) => void;
   onImportOpmlFile: (file: File) => void;
 }
@@ -100,6 +101,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
       setFeedUrlInput("");
       setBidclubFeedUrlInput("");
       onClose();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing feed-service rejections have no typed error contract.
     } catch (err: any) {
       setErrorMsg(err.message || "无法获取或解析该 RSS 源，请检查链接是否正确。");
     } finally {
@@ -148,6 +150,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
 
       onAddFeed(newFeed, newArticles);
       setNotice(`已订阅「${curated.title}」`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing feed-service rejections have no typed error contract.
     } catch (err: any) {
       setFailedCuratedId(curated.id);
       setErrorMsg(err.message || `推荐源「${curated.title}」暂时无法获取，未创建订阅。`);

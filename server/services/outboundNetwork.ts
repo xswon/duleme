@@ -210,6 +210,7 @@ async function resolveAllowedAddresses(hostname: string, policy: AddressPolicy):
 }
 
 function secureLookup(policy: AddressPolicy) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Node's DNS lookup callback overload is not representable by the local adapter type.
   return (hostname: string, options: any, callback: (error: NodeJS.ErrnoException | null, address?: string | LookupRecord[], family?: number) => void) => {
     resolveAllowedAddresses(hostname, policy).then((records) => {
       const requestedFamily = typeof options === "object" ? Number(options.family || 0) : Number(options || 0);
@@ -233,6 +234,7 @@ function agentFor(policy: AddressPolicy, maxBytes: number): Agent {
   let agent = agents.get(key);
   if (!agent) {
     agent = new Agent({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Undici's connect option type does not expose this DNS lookup overload.
       connect: { lookup: secureLookup(policy) } as any,
       maxResponseSize: maxBytes,
     });
@@ -274,6 +276,7 @@ async function fetchWithPolicy(
     redirect: "manual" as const,
     dispatcher: agentFor(policy, maxBytes) as Dispatcher,
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Undici and DOM RequestInit types differ at this transport boundary.
   const response = await outboundTransport.fetch(url.toString(), requestInit as any) as unknown as Response;
   if (response.status >= 300 && response.status < 400) {
     if (!redirects) {

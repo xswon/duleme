@@ -231,7 +231,10 @@ export function useFeedSync(options: UseFeedSyncOptions) {
   const isMounted = useRef(true);
   useEffect(() => () => { isMounted.current = false; }, []);
   const bidclubFeedConfigFingerprint = useMemo(() => JSON.stringify(
-    feeds.filter((feed) => !!feed.bidclubFeedUrl).map((feed) => [feed.id, feed.bidclubFeedUrl]).sort(([left], [right]) => left.localeCompare(right)),
+    feeds
+      .filter((feed) => !!feed.bidclubFeedUrl)
+      .map((feed) => `${feed.id}:${feed.bidclubFeedUrl}`)
+      .sort(),
   ), [feeds]);
 
   useEffect(() => {

@@ -31,6 +31,8 @@ export function useReaderDerivedState(options: UseReaderDerivedStateOptions) {
 
   const articleLookup = useMemo(() => buildArticleLookup(articles), [articles]);
   const selectedArticle = selectedArticleId ? articleLookup.byId.get(selectedArticleId) || null : null;
+  // localDayVersion intentionally refreshes the time-windowed metric at local midnight.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- The clock tick is not a value read by the memo callback.
   const articleMetrics = useMemo(() => deriveArticleMetrics(articles, Date.now()), [articles, localDayVersion]);
   const effectiveContentType = selectedFeedId ? "all" : contentType;
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -46,6 +48,8 @@ export function useReaderDerivedState(options: UseReaderDerivedStateOptions) {
     searchQuery,
     historyWindowDays,
     sortOrder: timelineSortOrder,
+  // localDayVersion intentionally refreshes the time-windowed timeline at local midnight.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- The clock tick is not a value read by the memo callback.
   }) : null, [activeTab, articles, effectiveContentType, feeds, filterType, historyWindowDays, localDayVersion, searchQuery, selectedCategory, selectedFeedId, timelineSortOrder]);
   const visibleDerivation = useMemo(() => {
     if (timelineDerivation) return timelineDerivation;

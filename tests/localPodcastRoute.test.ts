@@ -1,4 +1,3 @@
-import express from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const service = vi.hoisted(() => ({ request: vi.fn(), artifact: vi.fn() }));
@@ -22,6 +21,7 @@ describe("local podcast server boundary", () => {
     expect(isLoopbackAddress("192.168.1.8")).toBe(false);
     const status = vi.fn().mockReturnThis();
     const json = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express request and response doubles for local-only access.
     requireLoopback({ socket: { remoteAddress: "192.168.1.8" }, get: () => "192.168.1.8:4387" } as any, { status, json } as any, vi.fn());
     expect(status).toHaveBeenCalledWith(403);
     expect(json).toHaveBeenCalledWith(expect.objectContaining({ code: "local_only" }));
@@ -32,6 +32,7 @@ describe("local podcast server boundary", () => {
     process.env.DOCKER = "true";
     const next = vi.fn();
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express request and response doubles for local-only access.
       requireLoopback({ socket: { remoteAddress: "192.168.65.1" }, get: () => "127.0.0.1:4387" } as any, {} as any, next);
       expect(next).toHaveBeenCalledOnce();
     } finally {
@@ -42,7 +43,9 @@ describe("local podcast server boundary", () => {
 
   it("returns only NextEcho's masked settings payload", async () => {
     service.request.mockResolvedValue({ base_url: "https://api.example.com", model: "model-1", has_api_key: true, api_key_preview: "sk-•••1234" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
     const router: any = createLocalPodcastRouter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
     const handler = router.stack.find((layer: any) => layer.route?.path === "/settings" && layer.route.methods.get).route.stack[0].handle;
     const json = vi.fn();
     await handler({}, { json }, vi.fn());
@@ -53,7 +56,9 @@ describe("local podcast server boundary", () => {
 
   it("submits the audio URL and show notes as page context without an AI request", async () => {
     service.request.mockResolvedValue({ session_id: "session-1", job_id: "job-1" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
     const router: any = createLocalPodcastRouter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
     const handler = router.stack.find((layer: any) => layer.route?.path === "/sessions" && layer.route.methods.post).route.stack[0].handle;
     const status = vi.fn().mockReturnThis();
     await handler({ body: { audioUrl: "https://cdn.example.com/a.mp3", title: "Episode", showNotes: "Notes" } }, { status, json: vi.fn() }, vi.fn());

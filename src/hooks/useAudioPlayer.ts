@@ -84,6 +84,10 @@ export function useSharedAudioPlayer(
     lastProgressPersistedAtRef.current = Date.now();
   }, []);
 
+  const pauseCurrentAudio = useCallback(() => {
+    audioRef.current?.pause();
+  }, []);
+
   const startPlayback = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -166,11 +170,11 @@ export function useSharedAudioPlayer(
     document.addEventListener("visibilitychange", flushOnVisibilityChange);
     return () => {
       flushProgress(true);
-      audioRef.current?.pause();
+      pauseCurrentAudio();
       window.removeEventListener("pagehide", flushWhenHidden);
       document.removeEventListener("visibilitychange", flushOnVisibilityChange);
     };
-  }, [flushProgress]);
+  }, [flushProgress, pauseCurrentAudio]);
 
   const playArticle = useCallback((id: string, url: string, progress?: { currentTime: number; duration: number }) => {
     activateArticle(id, url, progress, true);

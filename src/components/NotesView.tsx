@@ -1,13 +1,6 @@
 import React, { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import type { Article, ArticleNote, NoteSource } from "../types";
-
-const SOURCE_LABELS: Record<NoteSource, string> = {
-  body: "正文",
-  overview: "AI 摘要",
-  digest: "AI 摘要",
-  transcript: "逐字稿",
-};
+import type { Article, ArticleNote } from "../types";
 
 interface NotesViewProps {
   notes: ArticleNote[];

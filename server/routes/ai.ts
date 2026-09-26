@@ -16,6 +16,7 @@ function statusForAiError(error: AiServiceError): number {
   return 502;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Express response remains untyped in this legacy route adapter.
 function sendAiError(res: any, error: unknown) {
   if (error instanceof AiServiceError) {
     return res.status(statusForAiError(error)).json({

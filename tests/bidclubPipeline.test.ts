@@ -18,6 +18,7 @@ describe("BidClub enrichment pipeline", () => {
       </channel></rss>
     `, "https://bidclub.ai/feeds/show.xml");
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test fixture uses provider-shaped feed items before normalization.
     const [item] = attachBidclubSelfReferences(feed.items as any[]);
 
     expect(item.enrichment).toMatchObject({

@@ -45,6 +45,8 @@ export function VirtualWindow({
     },
   });
 
+  // The callback measures the current DOM ref after each layout; adding state dependencies changes its offset timing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- The no-dependency lifecycle is required for dynamic content above the virtual window.
   useLayoutEffect(() => {
     const nextScrollElement = rootRef.current?.closest<HTMLElement>(".wreader-master-scroll") ?? null;
     if (nextScrollElement !== scrollElement) setScrollElement(nextScrollElement);

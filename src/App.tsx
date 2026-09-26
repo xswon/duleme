@@ -78,7 +78,7 @@ export default function App() {
   const { isRefreshing, refreshState, refreshAll, retryFeed, queueRefresh, invalidateRefresh } = sync;
   const refreshFeedback = useRefreshFeedback(refreshState, isRefreshing);
   const notes = useArticleNotes({ articleLookup, showToast });
-  const { notes: articleNotes, setNotes: setArticleNotes, visibleNotes: visibleArticleNotes } = notes;
+  const { setNotes: setArticleNotes, visibleNotes: visibleArticleNotes } = notes;
   const visibleArticlesRef = useLatestRef(visibleArticles);
   const visibleIndexByIdRef = useLatestRef(visibleIndexById);
   const mutations = useArticleMutations({ articlesRef, setArticles, visibleArticlesRef, showToast, showToastWithAction });
@@ -110,6 +110,8 @@ export default function App() {
       delete autoReadTimers.current[articleId];
     }
     mutations.toggleRead(articleId);
+  // mutations is intentionally a stable controller object; depending on its method avoids unrelated controller changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- See the controller dependency contract above.
   }, [mutations.toggleRead]);
 
   const handleSelectArticle = useCallback((article: Article) => {
@@ -132,6 +134,8 @@ export default function App() {
     mutations.persistPatch(articleId, { readingProgress: normalized, readingProgressUpdatedAt: Date.now() }, "阅读进度保存失败，请重试");
     const article = articlesRef.current.find((item) => item.id === articleId);
     if (normalized >= 0.4 && article && canAutoMarkRead(article)) handleToggleRead(articleId);
+  // mutations is intentionally a stable controller object; depending on its method avoids unrelated controller changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- See the controller dependency contract above.
   }, [articlesRef, handleToggleRead, mutations.persistPatch]);
 
   const closeArticle = useCallback(() => {
@@ -240,6 +244,8 @@ export default function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  // mutations is intentionally a stable controller object; depending on its method avoids unrelated controller changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- See the controller dependency contract above.
   }, [handleSelectArticle, handleToggleRead, mutations.toggleStar, navigateToRoute, refreshAll, selectedArticle, visibleArticlesRef, visibleIndexByIdRef]);
 
   const totalUnread = articleMetrics.totalRecentUnread;

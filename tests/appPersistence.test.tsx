@@ -1,5 +1,5 @@
 import React, { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article, Feed, RssParseResponse } from "../src/types";
 import {
@@ -37,10 +37,12 @@ vi.mock("../src/services/rssService", async (importOriginal) => {
 });
 
 vi.mock("../src/components/Sidebar", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component mock accepts only the production props exercised by this persistence test.
   Sidebar: ({ setActiveTab }: any) => <button type="button" onClick={() => setActiveTab("playlist")}>test-playlist</button>,
 }));
 
 vi.mock("../src/components/Header", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component mock accepts only the production props exercised by this persistence test.
   Header: ({ setFilterType, onMarkAllRead, onRefresh }: any) => <>
     <button type="button" onClick={() => setFilterType("all")}>test-all-filter</button>
     <button type="button" onClick={() => setFilterType("starred")}>test-starred-filter</button>
@@ -52,6 +54,7 @@ vi.mock("../src/components/Header", () => ({
 }));
 
 vi.mock("../src/components/ArticleList", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component mock accepts only the production props exercised by this persistence test.
   ArticleList: ({ articles, onSelectArticle, onToggleRead, onToggleStar }: any) => {
     articleActions.toggleRead = onToggleRead;
     articleActions.toggleStar = onToggleStar;
@@ -62,6 +65,7 @@ vi.mock("../src/components/ArticleList", () => ({
 }));
 
 vi.mock("../src/components/ArticleDetailModal", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component mock accepts only the production props exercised by this persistence test.
   ArticleDetailModal: ({ article, onToggleRead, onToggleStar }: any) => <div data-testid="detail">
     <span>{article.id}</span>
     <button type="button" onClick={() => onToggleRead(article.id)}>test-toggle-read</button>
@@ -70,6 +74,7 @@ vi.mock("../src/components/ArticleDetailModal", () => ({
 }));
 
 vi.mock("../src/components/PlaylistView", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Component mock accepts only the production props exercised by this persistence test.
   PlaylistView: ({ articles, audioProgressMap }: any) => <div data-testid="playlist" data-articles={articles.map((article: Article) => article.id).join("|")} data-progress={Object.keys(audioProgressMap).sort().join("|")} />,
 }));
 
@@ -225,7 +230,9 @@ describe("App persistence rollback", () => {
     await replaceFeedsInDB([feed]);
     await saveArticlesToDB(storedArticles);
     const { container, root } = await renderApp();
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("perf-499:"));
+    await waitFor(() => {
+      return container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("perf-499:") ?? false;
+    });
 
     const NativeSet = globalThis.Set;
     let fullArticleIdCollections = 0;
@@ -290,7 +297,9 @@ describe("App persistence rollback", () => {
     await saveArticlesToDB([article("a", { starred: true }), article("b", { starred: true })]);
     rss.updateArticles.mockReturnValueOnce(pending.promise);
     const { container, root } = await renderApp();
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:"));
+    await waitFor(() => {
+      return container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:") ?? false;
+    });
     await act(async () => click(container, "test-starred-filter"));
     await act(async () => click(container, "test-mark-all"));
     await act(async () => click(container, "test-newer-star"));
@@ -311,7 +320,9 @@ describe("App persistence rollback", () => {
     await saveArticlesToDB([article("a"), article("b")]);
     rss.updateArticles.mockReturnValueOnce(pending.promise);
     const { container, root } = await renderApp();
-    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:unread"));
+    await waitFor(() => {
+      return container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("a:unread") ?? false;
+    });
     await act(async () => click(container, "test-mark-all"));
     await act(async () => click(container, "test-newer-read"));
     await act(async () => click(container, "test-newer-read"));

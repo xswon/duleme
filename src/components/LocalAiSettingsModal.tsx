@@ -291,6 +291,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     try {
       await transcriptionApi.test(draftKey.trim());
       setTranscriptionFeedback({ tone: "success", text: "连接成功" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing settings request rejections have no typed error contract.
     } catch (error: any) {
       setTranscriptionFeedback({ tone: "error", text: error.message || "连接失败，请检查 API Key。" });
     } finally {
@@ -521,6 +522,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
         model,
       });
       setInsightFeedback({ tone: "success", text: `连接成功 · ${latencyMs} ms` });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing settings request rejections have no typed error contract.
     } catch (error: any) {
       setInsightFeedback({ tone: "error", text: error.message || "连接失败，请检查模型配置" });
     } finally {
@@ -553,6 +555,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       });
       setInsight(status);
       setInsightModalOpen(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing settings request rejections have no typed error contract.
     } catch (error: any) {
       setInsightFeedback({ tone: "error", text: error.message || "无法保存 AI 摘要模型配置" });
     } finally {
@@ -575,6 +578,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
       setInsightFeedback(status.source === "server"
         ? { tone: "info", text: "已清除浏览器配置，当前使用环境变量配置。" }
         : { tone: "info", text: "已清除当前浏览器中的 AI 摘要配置。" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing settings request rejections have no typed error contract.
     } catch (error: any) {
       setInsightFeedback({ tone: "error", text: error.message || "无法清除 AI 摘要模型配置。" });
     } finally {

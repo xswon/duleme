@@ -44,7 +44,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   currentTitle,
-  currentCountLabel,
+  currentCountLabel: _currentCountLabel,
   filterType,
   setFilterType,
   onRefresh,
@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   showTimelineFilters = false,
   contentType = "all",
   onContentTypeChange,
-  historyWindowDays = 30,
+  historyWindowDays: _historyWindowDays = 30,
 }) => (
   <header id="inoreader-header" className={`wreader-list-header relative z-30 shrink-0 bg-[#fbfcfd] text-slate-800 ${showTimelineFilters ? "has-timeline-filters" : ""}`}>
     <div className="wreader-list-header-main flex h-[58px] min-h-[58px] items-center justify-between">

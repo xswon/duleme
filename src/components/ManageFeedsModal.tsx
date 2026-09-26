@@ -100,7 +100,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onFolderSortModeChange,
   feedOrderByFolder = {},
   onReorderFolderFeeds,
-  onReorderFeeds,
+  onReorderFeeds: _onReorderFeeds,
   onReorderCategories,
   sortMode,
   onSortModeChange,
@@ -152,10 +152,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         first.focus();
       }
     };
+    const opener = openerRef.current;
     dialog.addEventListener("keydown", handleKeyDown);
     return () => {
       dialog.removeEventListener("keydown", handleKeyDown);
-      if (openerRef.current?.isConnected) openerRef.current.focus();
+      if (opener?.isConnected) opener.focus();
     };
   }, [onBack]);
 
