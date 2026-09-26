@@ -34,7 +34,7 @@ describe("curated feed catalog", () => {
     expectedAddedIds.forEach((id) => {
       expect(CURATED_FEEDS.some((feed) => feed.id === id)).toBe(true);
     });
-    expect(LEGACY_DEFAULT_FEEDS).toHaveLength(29);
+    expect(LEGACY_DEFAULT_FEEDS).toHaveLength(28);
   });
 
   it("defines a compact featured starter set from the current catalog only", () => {
