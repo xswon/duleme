@@ -35,7 +35,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [failedCuratedId, setFailedCuratedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"custom" | "curated" | "opml">("custom");
-  const [curatedCategory, setCuratedCategory] = useState("All");
+  const [curatedCategory, setCuratedCategory] = useState("Featured");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -129,12 +129,14 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
         id: `feed-${Date.now()}`,
         title: curated.title,
         feedUrl: curated.feedUrl,
-        siteUrl: parsedData.link || curated.feedUrl,
+        siteUrl: parsedData.link || curated.siteUrl || curated.feedUrl,
         favicon: parsedData.feedImage || curated.favicon || parsedData.favicon,
         category: curated.category,
         description: curated.description,
         unreadCount: parsedData.items ? parsedData.items.length : 0,
         lastUpdated: new Date().toISOString(),
+        bidclubFeedUrl: curated.bidclubFeedUrl,
+        bidclubShowSlug: curated.bidclubShowSlug,
       };
 
       const newArticles = (parsedData.items || []).map((item) => ({
@@ -164,11 +166,18 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
     }
   };
 
-  const filteredCurated = CURATED_FEEDS.filter(
-    (f) => curatedCategory === "All" || f.category === curatedCategory
-  );
+  const curatedCategories = [
+    "Featured",
+    "All",
+    ...Array.from(new Set(CURATED_FEEDS.map((feed) => feed.category))),
+  ];
+  const filteredCurated = CURATED_FEEDS.filter((feed) => {
+    if (curatedCategory === "Featured") return feed.featured;
+    return curatedCategory === "All" || feed.category === curatedCategory;
+  });
 
   const CURATED_CATEGORY_LABELS: Record<string, string> = {
+    Featured: "精选",
     All: "全部",
     Technology: "科技",
     Business: "商业",
@@ -349,7 +358,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
             <div className="space-y-4">
               {/* Category Pills */}
               <div className="flex flex-wrap gap-1.5 text-xs">
-                {["All", "Technology", "Business", "Developer", "News", "AI & Science"].map(
+                {curatedCategories.map(
                   (cat) => (
                     <button
                       key={cat}
