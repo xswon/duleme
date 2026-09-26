@@ -55,16 +55,6 @@ export const LEGACY_DEFAULT_FEEDS: Feed[] = [
     bidclubShowSlug: "valley101",
   },
   {
-    id: "feed-sspai",
-    title: "少数派 (sspai)",
-    feedUrl: "https://sspai.com/feed",
-    siteUrl: "https://sspai.com",
-    favicon: "https://www.google.com/s2/favicons?domain=sspai.com&sz=64",
-    category: "科技 | 商业",
-    description: "数字生活与高效工作指南",
-    unreadCount: 2,
-  },
-  {
     id: "feed-zhangxiaojun",
     title: "张小珺｜商业访谈录",
     feedUrl: "https://feed.xyzfm.space/dk4yh3pkpjp3",
@@ -478,9 +468,7 @@ function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
 }
 
 export const CURATED_FEEDS: CuratedFeedOption[] = [
-  ...LEGACY_DEFAULT_FEEDS
-    .filter((feed) => feed.id !== "feed-sspai")
-    .map(asCuratedFeedOption),
+  ...LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption),
   ...CURRENT_CURATED_FEED_ADDITIONS,
 ].map((feed) => ({
   ...feed,
