@@ -1,6 +1,6 @@
 import { CuratedFeedOption, Feed, Article } from "../types";
 
-export const CURATED_FEEDS: CuratedFeedOption[] = [
+const BASE_CURATED_FEEDS: CuratedFeedOption[] = [
   {
     id: "curated-hn",
     title: "Hacker News",
@@ -67,7 +67,7 @@ export const CURATED_FEEDS: CuratedFeedOption[] = [
   },
 ];
 
-export const DEFAULT_FEEDS: Feed[] = [
+export const LEGACY_DEFAULT_FEEDS: Feed[] = [
   {
     id: "feed-crossing",
     title: "十字路口Crossing",
@@ -385,6 +385,56 @@ export const DEFAULT_FEEDS: Feed[] = [
     bidclubShowSlug: "cogrev",
   },
 ];
+
+export const FEATURED_CURATED_FEED_IDS = [
+  "curated-hn",
+  "curated-sspai",
+  "curated-mit",
+  "curated-36kr",
+  "feed-crossing",
+  "feed-42",
+  "feed-sv101",
+  "feed-qianliang",
+  "feed-latentspace",
+  "feed-dwarkesh",
+] as const;
+
+const featuredCuratedFeedIds = new Set<string>(FEATURED_CURATED_FEED_IDS);
+
+function fallbackFavicon(feed: Pick<Feed, "siteUrl" | "feedUrl">): string {
+  try {
+    const domain = new URL(feed.siteUrl || feed.feedUrl).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  } catch {
+    return "";
+  }
+}
+
+function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
+  return {
+    id: feed.id,
+    title: feed.title,
+    feedUrl: feed.feedUrl,
+    siteUrl: feed.siteUrl,
+    category: feed.category,
+    description: feed.description || "",
+    favicon: feed.favicon || fallbackFavicon(feed),
+    bidclubFeedUrl: feed.bidclubFeedUrl,
+    bidclubShowSlug: feed.bidclubShowSlug,
+  };
+}
+
+const curatedByFeedUrl = new Map<string, CuratedFeedOption>();
+[...BASE_CURATED_FEEDS, ...LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption)].forEach((feed) => {
+  if (!curatedByFeedUrl.has(feed.feedUrl)) curatedByFeedUrl.set(feed.feedUrl, feed);
+});
+
+export const CURATED_FEEDS: CuratedFeedOption[] = Array.from(curatedByFeedUrl.values()).map((feed) => ({
+  ...feed,
+  featured: featuredCuratedFeedIds.has(feed.id),
+}));
+
+export const FEATURED_CURATED_FEEDS = CURATED_FEEDS.filter((feed) => feed.featured);
 
 // BidClub Coverage subscriptions with original RSS sources. Shows without
 // original RSS are excluded because BidClub feeds do not carry audio enclosures.
