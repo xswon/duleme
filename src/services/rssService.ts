@@ -114,9 +114,7 @@ export function getStoredFeeds(): Feed[] {
   } catch (e) {
     console.warn("Failed to load stored feeds:", e);
   }
-  // Keep the existing first-run seed until the V1 welcome flow is added.
-  // Curated feeds are no longer appended to an existing user's subscriptions.
-  return LEGACY_DEFAULT_FEEDS;
+  return [];
 }
 
 export function saveStoredFeeds(feeds: Feed[]) {
@@ -213,10 +211,7 @@ export async function loadStoredArticlesAsync(): Promise<Article[]> {
     return normalized;
   }
 
-  // 3. Fallback to initial seed articles and seed them into DB for future instant loads
-  const seed = sanitizeArticles(INITIAL_ARTICLES);
-  await saveArticlesToDB(seed);
-  return seed;
+  return [];
 }
 
 type LegacyArticle = Article & { bidclubUrl?: string; bidclubSlug?: string };
@@ -300,7 +295,7 @@ export function getStoredArticles(): Article[] {
   } catch (e) {
     // ignore
   }
-  return sanitizeArticles(INITIAL_ARTICLES);
+  return [];
 }
 
 export function saveStoredArticles(articles: Article[]) {
