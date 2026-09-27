@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import type { AudioProgress, Feed } from "../types";
 import { normalizeFeedOrder, STORAGE_KEY_FEED_ORDER_BY_FOLDER, type FeedOrderByFolder } from "../services/feedSorting";
 import {
@@ -28,6 +28,7 @@ export function useReaderPersistence(options: UseReaderPersistenceOptions) {
     playlistIds, setPlaylistIds, audioProgressMap, setAudioProgressMap, showToast,
   } = options;
   const [isAppStateReady, setIsAppStateReady] = useState(false);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +41,7 @@ export function useReaderPersistence(options: UseReaderPersistenceOptions) {
         if (state.feedOrderByFolder) setFeedOrderByFolder(normalizeFeedOrder(storedFeeds.length > 0 ? storedFeeds : feeds, state.feedOrderByFolder));
         if (state.playlistIds) setPlaylistIds(state.playlistIds);
         setAudioProgressMap(storedAudioProgress);
+        setIsOnboardingComplete(state.onboardingCompleted ?? storedFeeds.length > 0);
         setIsAppStateReady(true);
         ["inoreader_feeds_v2", "wreader_categories_v1", STORAGE_KEY_FEED_ORDER_BY_FOLDER, "wreader_playlist", "wreader_audio_progress"].forEach((key) => localStorage.removeItem(key));
         localStorage.setItem("wreader_idb_migrated_v3", "1");
@@ -63,9 +65,11 @@ export function useReaderPersistence(options: UseReaderPersistenceOptions) {
 
   useEffect(() => {
     if (!isAppStateReady) return;
-    void saveAppStateToDB({ categories, feedOrderByFolder, playlistIds })
+    void saveAppStateToDB({ categories, feedOrderByFolder, playlistIds, onboardingCompleted: isOnboardingComplete })
       .catch((error) => showToast(`本地数据保存失败：${error instanceof Error ? error.message : "请重试"}`));
-  }, [categories, feedOrderByFolder, isAppStateReady, playlistIds, showToast]);
+  }, [categories, feedOrderByFolder, isAppStateReady, isOnboardingComplete, playlistIds, showToast]);
 
-  return { isAppStateReady };
+  const completeOnboarding = useCallback(() => setIsOnboardingComplete(true), []);
+
+  return { isAppStateReady, isOnboardingComplete, completeOnboarding };
 }
