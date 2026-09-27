@@ -12,7 +12,6 @@ import {
   type InsightSettingsStatus,
 } from "../services/insightSettingsService";
 import { transcriptionApi } from "../services/transcriptionService";
-import { localPodcastApi } from "../services/localPodcastService";
 import "./LocalAiSettingsModal.css";
 
 const TRANSCRIPTION_PROVIDERS = {
@@ -139,7 +138,6 @@ function isLoopbackUrl(value: string): boolean {
 }
 
 type Feedback = { tone: "success" | "error" | "warning" | "info"; text: string };
-type NextEchoStatus = "idle" | "available" | "unavailable";
 
 function ModelSummaryCard({ title, provider, onClick }: { title: string; provider?: string; onClick: () => void }) {
   return (
@@ -221,9 +219,6 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [transcriptionFeedback, setTranscriptionFeedback] = useState<Feedback | null>(null);
-  const [showTranscriptionAdvanced, setShowTranscriptionAdvanced] = useState(false);
-  const [nextEchoChecking, setNextEchoChecking] = useState(false);
-  const [nextEchoStatus, setNextEchoStatus] = useState<NextEchoStatus>("idle");
 
   const [insight, setInsight] = useState<InsightSettingsStatus | null>(null);
   const [insightModalOpen, setInsightModalOpen] = useState(false);
@@ -594,19 +589,6 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     }
   };
 
-  const checkNextEcho = async () => {
-    setNextEchoChecking(true);
-    setNextEchoStatus("idle");
-    try {
-      await localPodcastApi.preflight();
-      setNextEchoStatus("available");
-    } catch {
-      setNextEchoStatus("unavailable");
-    } finally {
-      setNextEchoChecking(false);
-    }
-  };
-
   if (view === "insight") {
     const draftProvider = draftInsightProvider ? INSIGHT_PROVIDERS[draftInsightProvider] : null;
     const contentModels = pickContentModels(draftInsightProvider, insightModels, draftInsightModel);
@@ -841,45 +823,6 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
           </div>
         </section>
 
-
-        <section className="wreader-model-advanced wreader-transcription-advanced">
-          <button
-            type="button"
-            className="wreader-model-advanced-toggle"
-            aria-expanded={showTranscriptionAdvanced}
-            onClick={() => setShowTranscriptionAdvanced((open) => !open)}
-          >
-            高级设置
-            <ChevronDown aria-hidden="true" />
-          </button>
-          <div className="wreader-model-advanced-body" hidden={!showTranscriptionAdvanced}>
-            <div className="wreader-local-service-row">
-              <span>
-                <strong>本地转录服务（NextEcho）</strong>
-                <small>仅供已在本机配置 NextEcho 的高级用户使用；普通用户无需设置。</small>
-              </span>
-              <button
-                type="button"
-                className="wreader-model-test-button"
-                onClick={() => void checkNextEcho()}
-                disabled={nextEchoChecking}
-              >
-                {nextEchoChecking ? "正在检查…" : "检查本地服务"}
-              </button>
-            </div>
-            {nextEchoStatus === "available" && (
-              <p className="wreader-model-feedback is-success" role="status">
-                <CheckCircle2 aria-hidden="true" />
-                已检测到本机 NextEcho
-              </p>
-            )}
-            {nextEchoStatus === "unavailable" && (
-              <p className="wreader-model-hint" role="status">
-                未检测到可用的 NextEcho。无需处理；云端转录和 RSS 阅读不受影响。
-              </p>
-            )}
-          </div>
-        </section>
 
         {transcriptionModalOpen && (
           <ModelConfigModal
