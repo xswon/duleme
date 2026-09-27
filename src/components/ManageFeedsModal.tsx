@@ -402,8 +402,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button type="button" {...tabProps("folders")} className={tabClassName("folders")}><Folder /><span>文件夹</span></button>
             </div>
             <div className="wreader-settings-nav-group">
-              <div className="wreader-settings-nav-group-title">AI 设置</div>
-              <button type="button" {...tabProps("transcript")} className={tabClassName("transcript")}><AudioLines /><span>逐字稿</span></button>
+              <div className="wreader-settings-nav-group-title">可选增强</div>
+              <button type="button" {...tabProps("transcript")} className={tabClassName("transcript")}><AudioLines /><span>转录</span></button>
               <button type="button" {...tabProps("insight")} className={tabClassName("insight")}><Sparkles /><span>AI 摘要</span></button>
             </div>
             <div className="wreader-settings-nav-standalone">
@@ -414,7 +414,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </aside>
         <div className="wreader-settings-main min-w-0">
           <header className="wreader-settings-header flex shrink-0 items-center justify-between">
-            <h1 id="settings-modal-title">{{ feeds: "订阅源", folders: "文件夹", transcript: "逐字稿", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
+            <h1 id="settings-modal-title">{{ feeds: "订阅源", folders: "文件夹", transcript: "转录", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
             <button type="button" onClick={onBack} aria-label="关闭设置" className="wreader-settings-close"><X /></button>
           </header>
           <div className="wreader-settings-body scrollbar-thin">
