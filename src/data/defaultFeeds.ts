@@ -1,73 +1,6 @@
 import { CuratedFeedOption, Feed, Article } from "../types";
 
-export const CURATED_FEEDS: CuratedFeedOption[] = [
-  {
-    id: "curated-hn",
-    title: "Hacker News",
-    feedUrl: "https://hnrss.org/frontpage",
-    category: "Technology",
-    description: "Technology news, startup updates, and developer discussions.",
-    favicon: "https://news.ycombinator.com/favicon.ico",
-  },
-  {
-    id: "curated-sspai",
-    title: "少数派 (sspai)",
-    feedUrl: "https://sspai.com/feed",
-    category: "Technology",
-    description: "高效工作指南、数码硬件评测与生活方式指南。",
-    favicon: "https://cdn.sspai.com/sspai/assets/img/favicon/favicon.ico",
-  },
-  {
-    id: "curated-verge",
-    title: "The Verge",
-    feedUrl: "https://www.theverge.com/rss/index.xml",
-    category: "Technology",
-    description: "Covers the intersection of technology, science, art, and culture.",
-    favicon: "https://www.theverge.com/favicon.ico",
-  },
-  {
-    id: "curated-v2ex",
-    title: "V2EX 热门",
-    feedUrl: "https://www.v2ex.com/index.xml",
-    category: "Technology",
-    description: "创意工作者的社区，涵盖编程、职场与技术交流。",
-    favicon: "https://www.v2ex.com/favicon.ico",
-  },
-  {
-    id: "curated-devto",
-    title: "DEV Community",
-    feedUrl: "https://dev.to/feed",
-    category: "Developer",
-    description: "A constructive and inclusive social network for software developers.",
-    favicon: "https://dev.to/favicon.ico",
-  },
-  {
-    id: "curated-36kr",
-    title: "36氪 资讯",
-    feedUrl: "https://36kr.com/feed",
-    category: "Business",
-    description: "关注科技商业、创投风向与前沿企业动态。",
-    favicon: "https://36kr.com/favicon.ico",
-  },
-  {
-    id: "curated-bbc",
-    title: "BBC World News",
-    feedUrl: "http://feeds.bbci.co.uk/news/world/rss.xml",
-    category: "News",
-    description: "Global breaking news, in-depth reports, and world affairs.",
-    favicon: "https://www.bbc.com/favicon.ico",
-  },
-  {
-    id: "curated-mit",
-    title: "MIT Tech Review",
-    feedUrl: "https://www.technologyreview.com/feed/",
-    category: "AI & Science",
-    description: "In-depth insights on artificial intelligence, biotech, and energy.",
-    favicon: "https://www.technologyreview.com/favicon.ico",
-  },
-];
-
-export const DEFAULT_FEEDS: Feed[] = [
+export const LEGACY_DEFAULT_FEEDS: Feed[] = [
   {
     id: "feed-crossing",
     title: "十字路口Crossing",
@@ -120,16 +53,6 @@ export const DEFAULT_FEEDS: Feed[] = [
     unreadCount: 3,
     bidclubFeedUrl: "https://bidclub.ai/feeds/valley101.xml",
     bidclubShowSlug: "valley101",
-  },
-  {
-    id: "feed-sspai",
-    title: "少数派 (sspai)",
-    feedUrl: "https://sspai.com/feed",
-    siteUrl: "https://sspai.com",
-    favicon: "https://www.google.com/s2/favicons?domain=sspai.com&sz=64",
-    category: "科技 | 商业",
-    description: "数字生活与高效工作指南",
-    unreadCount: 2,
   },
   {
     id: "feed-zhangxiaojun",
@@ -386,6 +309,174 @@ export const DEFAULT_FEEDS: Feed[] = [
   },
 ];
 
+const CURRENT_CURATED_FEED_ADDITIONS: CuratedFeedOption[] = [
+  {
+    id: "feed-light-the-star",
+    title: "卫诗婕｜漫谈Light the Star",
+    feedUrl: "https://feed.xyzfm.space/4jjdlpq3khc9",
+    siteUrl: "https://www.xiaoyuzhoufm.com/podcast/6627fda4b56459544087d86a?utm_source=rss",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=www.xiaoyuzhoufm.com&sz=64",
+  },
+  {
+    id: "feed-shanghaojin",
+    title: "Shanghao Jin",
+    feedUrl: "https://bidclub.ai/feeds/shanghaojin.zh.xml",
+    siteUrl: "https://bidclub.ai/shows/shanghaojin",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=bidclub.ai&sz=64",
+  },
+  {
+    id: "feed-svvector",
+    title: "硅谷坐标 Silicon Valley Vector",
+    feedUrl: "https://bidclub.ai/feeds/svvector.zh.xml",
+    siteUrl: "https://bidclub.ai/shows/svvector",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=bidclub.ai&sz=64",
+  },
+  {
+    id: "feed-theprompt",
+    title: "the prompt",
+    feedUrl: "https://bidclub.ai/feeds/theprompt.zh.xml",
+    siteUrl: "https://bidclub.ai/shows/theprompt",
+    category: "科技 | 商业",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=bidclub.ai&sz=64",
+  },
+  {
+    id: "feed-aihot",
+    title: "AIHOT — 精选",
+    feedUrl: "https://aihot.virxact.com/feed.xml?aihot_actor=42463a82-20ed-4073-8681-05680b2172b1",
+    siteUrl: "https://aihot.virxact.com/",
+    category: "新闻｜公众号",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=aihot.virxact.com&sz=64",
+  },
+  {
+    id: "feed-mianji",
+    title: "面基",
+    feedUrl: "https://feed.xyzfm.space/6hpdgggtxpxb",
+    siteUrl: "https://feed.xyzfm.space/6hpdgggtxpxb",
+    category: "投资 | 理财",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-zhixing",
+    title: "知行小酒馆",
+    feedUrl: "https://feed.xyzfm.space/j8yp8gxkmgqr",
+    siteUrl: "https://feed.xyzfm.space/j8yp8gxkmgqr",
+    category: "投资 | 理财",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-touziabc",
+    title: "投资ABC",
+    feedUrl: "https://feed.xyzfm.space/9bmupxfae9qd",
+    siteUrl: "https://feed.xyzfm.space/9bmupxfae9qd",
+    category: "投资 | 理财",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-afterschool",
+    title: "放学以后After school",
+    feedUrl: "https://anchor.fm/s/81d05f80/podcast/rss",
+    siteUrl: "https://anchor.fm/s/81d05f80/podcast/rss",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=anchor.fm&sz=64",
+  },
+  {
+    id: "feed-zhankaijiangjiang",
+    title: "展开讲讲",
+    feedUrl: "https://feed.xyzfm.space/444v89dnlhkf",
+    siteUrl: "https://feed.xyzfm.space/444v89dnlhkf",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-zhiwubuyan",
+    title: "知无不言QA",
+    feedUrl: "https://feed.xyzfm.space/kthwg4quxknw",
+    siteUrl: "https://feed.xyzfm.space/kthwg4quxknw",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-liangshiyiting",
+    title: "两室一听",
+    feedUrl: "https://feed.xyzfm.space/fnrdh946mana",
+    siteUrl: "https://feed.xyzfm.space/fnrdh946mana",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+  {
+    id: "feed-tongjing",
+    title: "铜镜",
+    feedUrl: "https://feed.xyzfm.space/xpa79uvcn9lw",
+    siteUrl: "https://feed.xyzfm.space/xpa79uvcn9lw",
+    category: "政 | 经 | 史",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=feed.xyzfm.space&sz=64",
+  },
+];
+
+export const FEATURED_CURATED_FEED_IDS = [
+  "feed-crossing",
+  "feed-42",
+  "feed-sv101",
+  "feed-dwarkesh",
+  "feed-hardfork",
+  "feed-acquired",
+  "feed-zhixing",
+  "feed-qianliang",
+  "feed-zhankaijiangjiang",
+  "feed-aihot",
+] as const;
+
+const featuredCuratedFeedIds = new Set<string>(FEATURED_CURATED_FEED_IDS);
+
+function fallbackFavicon(feed: Pick<Feed, "siteUrl" | "feedUrl">): string {
+  try {
+    const domain = new URL(feed.siteUrl || feed.feedUrl).hostname;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  } catch {
+    return "";
+  }
+}
+
+function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
+  return {
+    id: feed.id,
+    title: feed.title,
+    feedUrl: feed.feedUrl,
+    siteUrl: feed.siteUrl,
+    category: feed.category,
+    description: feed.description || "",
+    favicon: feed.favicon || fallbackFavicon(feed),
+    bidclubFeedUrl: feed.bidclubFeedUrl,
+    bidclubShowSlug: feed.bidclubShowSlug,
+  };
+}
+
+export const CURATED_FEEDS: CuratedFeedOption[] = [
+  ...LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption),
+  ...CURRENT_CURATED_FEED_ADDITIONS,
+].map((feed) => ({
+  ...feed,
+  featured: featuredCuratedFeedIds.has(feed.id),
+}));
+
+export const FEATURED_CURATED_FEEDS = CURATED_FEEDS.filter((feed) => feed.featured);
+
 // BidClub Coverage subscriptions with original RSS sources. Shows without
 // original RSS are excluded because BidClub feeds do not carry audio enclosures.
 export const COVERAGE_FEED_IDS = [
@@ -508,20 +599,5 @@ export const INITIAL_ARTICLES: Article[] = [
     author: "硅谷101",
     read: false,
     starred: false,
-  },
-  {
-    id: "init-sspai-1",
-    feedId: "feed-sspai",
-    feedTitle: "少数派 (sspai)",
-    feedFavicon: "https://www.google.com/s2/favicons?domain=sspai.com&sz=64",
-    title: "如何利用 RSS 建立高质量的信息过滤与知识管理工作流",
-    link: "https://sspai.com/post/78910",
-    snippet:
-      "在信息爆炸的时代，主动掌控信息来源至关重要。本文深入探讨如何通过 RSS 订阅源分类、星标收藏、稍后阅读与 AI 智能摘要构建无噪音的高效阅读体验。",
-    content: `<p>信息时代的悖论在于：我们每天接触的信息数量呈爆炸式增长，但真正有价值的信息却往往被社交媒体算法和标题党噪音所淹没。</p>`,
-    pubDate: new Date(Date.now() - 1000 * 3600 * 24 * 5).toISOString(), // 5d ago
-    author: "少数派编辑部",
-    read: false,
-    starred: true,
   },
 ];

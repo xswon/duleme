@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   getStoredCategories,
+  getStoredFeeds,
   getStoredSortMode,
   saveStoredCategories,
   saveStoredSortMode,
@@ -38,6 +39,16 @@ describe("feed and folder preference storage", () => {
   it("does not resurrect renamed or deleted default folders", () => {
     saveStoredCategories(["Renamed"]);
     expect(getStoredCategories(["Default"], [])).toEqual(["Renamed"]);
+  });
+
+  it("starts a brand-new profile with no subscriptions", () => {
+    expect(getStoredFeeds()).toEqual([]);
+  });
+
+  it("does not append curated feeds to an existing subscription list", () => {
+    const custom = feed("custom", "自定义");
+    localStorage.setItem("inoreader_feeds_v2", JSON.stringify([custom]));
+    expect(getStoredFeeds()).toEqual([custom]);
   });
 
   it("persists the two sort modes independently", () => {

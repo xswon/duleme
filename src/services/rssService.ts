@@ -8,7 +8,7 @@ import {
   EnrichmentMatchMethod,
   EnrichmentReference,
 } from "../types";
-import { COVERAGE_FEED_IDS, DEFAULT_FEEDS, INITIAL_ARTICLES } from "../data/defaultFeeds";
+import { LEGACY_DEFAULT_FEEDS, INITIAL_ARTICLES } from "../data/defaultFeeds";
 import type { SortMode } from "./feedSorting";
 
 const STORAGE_KEY_FEEDS = "inoreader_feeds_v2";
@@ -59,7 +59,7 @@ function findMatchingDefaultFeed(feed: Feed, defaults: Feed[]): Feed | undefined
 }
 
 /** Add newly introduced default fields without replacing local feed settings. */
-export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = DEFAULT_FEEDS): Feed[] {
+export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = LEGACY_DEFAULT_FEEDS): Feed[] {
   return feeds.map((feed) => {
     const defaultFeed = findMatchingDefaultFeed(feed, defaults);
     if (!defaultFeed) return feed;
@@ -98,17 +98,6 @@ export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = DEFAULT
   });
 }
 
-/** Add only the explicitly migrated Coverage subscriptions, without resetting local feeds. */
-export function mergeCoverageDefaultFeeds(feeds: Feed[], defaults: Feed[] = DEFAULT_FEEDS): Feed[] {
-  const coverageDefaults = defaults.filter((feed) =>
-    COVERAGE_FEED_IDS.includes(feed.id as (typeof COVERAGE_FEED_IDS)[number])
-  );
-  const newFeeds = coverageDefaults.filter(
-    (defaultFeed) => !feeds.some((feed) => findMatchingDefaultFeed(feed, [defaultFeed]) !== undefined)
-  );
-  return newFeeds.length > 0 ? [...feeds, ...newFeeds] : feeds;
-}
-
 export function getStoredFeeds(): Feed[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_FEEDS);
@@ -116,11 +105,8 @@ export function getStoredFeeds(): Feed[] {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         const storedFeeds = parsed as Feed[];
-        const mergedFields = mergeDefaultFeedFields(storedFeeds);
-        const mergedFeeds = mergeCoverageDefaultFeeds(mergedFields);
-        const changed =
-          mergedFeeds.length !== storedFeeds.length ||
-          mergedFeeds.some((feed, index) => feed !== storedFeeds[index]);
+        const mergedFeeds = mergeDefaultFeedFields(storedFeeds);
+        const changed = mergedFeeds.some((feed, index) => feed !== storedFeeds[index]);
         if (changed) saveStoredFeeds(mergedFeeds);
         return mergedFeeds;
       }
@@ -128,7 +114,7 @@ export function getStoredFeeds(): Feed[] {
   } catch (_error) {
     console.warn("Failed to load stored feeds:", _error);
   }
-  return DEFAULT_FEEDS;
+  return [];
 }
 
 export function saveStoredFeeds(feeds: Feed[]) {
@@ -200,7 +186,7 @@ import {
 } from "./dbService";
 import { normalizeBidclubEnrichmentReference, isVerifiedBidclubEnrichment } from "./bidclubEpisodeCache";
 
-const DEPRECATED_SEED_ARTICLE_IDS = new Set(["init-taixian-1"]);
+const DEPRECATED_SEED_ARTICLE_IDS = new Set(["init-taixian-1", "init-sspai-1"]);
 
 export async function loadStoredArticlesAsync(): Promise<Article[]> {
   // Migration errors intentionally propagate so callers can keep legacy data.
@@ -225,10 +211,7 @@ export async function loadStoredArticlesAsync(): Promise<Article[]> {
     return normalized;
   }
 
-  // 3. Fallback to initial seed articles and seed them into DB for future instant loads
-  const seed = sanitizeArticles(INITIAL_ARTICLES);
-  await saveArticlesToDB(seed);
-  return seed;
+  return [];
 }
 
 type LegacyArticle = Article & { bidclubUrl?: string; bidclubSlug?: string };
@@ -312,7 +295,7 @@ export function getStoredArticles(): Article[] {
   } catch {
     // ignore
   }
-  return sanitizeArticles(INITIAL_ARTICLES);
+  return [];
 }
 
 export function saveStoredArticles(articles: Article[]) {

@@ -138,6 +138,7 @@ export interface PersistedAppState {
   playlistIds?: string[];
   audioProgressMap?: Record<string, { currentTime: number; duration: number; updatedAt: number }>;
   aiConfig?: AiConfig;
+  onboardingCompleted?: boolean;
 }
 
 /** Covers maps introduced by localStorage migration or a legacy backup after v6 exists. */

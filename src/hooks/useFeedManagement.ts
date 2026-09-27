@@ -137,7 +137,7 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
     }
   }, [feeds, selectedArticle, setArticles, setFeeds, setSelectedArticleId, showToast]);
 
-  const importOpmlFile = useCallback(async (file: File) => {
+  const importOpmlFile = useCallback(async (file: File): Promise<boolean> => {
     try {
       const xmlDoc = new DOMParser().parseFromString(await file.text(), "text/xml");
       const allOutlines = Array.from(xmlDoc.querySelectorAll("outline"));
@@ -162,7 +162,7 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
       });
       if (importedFeeds.length === 0) {
         showToast(`OPML 导入：新增 0，重复 0，无效 ${invalidCount || allOutlines.length}`);
-        return;
+        return false;
       }
       const normalized = mergeDefaultFeedFields(importedFeeds);
       const existingUrls = new Set(feedsRef.current.map((feed) => feed.feedUrl.trim().toLowerCase()));
@@ -177,8 +177,10 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
       setCategories((current) => Array.from(new Set([...current, ...newFeeds.map((feed) => feed.category || "未分类")])));
       queueRefresh(newFeeds.map((feed) => feed.id));
       showToast(`OPML 导入：新增 ${newFeeds.length}，重复 ${normalized.length - newFeeds.length}，无效 ${invalidCount}`);
+      return newFeeds.length > 0;
     } catch (error) {
       showToast(`OPML 解析失败：${error instanceof Error ? error.message : "未知错误"}`);
+      return false;
     }
   }, [feedsRef, queueRefresh, setCategories, setFeeds, showToast]);
 
