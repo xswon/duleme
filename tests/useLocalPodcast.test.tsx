@@ -16,7 +16,7 @@ describe("useLocalPodcast", () => {
 
   it("deduplicates rapid transcription starts", async () => {
     api.start.mockResolvedValue({ session_id: "s1", job_id: "j1" });
-    let start: (() => Promise<void>) | undefined;
+    let start: (() => Promise<{ started: boolean; error?: string }>) | undefined;
     function Harness() {
       const [article, setArticle] = useState(baseArticle);
       const local = useLocalPodcast(article, (_id, patch) => setArticle((current) => ({ ...current, ...patch })));
