@@ -37,9 +37,9 @@ function Harness() {
   return <div data-ready={String(persistence.isAppStateReady)} data-complete={String(persistence.isOnboardingComplete)} />;
 }
 
-async function waitFor(predicate: () => boolean) {
+async function waitFor(predicate: () => boolean | Promise<boolean>) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
-    if (predicate()) return;
+    if (await predicate()) return;
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
   }
   throw new Error("Timed out waiting for onboarding persistence");
