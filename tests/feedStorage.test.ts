@@ -41,6 +41,10 @@ describe("feed and folder preference storage", () => {
     expect(getStoredCategories(["Default"], [])).toEqual(["Renamed"]);
   });
 
+  it("starts a brand-new profile with no subscriptions", () => {
+    expect(getStoredFeeds()).toEqual([]);
+  });
+
   it("does not append curated feeds to an existing subscription list", () => {
     const custom = feed("custom", "自定义");
     localStorage.setItem("inoreader_feeds_v2", JSON.stringify([custom]));
