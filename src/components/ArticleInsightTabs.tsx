@@ -50,6 +50,7 @@ export interface InsightModel {
   localProgress?: number;
   localFetchError?: string | null;
   localRestoring?: boolean;
+  transcriptionMode?: "local" | "cloud";
   onStartTranscription?: () => void;
   onRetryTranscription?: () => void;
   onCreateInsight?: () => void;
@@ -382,6 +383,8 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   }
 
   const cloudTask = p.article.transcription;
+  const localTask = p.article.localPodcast;
+  const transcriptionFailed = cloudTask?.status === "failed" || localTask?.transcriptionStatus === "failed";
   const localDigest = p.localArtifacts?.digest;
   const hasPreparedOverview = Boolean(
     p.overviewHtml?.trim() || p.digestHtml?.trim() || localDigest
@@ -482,7 +485,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             stage={p.pipelineStage === "idle" || !p.pipelineStage ? "transcribing" : p.pipelineStage}
             autoContinue={Boolean(p.pipelinePendingSummary)}
             error={p.pipelineError || p.summaryError}
-            transcriptionFailed={cloudTask?.status === "failed"}
+            transcriptionFailed={transcriptionFailed}
             onCancel={p.onCancelPipeline}
           />
         );
@@ -525,7 +528,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             </div>
           </section>
         </>}
-        <p className="mt-4 text-xs text-slate-400">来源：本机 NextEcho AI 整理</p>
+        <p className="mt-4 text-xs text-slate-400">来源：本地 AI 整理</p>
       </div>
     );
   };
@@ -564,7 +567,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   );
   if (p.localArtifacts?.transcript?.length) return (
     <div className="audio-tab-panel audio-transcript-panel">
-      <p className="reader-attribution">来源：本机 NextEcho</p>
+      <p className="reader-attribution">转录服务：本地</p>
       {p.localArtifacts.transcript.map((segment, index) => (
         <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}>
           <button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button>
@@ -597,11 +600,16 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           description="点击开始生成完整逐字稿。"
           tone="slate"
         >
-          {(p.localFetchError || cloudTask?.error) && (
-            <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || cloudTask?.error}</p>
+          {p.transcriptionMode && (
+            <p className="mt-3 text-xs text-slate-400">
+              转录方式：{p.transcriptionMode === "local" ? "本地" : "云端（阿里云百炼）"}
+            </p>
           )}
-          <PrimaryActionButton onClick={cloudTask?.status === "failed" ? p.onRetryTranscription : p.onStartTranscription}>
-            {cloudTask?.status === "failed" ? "重试生成" : "生成逐字稿"}
+          {(p.localFetchError || localTask?.error || cloudTask?.error) && (
+            <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || localTask?.error || cloudTask?.error}</p>
+          )}
+          <PrimaryActionButton onClick={transcriptionFailed ? p.onRetryTranscription : p.onStartTranscription}>
+            {transcriptionFailed ? "重试生成" : "生成逐字稿"}
           </PrimaryActionButton>
         </EmptyStateContainer>
       );
