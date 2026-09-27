@@ -48,7 +48,7 @@ describe("ArticleInsightTabs", () => {
     });
     expect(html).toContain("生成逐字稿");
     expect(html).toContain("逐字稿");
-    expect(html).toContain("配置以下服务后可将音频转成逐字稿");
+    expect(html).toContain("逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。");
     expect(html).toContain("配置");
     expect(html).not.toContain("API Key");
   });
