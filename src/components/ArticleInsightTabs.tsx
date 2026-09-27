@@ -412,7 +412,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <ConfigRequirementCard
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
             title="生成 AI 摘要"
-            description="配置以下服务后即可生成"
+            description="这是可选增强功能。配置以下服务后即可生成，不影响正常 RSS 阅读。"
             requirements={[
               {
                 icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
@@ -447,7 +447,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           <ConfigRequirementCard
             icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
             title="生成 AI 摘要"
-            description="配置 AI 摘要模型后即可生成。"
+            description="AI 摘要是可选功能。配置模型后即可生成，不影响正常 RSS 阅读。"
             requirements={[
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
@@ -611,7 +611,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         <ConfigRequirementCard
           icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
           title="生成逐字稿"
-          description="配置以下服务后可将音频转成逐字稿"
+          description="逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。"
           requirements={[
             {
               icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
