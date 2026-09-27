@@ -324,6 +324,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   }, [article, audioPlayer, savedProgress?.duration]);
   const localPodcast = useLocalPodcast(article, onArticlePatch);
   const cloudTranscription = useCloudTranscription(article, onArticlePatch);
+  const startLocalTranscription = localPodcast.startTranscription;
+  const startCloudTranscription = cloudTranscription.start;
 
   const transcriptionAvailable = cloudTranscriptionAvailable || localTranscriptionAvailable;
   const shouldCheckLocalTranscription = Boolean(article?.audioUrl);
@@ -463,9 +465,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   }, [article, aiSummary, getTranscriptText, onArticlePatch]);
 
   const startPreferredTranscription = useCallback(async () => {
-    if (localTranscriptionAvailable) return localPodcast.startTranscription();
-    return cloudTranscription.start();
-  }, [cloudTranscription.start, localPodcast.startTranscription, localTranscriptionAvailable]);
+    if (localTranscriptionAvailable) return startLocalTranscription();
+    return startCloudTranscription();
+  }, [localTranscriptionAvailable, startCloudTranscription, startLocalTranscription]);
 
   const startPodcastSummaryPipeline = useCallback(async (options: { force?: boolean } = {}) => {
     if (!article?.audioUrl || summaryInFlightRef.current) return;
