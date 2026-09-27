@@ -380,7 +380,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
       });
     };
 
-    await selectText("配置以下服务后即可生成");
+    await selectText("这是可选增强功能。配置以下服务后即可生成，不影响正常 RSS 阅读。");
     expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
 
     await act(async () => {
@@ -388,7 +388,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
         .find((tab) => tab.textContent === "逐字稿")
         ?.click();
     });
-    await selectText("配置以下服务后可将音频转成逐字稿");
+    await selectText("逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。");
     expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
 
     await act(async () => root.unmount());
@@ -520,7 +520,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("配置 AI 摘要模型后即可生成。");
+    expect(container.textContent).toContain("AI 摘要是可选功能。配置模型后即可生成，不影响正常 RSS 阅读。");
     const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
       .find((button) => button.textContent === "配置");
     expect(configureButton).toBeTruthy();

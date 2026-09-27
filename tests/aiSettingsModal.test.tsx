@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), clear: vi.fn() }));
 const transcription = vi.hoisted(() => ({ test: vi.fn() }));
 const insight = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), test: vi.fn(), save: vi.fn(), clear: vi.fn() }));
+const localPodcast = vi.hoisted(() => ({ preflight: vi.fn() }));
 
 vi.mock("../src/services/dbService", () => ({
   getTranscriptionSettings: db.get,
@@ -13,6 +14,7 @@ vi.mock("../src/services/dbService", () => ({
   clearTranscriptionSettings: db.clear,
 }));
 vi.mock("../src/services/transcriptionService", () => ({ transcriptionApi: { test: transcription.test } }));
+vi.mock("../src/services/localPodcastService", () => ({ localPodcastApi: { preflight: localPodcast.preflight } }));
 vi.mock("../src/services/insightSettingsService", () => ({
   getInsightSettingsStatus: insight.get,
   listInsightModels: insight.list,
@@ -80,6 +82,7 @@ describe("AI model settings modals", () => {
     db.save.mockResolvedValue(undefined);
     db.clear.mockResolvedValue(undefined);
     transcription.test.mockResolvedValue({ ok: true });
+    localPodcast.preflight.mockResolvedValue({ ok: true });
     insight.get.mockResolvedValue(serverInsight);
     insight.list.mockResolvedValue([
       { id: "reader-model", name: "Reader Model", created: 2 },
@@ -208,6 +211,30 @@ describe("AI model settings modals", () => {
     });
     await flush();
     expect(db.save).toHaveBeenCalledWith(saved);
+  });
+
+  it("keeps NextEcho behind advanced transcription settings", async () => {
+    await act(async () => { root.render(<LocalAiSettingsPanel panelId="transcription" />); });
+    await flush();
+
+    const advanced = Array.from(node.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("高级设置")) as HTMLButtonElement;
+    expect(advanced.getAttribute("aria-expanded")).toBe("false");
+
+    const advancedBody = advanced.parentElement?.querySelector(".wreader-model-advanced-body") as HTMLElement;
+    expect(advancedBody.hasAttribute("hidden")).toBe(true);
+
+    await act(async () => { advanced.click(); });
+    expect(advancedBody.hasAttribute("hidden")).toBe(false);
+    expect(advancedBody.textContent).toContain("本地转录服务（NextEcho）");
+
+    const check = Array.from(advancedBody.querySelectorAll("button"))
+      .find((button) => button.textContent?.includes("检查本地服务")) as HTMLButtonElement;
+    await act(async () => { check.click(); });
+    await flush();
+
+    expect(localPodcast.preflight).toHaveBeenCalledTimes(1);
+    expect(advancedBody.textContent).toContain("已检测到本机 NextEcho");
   });
 
   it("lets content organizing use an editable OpenAI-compatible endpoint", async () => {
