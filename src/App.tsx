@@ -191,11 +191,12 @@ export default function App() {
     navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined });
   }, [completeOnboarding, navigateToRoute, queueRefresh, setCategories, setFeeds]);
 
+  const importOpmlFile = feedManagement.importOpmlFile;
   const importWelcomeOpml = useCallback(async (file: File) => {
-    const imported = await feedManagement.importOpmlFile(file);
+    const imported = await importOpmlFile(file);
     if (imported) completeOnboarding();
     return imported;
-  }, [completeOnboarding, feedManagement.importOpmlFile]);
+  }, [completeOnboarding, importOpmlFile]);
 
   const startWithEmptyLibrary = useCallback(() => {
     completeOnboarding();
