@@ -9,6 +9,11 @@ function mapStatus(value?: string): LocalTaskStatus {
   return "not_started";
 }
 
+export interface LocalTranscriptionStartResult {
+  started: boolean;
+  error?: string;
+}
+
 export function useLocalPodcast(article: Article | null, onPatch?: (id: string, patch: Partial<Article>) => void) {
   const [artifacts, setArtifacts] = useState<LocalPodcastArtifacts | null>(null);
   const [progress, setProgress] = useState(0);
@@ -76,17 +81,25 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
     return () => window.clearInterval(timer);
   }, [article?.localPodcast?.sessionId, article?.localPodcast?.transcriptionStatus, article?.localPodcast?.insightStatus, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- Polling follows task fields without restarting for unrelated article updates.
 
-  const startTranscription = useCallback(async () => {
+  const startTranscription = useCallback(async (): Promise<LocalTranscriptionStartResult> => {
     const current = articleRef.current;
-    if (!current?.audioUrl || inFlight.current) return;
+    if (!current?.audioUrl) return { started: false, error: "当前节目没有可转录的音频。" };
+    if (current.localPodcast?.transcriptionStatus === "processing") return { started: true };
+    if (inFlight.current) return { started: false, error: "本地转录正在处理中。" };
+
+    setFetchError(null);
     patchRef.current?.(current.id, { localPodcast: { sourceAudioUrl: current.audioUrl, transcriptionStatus: "processing", insightStatus: "not_started", updatedAt: new Date().toISOString() } });
     inFlight.current = true;
     try {
       const session = await localPodcastApi.start({ audioUrl: current.audioUrl, title: current.title, showNotes: current.content || current.snippet || "" });
       patchRef.current?.(current.id, { localPodcast: { sessionId: session.session_id, jobId: session.job_id, sourceAudioUrl: current.audioUrl, transcriptionStatus: "processing", insightStatus: "not_started", updatedAt: new Date().toISOString() } });
+      return { started: true };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local-podcast request rejections have no typed error contract.
     } catch (error: any) {
-      patchRef.current?.(current.id, { localPodcast: { sourceAudioUrl: current.audioUrl, transcriptionStatus: "failed", insightStatus: "not_started", error: error.message, updatedAt: new Date().toISOString() } });
+      const message = error.message || "本地转录启动失败。";
+      setFetchError(message);
+      patchRef.current?.(current.id, { localPodcast: { sourceAudioUrl: current.audioUrl, transcriptionStatus: "failed", insightStatus: "not_started", error: message, updatedAt: new Date().toISOString() } });
+      return { started: false, error: message };
     } finally { inFlight.current = false; }
   }, []);
 
