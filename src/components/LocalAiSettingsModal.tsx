@@ -12,6 +12,7 @@ import {
   type InsightSettingsStatus,
 } from "../services/insightSettingsService";
 import { transcriptionApi } from "../services/transcriptionService";
+import { localPodcastApi } from "../services/localPodcastService";
 import "./LocalAiSettingsModal.css";
 
 const TRANSCRIPTION_PROVIDERS = {
@@ -59,6 +60,9 @@ const INSIGHT_PROVIDERS: Record<InsightProviderId, { name: string; baseURL: stri
   ollama: { name: "Ollama", baseURL: "http://127.0.0.1:11434/v1", fallbackModels: [] },
   custom: { name: "自定义", baseURL: "", fallbackModels: [] },
 };
+
+const PRIMARY_INSIGHT_PROVIDER_IDS: InsightProviderId[] = ["openai", "deepseek", "qwen", "kimi"];
+const ADVANCED_INSIGHT_PROVIDER_IDS: InsightProviderId[] = ["ollama", "custom"];
 
 function getFallbackContentModels(provider: "" | InsightProviderId): InsightModelOption[] {
   if (!provider) return [];
@@ -135,6 +139,7 @@ function isLoopbackUrl(value: string): boolean {
 }
 
 type Feedback = { tone: "success" | "error" | "warning" | "info"; text: string };
+type NextEchoStatus = "idle" | "available" | "unavailable";
 
 function ModelSummaryCard({ title, provider, onClick }: { title: string; provider?: string; onClick: () => void }) {
   return (
@@ -216,6 +221,9 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [transcriptionFeedback, setTranscriptionFeedback] = useState<Feedback | null>(null);
+  const [showTranscriptionAdvanced, setShowTranscriptionAdvanced] = useState(false);
+  const [nextEchoChecking, setNextEchoChecking] = useState(false);
+  const [nextEchoStatus, setNextEchoStatus] = useState<NextEchoStatus>("idle");
 
   const [insight, setInsight] = useState<InsightSettingsStatus | null>(null);
   const [insightModalOpen, setInsightModalOpen] = useState(false);
@@ -421,7 +429,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     setInsightFeedback(null);
     setInsightModels([]);
     setInsightModelsError("");
-    setShowInsightAdvanced(nextProvider === "custom");
+    setShowInsightAdvanced(nextProvider === "custom" || nextProvider === "ollama");
     setInsightModalOpen(true);
     if (nextProvider && nextBaseURL) {
       void loadInsightModelCatalog({
@@ -440,7 +448,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     setInsightFeedback(null);
     setInsightModels([]);
     setInsightModelsError("");
-    setShowInsightAdvanced(value === "custom");
+    setShowInsightAdvanced(value === "custom" || value === "ollama");
     if (!value) {
       setDraftInsightBaseURL("");
       setDraftInsightModel("");
@@ -586,6 +594,19 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     }
   };
 
+  const checkNextEcho = async () => {
+    setNextEchoChecking(true);
+    setNextEchoStatus("idle");
+    try {
+      await localPodcastApi.preflight();
+      setNextEchoStatus("available");
+    } catch {
+      setNextEchoStatus("unavailable");
+    } finally {
+      setNextEchoChecking(false);
+    }
+  };
+
   if (view === "insight") {
     const draftProvider = draftInsightProvider ? INSIGHT_PROVIDERS[draftInsightProvider] : null;
     const contentModels = pickContentModels(draftInsightProvider, insightModels, draftInsightModel);
@@ -609,7 +630,10 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     return (
       <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
         <section className="wreader-model-settings-page">
-          <h3>AI 摘要模型</h3>
+          <div>
+            <h3>AI 摘要</h3>
+            <p className="wreader-model-hint">可选增强功能。不配置也不影响 RSS 阅读、收藏和笔记。</p>
+          </div>
           <ModelSummaryCard
             title={insight?.configured ? insight.model || "已配置" : "尚未配置"}
             provider={insight?.configured ? insight.provider : undefined}
@@ -617,7 +641,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
           />
           {insightModalOpen && (
             <ModelConfigModal
-              title="配置 AI 摘要模型"
+              title="配置 AI 摘要"
               onClose={() => setInsightModalOpen(false)}
               onSave={() => void saveInsight()}
               saving={insightSaving}
@@ -632,7 +656,12 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                     onChange={(event) => changeInsightProvider(event.target.value as "" | InsightProviderId)}
                   >
                     <option value="">请选择</option>
-                    {Object.entries(INSIGHT_PROVIDERS).map(([id, item]) => <option key={id} value={id}>{item.name}</option>)}
+                    <optgroup label="常用服务">
+                      {PRIMARY_INSIGHT_PROVIDER_IDS.map((id) => <option key={id} value={id}>{INSIGHT_PROVIDERS[id].name}</option>)}
+                    </optgroup>
+                    <optgroup label="高级">
+                      {ADVANCED_INSIGHT_PROVIDER_IDS.map((id) => <option key={id} value={id}>{INSIGHT_PROVIDERS[id].name}</option>)}
+                    </optgroup>
                   </select>
                   <ChevronDown aria-hidden="true" />
                 </span>
@@ -777,7 +806,10 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   return (
     <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-transcript" className="wreader-ai-settings">
       <section className="wreader-model-settings-page">
-        <h3>转录模型</h3>
+        <div>
+          <h3>转录</h3>
+          <p className="wreader-model-hint">可选增强功能。不配置也不影响 RSS 阅读和播客播放。</p>
+        </div>
         <ModelSummaryCard
           title={settings ? model.name : "尚未配置"}
           provider={settings ? provider.name : undefined}
@@ -806,6 +838,46 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
               <span className="wreader-ai-setting-copy"><strong>专有名词增强</strong><small>使用文章标题、播客名和节目简介提升识别</small></span>
               <span className="wreader-ai-switch"><input type="checkbox" checked={contextEnhancement} onChange={(event) => void updateOptions({ contextEnhancement: event.target.checked })} /><i aria-hidden="true" /></span>
             </label>
+          </div>
+        </section>
+
+
+        <section className="wreader-model-advanced wreader-transcription-advanced">
+          <button
+            type="button"
+            className="wreader-model-advanced-toggle"
+            aria-expanded={showTranscriptionAdvanced}
+            onClick={() => setShowTranscriptionAdvanced((open) => !open)}
+          >
+            高级设置
+            <ChevronDown aria-hidden="true" />
+          </button>
+          <div className="wreader-model-advanced-body" hidden={!showTranscriptionAdvanced}>
+            <div className="wreader-local-service-row">
+              <span>
+                <strong>本地转录服务（NextEcho）</strong>
+                <small>仅供已在本机配置 NextEcho 的高级用户使用；普通用户无需设置。</small>
+              </span>
+              <button
+                type="button"
+                className="wreader-model-test-button"
+                onClick={() => void checkNextEcho()}
+                disabled={nextEchoChecking}
+              >
+                {nextEchoChecking ? "正在检查…" : "检查本地服务"}
+              </button>
+            </div>
+            {nextEchoStatus === "available" && (
+              <p className="wreader-model-feedback is-success" role="status">
+                <CheckCircle2 aria-hidden="true" />
+                已检测到本机 NextEcho
+              </p>
+            )}
+            {nextEchoStatus === "unavailable" && (
+              <p className="wreader-model-hint" role="status">
+                未检测到可用的 NextEcho。无需处理；云端转录和 RSS 阅读不受影响。
+              </p>
+            )}
           </div>
         </section>
 
