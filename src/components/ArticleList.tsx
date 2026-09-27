@@ -27,6 +27,24 @@ interface ArticleListProps {
   selectedArticleId?: string | null;
 }
 
+function HistoryWindowControl({
+  label,
+  position,
+  onClick,
+}: {
+  label: string;
+  position: "top" | "bottom";
+  onClick: () => void;
+}) {
+  return (
+    <div className={`wreader-timeline-history-control is-${position}`}>
+      <button type="button" onClick={onClick}>
+        {label}
+      </button>
+    </div>
+  );
+}
+
 export function resolveImageUrl(src?: string): string | undefined {
   if (!src) return undefined;
   if (src.startsWith("/api/proxy-image")) return src;
@@ -200,16 +218,11 @@ export const ArticleList: React.FC<ArticleListProps> = ({
   return (
     <div className="wreader-article-list px-2 py-2">
       {isExpandedHistory && onHideOlder && (
-        <div className="mb-3 flex flex-wrap items-center justify-center gap-2 border-b border-slate-100 px-2 pb-4 text-center">
-          <span className="text-sm text-slate-500">正在显示最近 {historyWindowDays} 天</span>
-          <button
-            type="button"
-            onClick={onHideOlder}
-            className="min-h-8 rounded-lg px-2.5 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            返回最近 30 天
-          </button>
-        </div>
+        <HistoryWindowControl
+          label="收起至最近 30 天"
+          position="top"
+          onClick={onHideOlder}
+        />
       )}
       <VirtualWindow
         count={articles.length}
@@ -266,15 +279,11 @@ export const ArticleList: React.FC<ArticleListProps> = ({
         );
       }} />
       {hasOlderArticles && onShowOlder && (
-        <div className="wreader-timeline-load-more flex flex-col items-center gap-2 px-2 pt-5 pb-2 text-center">
-          <button
-            type="button"
-            onClick={onShowOlder}
-            className="min-h-10 rounded-lg px-3 py-2 text-sm font-normal text-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            继续加载 30 天
-          </button>
-        </div>
+        <HistoryWindowControl
+          label="继续加载 30 天"
+          position="bottom"
+          onClick={onShowOlder}
+        />
       )}
     </div>
   );

@@ -192,7 +192,7 @@ describe("ArticleList content capabilities", () => {
     expect(html).not.toContain("未找到相关文章");
   });
 
-  it("shows a history scope notice when older content is expanded", () => {
+  it("uses matching history controls above and below an expanded list", () => {
     const html = renderToStaticMarkup(
       <ArticleList
         articles={[article()]}
@@ -200,13 +200,17 @@ describe("ArticleList content capabilities", () => {
         onToggleStar={vi.fn()}
         onToggleRead={vi.fn()}
         onSummarizeAI={vi.fn()}
+        olderArticleCount={3}
         historyWindowDays={60}
+        onShowOlder={vi.fn()}
         onHideOlder={vi.fn()}
       />
     );
 
-    expect(html).toContain("正在显示最近 60 天");
-    expect(html).toContain("返回最近 30 天");
+    expect(html).toContain("收起至最近 30 天");
+    expect(html).toContain("继续加载 30 天");
+    expect(html).not.toContain("正在显示最近 60 天");
+    expect((html.match(/wreader-timeline-history-control/g) || []).length).toBe(2);
   });
 
   it("keeps the existing empty state when there are no older articles", () => {

@@ -80,7 +80,7 @@ export function deriveTimeline(
     : null;
   const window = getLocalCalendarDayWindow(historyWindowDays, now);
   const preparedQuery = prepareSearchQuery(searchQuery.trim());
-  const visible: Array<{ article: Article; index: number; timestamp: number }> = [];
+  const visible: Array<{ article: Article; index: number; timestamp: number | null }> = [];
   let olderArticleCount = 0;
   let visibleUnreadCount = 0;
 
@@ -94,8 +94,9 @@ export function deriveTimeline(
     if (preparedQuery.terms.length > 0 && !matchesPreparedSearch(getPreparedSearchDocument(article), preparedQuery)) return;
 
     const timestamp = publicationTimestamp(article.pubDate);
-    if (timestamp === null || !window || timestamp > window.end) return;
-    if (timestamp < window.start) {
+    const showsAllHistory = filterType === "starred";
+    if (!showsAllHistory && (timestamp === null || !window || timestamp > window.end)) return;
+    if (!showsAllHistory && timestamp !== null && window && timestamp < window.start) {
       olderArticleCount += 1;
       return;
     }
@@ -103,8 +104,17 @@ export function deriveTimeline(
     if (!article.read) visibleUnreadCount += 1;
   });
 
-  visible.sort((a, b) => b.timestamp - a.timestamp || a.index - b.index);
-  if (sortOrder === "oldest") visible.reverse();
+  visible.sort((a, b) => {
+    if (a.timestamp !== null && b.timestamp !== null) {
+      const dateDifference = sortOrder === "oldest"
+        ? a.timestamp - b.timestamp
+        : b.timestamp - a.timestamp;
+      return dateDifference || (sortOrder === "oldest" ? b.index - a.index : a.index - b.index);
+    }
+    if (a.timestamp !== null) return -1;
+    if (b.timestamp !== null) return 1;
+    return a.index - b.index;
+  });
   return {
     visibleArticles: visible.map(({ article }) => article),
     olderArticleCount,

@@ -307,12 +307,13 @@ export default function App() {
       : activeTab === "feeds" && filterType === "starred" && !selectedFeedId && !selectedCategory ? `${totalSaved} 条`
         : undefined;
 
+  const isFavoritesView = activeTab === "feeds" && filterType === "starred";
   const articleListView = <ArticleList articles={visibleArticles} onSelectArticle={handleSelectArticle}
     onToggleStar={mutations.toggleStar} onToggleRead={handleToggleRead} onSummarizeAI={handleSelectArticle}
-    playlistIds={playablePlaylistIds} onTogglePlaylist={togglePlaylist} olderArticleCount={olderArticleCount}
+    playlistIds={playablePlaylistIds} onTogglePlaylist={togglePlaylist} olderArticleCount={isFavoritesView ? 0 : olderArticleCount}
     historyWindowDays={historyWindowDays} historyWindowStepDays={HISTORY_WINDOW_STEP_DAYS}
-    onShowOlder={() => navigateToRoute({ historyWindowDays: historyWindowDays + HISTORY_WINDOW_STEP_DAYS })}
-    onHideOlder={() => navigateToRoute({ historyWindowDays: DEFAULT_HISTORY_WINDOW_DAYS })} selectedArticleId={selectedArticleId} />;
+    onShowOlder={isFavoritesView ? undefined : () => navigateToRoute({ historyWindowDays: historyWindowDays + HISTORY_WINDOW_STEP_DAYS })}
+    onHideOlder={isFavoritesView ? undefined : () => navigateToRoute({ historyWindowDays: DEFAULT_HISTORY_WINDOW_DAYS })} selectedArticleId={selectedArticleId} />;
 
   const masterView = activeTab === "playlist" ? <PlaylistView articles={playlistArticles} audioProgressMap={audioProgressMap}
     audioPlayer={audioPlayer} onSelectArticle={handleSelectArticle} onRemoveFromPlaylist={removeFromPlaylist}

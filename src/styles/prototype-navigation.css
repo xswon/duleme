@@ -45,8 +45,12 @@
 .wreader-article-list .wreader-story-row.is-read .wreader-story-time { color: #8c98a5; }
 .wreader-story-row.is-read .wreader-story-source-meta { color: #718091; }
 .wreader-story-row.is-read .wreader-unread-dot { display: none; }
-.wreader-timeline-load-more { gap: 3px; margin: 10px 8px 0; padding: 10px 0 3px; color: #8c97a2; font-size: 11px; }
-.wreader-timeline-load-more button { min-height: 0; padding: 0; border-radius: 0; color: #8c97a2; font-size: 11px; font-weight: 400; }
+.wreader-timeline-history-control { display: flex; justify-content: center; margin: 0 8px; color: #8c97a2; font-size: 11px; text-align: center; }
+.wreader-timeline-history-control.is-top { padding: 4px 0 10px; }
+.wreader-timeline-history-control.is-bottom { padding: 20px 0 3px; }
+.wreader-timeline-history-control button { min-height: 28px; padding: 4px 9px; border-radius: 6px; color: #8c97a2; font-size: 11px; font-weight: 400; }
+.wreader-timeline-history-control button:hover { background: #f3f5f7; color: #687789; }
+.wreader-timeline-history-control button:focus-visible { outline: 2px solid #4b86cc; outline-offset: 2px; }
 @media (min-width: 900px) and (max-width: 1039px) {
   :root { --wreader-list: 330px; }
 }

@@ -139,6 +139,20 @@ describe("article recency scope", () => {
     expect(deriveTimeline(input, feeds, { selectedCategory: "A", contentType: "podcast", now }).visibleArticles.map((item) => item.id)).toEqual(["a-audio"]);
   });
 
+  it("shows the complete saved history without the timeline date window", () => {
+    const input = [
+      { ...article("recent-star", "f1", localIso(2026, 8, 30)), starred: true },
+      { ...article("old-star", "f1", localIso(2025, 1, 1)), starred: true },
+      { ...article("invalid-star", "f1", "not-a-date"), starred: true },
+      article("old-unstarred", "f1", localIso(2025, 1, 1)),
+    ];
+
+    const saved = deriveTimeline(input, feeds, { filterType: "starred", historyWindowDays: 30, now });
+    expect(saved.visibleArticles.map((item) => item.id)).toEqual(["recent-star", "old-star", "invalid-star"]);
+    expect(saved.olderArticleCount).toBe(0);
+    expect(deriveTimeline(input, feeds, { filterType: "starred", historyWindowDays: 30, sortOrder: "oldest", now }).visibleArticles.map((item) => item.id)).toEqual(["old-star", "recent-star", "invalid-star"]);
+  });
+
   it("preserves newest/oldest tie behavior and excludes invalid and future dates", () => {
     const input = [
       article("same-a", "f1", localIso(2026, 8, 30)),
