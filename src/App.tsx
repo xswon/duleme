@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Headphones } from "lucide-react";
-import type { Article, ArticleNote } from "./types";
+import type { Article, ArticleNote, Feed } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { ArticleList } from "./components/ArticleList";
@@ -12,6 +12,7 @@ import { PlaylistView } from "./components/PlaylistView";
 import { NotesView } from "./components/NotesView";
 import { KeyboardShortcutsModal } from "./components/KeyboardShortcutsModal";
 import { ReaderFeedbackLayer } from "./components/ReaderFeedbackLayer";
+import { WelcomeScreen } from "./components/WelcomeScreen";
 import { DEFAULT_HISTORY_WINDOW_DAYS, HISTORY_WINDOW_STEP_DAYS, canAutoMarkRead } from "./services/articleVisibility";
 import { applyFeedUnreadCounts } from "./services/articleMetrics";
 import { getArticleByLogicalOffset } from "./services/articleIndex";
@@ -27,6 +28,7 @@ import { useFeedManagement } from "./hooks/useFeedManagement";
 import { useArticleNotes } from "./hooks/useArticleNotes";
 import { useArticleMutations } from "./hooks/useArticleMutations";
 import { useLatestRef } from "./hooks/useLatestRef";
+import { FEATURED_CURATED_FEEDS } from "./data/defaultFeeds";
 
 type SettingsTab = "feeds" | "folders" | "transcript" | "insight" | "data" | "shortcuts";
 
@@ -66,7 +68,7 @@ export default function App() {
     togglePlaylist, removeFromPlaylist, removeMany: removeManyFromPlaylist,
     clear: clearPlaylist, reorder: reorderPlaylist, commitArticleIdMigration,
   } = playlist;
-  const { isAppStateReady } = useReaderPersistence({
+  const { isAppStateReady, isOnboardingComplete, completeOnboarding } = useReaderPersistence({
     feeds, setFeeds, categories, setCategories, feedOrderByFolder, setFeedOrderByFolder,
     playlistIds, setPlaylistIds, audioProgressMap, setAudioProgressMap, showToast,
   });
@@ -161,6 +163,44 @@ export default function App() {
     selectedArticle, setSelectedArticleId, isSettingsOpen, navigateToRoute,
     queueRefresh, invalidateRefresh, showToast,
   });
+
+  const startWithFeaturedFeeds = useCallback((feedIds: string[]) => {
+    const selectedIds = new Set(feedIds);
+    const selectedFeeds: Feed[] = FEATURED_CURATED_FEEDS
+      .filter((feed) => selectedIds.has(feed.id))
+      .map((feed) => ({
+        id: feed.id,
+        title: feed.title,
+        feedUrl: feed.feedUrl,
+        siteUrl: feed.siteUrl || feed.feedUrl,
+        favicon: feed.favicon || undefined,
+        category: feed.category,
+        description: feed.description,
+        unreadCount: 0,
+        bidclubFeedUrl: feed.bidclubFeedUrl,
+        bidclubShowSlug: feed.bidclubShowSlug,
+      }));
+    if (selectedFeeds.length === 0) return;
+    setFeeds(selectedFeeds);
+    setCategories((current) => Array.from(new Set([
+      ...current,
+      ...selectedFeeds.map((feed) => feed.category || "未分类"),
+    ])));
+    completeOnboarding();
+    queueRefresh(selectedFeeds.map((feed) => feed.id));
+    navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined });
+  }, [completeOnboarding, navigateToRoute, queueRefresh, setCategories, setFeeds]);
+
+  const importWelcomeOpml = useCallback(async (file: File) => {
+    const imported = await feedManagement.importOpmlFile(file);
+    if (imported) completeOnboarding();
+    return imported;
+  }, [completeOnboarding, feedManagement.importOpmlFile]);
+
+  const startWithEmptyLibrary = useCallback(() => {
+    completeOnboarding();
+    navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined });
+  }, [completeOnboarding, navigateToRoute]);
 
   const openSettings = useCallback((tab: SettingsTab) => {
     readerScrollTopBeforeSettings.current = mainScrollRef.current?.scrollTop || 0;
@@ -294,7 +334,18 @@ export default function App() {
       : activeTab === "playlist" ? <div className="wreader-empty-detail wreader-playlist-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><Headphones className="wreader-playlist-detail-empty-icon" aria-hidden="true" /><h2>选择一个节目查看详情</h2><p>从中栏播放列表选择标题或封面，详情会显示在这里。</p></div>
         : <div className="wreader-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><svg className="wreader-empty-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" /><path d="M4 4.5v18M8 7h8M8 11h7" /></svg><h2>选择一篇文章开始阅读</h2><p>从左侧时间线选择文章，正文、概要和音频会显示在这里。</p><div className="wreader-empty-shortcuts">快捷键 <kbd>J</kbd> <kbd>K</kbd> 切换文章 · <kbd>⌘K</kbd> 搜索</div></div>;
 
-  if (isInitializing) return <div className="flex h-screen items-center justify-center text-sm text-slate-500">正在加载文章…</div>;
+  if (isInitializing || !isAppStateReady) {
+    return <div className="flex h-screen items-center justify-center text-sm text-slate-500">正在加载本地数据…</div>;
+  }
+
+  if (!isOnboardingComplete) {
+    return <WelcomeScreen
+      featuredFeeds={FEATURED_CURATED_FEEDS}
+      onUseFeatured={startWithFeaturedFeeds}
+      onImportOpml={importWelcomeOpml}
+      onStartEmpty={startWithEmptyLibrary}
+    />;
+  }
 
   return <div className={`wreader-app flex h-screen w-screen overflow-hidden bg-slate-100 text-slate-900 font-sans antialiased transition-colors duration-200 ${isSidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
     <audio ref={audioPlayer.audioRef} className="hidden" onPlay={audioPlayer.handlePlay} onPause={audioPlayer.handlePause}
