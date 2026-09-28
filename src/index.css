@@ -189,6 +189,10 @@ button {
   margin-top: 0;
 }
 
+.bidclub-overview > :first-child {
+  margin-top: 0;
+}
+
 /* BidClub headings are typographic titles, without the generic blue rule. */
 .bidclub-overview h1,
 .bidclub-overview h2,
@@ -1903,10 +1907,26 @@ body,
 }
 
 .wreader-settings-header {
-  min-height: 60px;
+  min-height: 76px;
   gap: 16px;
-  padding: 0 20px 0 26px;
+  padding: 22px 20px 0 26px;
   background: transparent;
+}
+
+.wreader-settings-heading {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.wreader-settings-heading p {
+  overflow: hidden;
+  margin: 0;
+  color: #6f7d8c;
+  font-size: 12px;
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wreader-settings-header h1 {
@@ -2663,13 +2683,6 @@ body,
   margin-top: 16px;
 }
 
-.wreader-settings-note {
-  margin: 0 0 14px;
-  color: #6f7d8c;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
 .wreader-settings-data-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3404,8 +3417,8 @@ body,
   }
 
   .wreader-settings-header {
-    min-height: 54px;
-    padding: 0 14px 0 18px;
+    min-height: 68px;
+    padding: 14px 14px 0 18px;
   }
 
   .wreader-settings-body {

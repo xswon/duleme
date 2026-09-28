@@ -1130,13 +1130,15 @@ export async function fetchBidclubEpisode(episodeUrl: string): Promise<BidclubEp
 export async function summarizeArticleWithAI(
   title: string,
   content: string,
-  snippet: string
+  snippet: string,
+  source: "article" | "transcript" = "article",
+  onProgress?: (progress: number) => void,
 ): Promise<string> {
   const config = await getAiRequestConfig();
-  const response = await fetch("/api/ai/summarize", {
+  const response = await fetch(`/api/ai/summarize${onProgress ? "?stream=1" : ""}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title, content, snippet, ...(config ? { config } : {}) }),
+    body: JSON.stringify({ title, content, snippet, source, ...(config ? { config } : {}) }),
   });
 
   if (!response.ok) {
@@ -1144,6 +1146,45 @@ export async function summarizeArticleWithAI(
     const error = new Error(errJson.error || "Failed to generate AI summary.") as Error & { code?: string };
     error.code = errJson.code;
     throw new Error(getAiErrorMessage(error));
+  }
+
+  if (onProgress) {
+    if (!response.body) throw new Error("无法读取 AI 摘要进度，请稍后重试。");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let summary = "";
+    let streamError: (Error & { code?: string }) | null = null;
+    const handleLine = (line: string) => {
+      if (!line.trim()) return;
+      const event = JSON.parse(line) as {
+        type?: string;
+        progress?: number;
+        summary?: string;
+        error?: string;
+        code?: string;
+      };
+      if (event.type === "progress" && Number.isFinite(event.progress)) {
+        onProgress(Math.min(100, Math.max(0, Math.round(event.progress as number))));
+      } else if (event.type === "result" && typeof event.summary === "string") {
+        summary = event.summary;
+      } else if (event.type === "error") {
+        streamError = Object.assign(new Error(event.error || "Failed to generate AI summary."), { code: event.code });
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      lines.forEach(handleLine);
+      if (done) break;
+    }
+    handleLine(buffer);
+    if (streamError) throw new Error(getAiErrorMessage(streamError));
+    if (!summary) throw new Error("AI 摘要生成失败，请稍后重试。");
+    return summary;
   }
 
   const data = await response.json();

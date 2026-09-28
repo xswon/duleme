@@ -557,7 +557,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
       .find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
-    expect(container.querySelector(".bidclub-overview")?.textContent).toBe("已生成的摘要");
+    expect(container.querySelector(".bidclub-overview")?.textContent?.trim()).toBe("已生成的摘要");
     expect(container.textContent).not.toContain("Original show notes");
     expect(container.querySelector("img")).toBeNull();
 
@@ -599,7 +599,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await act(async () => aiTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
 
     expect(container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe("AI 摘要");
-    expect(container.querySelector(".bidclub-overview")?.textContent).toBe("路由同步后的摘要");
+    expect(container.querySelector(".bidclub-overview")?.textContent?.trim()).toBe("路由同步后的摘要");
     expect(container.textContent).not.toContain("Original show notes");
     await act(async () => root.unmount());
     container.remove();

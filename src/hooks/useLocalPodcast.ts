@@ -81,17 +81,18 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
     return () => window.clearInterval(timer);
   }, [article?.localPodcast?.sessionId, article?.localPodcast?.transcriptionStatus, article?.localPodcast?.insightStatus, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- Polling follows task fields without restarting for unrelated article updates.
 
-  const startTranscription = useCallback(async (): Promise<LocalTranscriptionStartResult> => {
+  const startTranscription = useCallback(async (options: { force?: boolean } = {}): Promise<LocalTranscriptionStartResult> => {
     const current = articleRef.current;
     if (!current?.audioUrl) return { started: false, error: "当前节目没有可转录的音频。" };
     if (current.localPodcast?.transcriptionStatus === "processing") return { started: true };
     if (inFlight.current) return { started: false, error: "本地转录正在处理中。" };
 
     setFetchError(null);
+    if (options.force) setArtifacts(null);
     patchRef.current?.(current.id, { localPodcast: { sourceAudioUrl: current.audioUrl, transcriptionStatus: "processing", insightStatus: "not_started", updatedAt: new Date().toISOString() } });
     inFlight.current = true;
     try {
-      const session = await localPodcastApi.start({ audioUrl: current.audioUrl, title: current.title, showNotes: current.content || current.snippet || "" });
+      const session = await localPodcastApi.start({ audioUrl: current.audioUrl, title: current.title, showNotes: current.content || current.snippet || "", force: Boolean(options.force) });
       patchRef.current?.(current.id, { localPodcast: { sessionId: session.session_id, jobId: session.job_id, sourceAudioUrl: current.audioUrl, transcriptionStatus: "processing", insightStatus: "not_started", updatedAt: new Date().toISOString() } });
       return { started: true };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local-podcast request rejections have no typed error contract.
@@ -102,6 +103,11 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
       return { started: false, error: message };
     } finally { inFlight.current = false; }
   }, []);
+
+  const regenerateTranscription = useCallback(
+    () => startTranscription({ force: true }),
+    [startTranscription],
+  );
 
   const retryTranscription = useCallback(async () => {
     const current = articleRef.current;
@@ -127,5 +133,5 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
     finally { inFlight.current = false; }
   }, []);
 
-  return { artifacts, progress, fetchError, restoring, refresh, startTranscription, retryTranscription, createInsight };
+  return { artifacts, progress, fetchError, restoring, refresh, startTranscription, regenerateTranscription, retryTranscription, createInsight };
 }

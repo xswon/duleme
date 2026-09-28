@@ -64,6 +64,16 @@ describe("local podcast server boundary", () => {
     await handler({ body: { audioUrl: "https://cdn.example.com/a.mp3", title: "Episode", showNotes: "Notes" } }, { status, json: vi.fn() }, vi.fn());
     expect(service.request).toHaveBeenCalledTimes(1);
     expect(service.request.mock.calls[0][0]).toBe("/api/transcription-sessions");
-    expect(JSON.parse(service.request.mock.calls[0][1].body)).toMatchObject({ url: "https://cdn.example.com/a.mp3", force_local_asr: true, page_context: { page_title: "Episode", show_notes: "Notes" } });
+    expect(JSON.parse(service.request.mock.calls[0][1].body)).toMatchObject({ url: "https://cdn.example.com/a.mp3", model: "small", force: false, force_local_asr: true, page_context: { page_title: "Episode", show_notes: "Notes" } });
+  });
+
+  it("passes through an explicit forced retranscription", async () => {
+    service.request.mockResolvedValue({ session_id: "session-2", job_id: "job-2" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
+    const router: any = createLocalPodcastRouter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test inspects Express's internal untyped router stack.
+    const handler = router.stack.find((layer: any) => layer.route?.path === "/sessions" && layer.route.methods.post).route.stack[0].handle;
+    await handler({ body: { audioUrl: "https://cdn.example.com/a.mp3", title: "Episode", showNotes: "Notes", force: true } }, { status: vi.fn().mockReturnThis(), json: vi.fn() }, vi.fn());
+    expect(JSON.parse(service.request.mock.calls[0][1].body)).toMatchObject({ model: "small", force: true });
   });
 });

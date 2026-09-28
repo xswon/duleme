@@ -95,11 +95,37 @@ describe("AI routes", () => {
     const res = response();
     const config = { baseURL: "https://api.example.com/v1", apiKey: "sk-secret", model: "model-1" };
     await handler("/summarize", "post")({
-      body: { title: "Title", content: "Body", snippet: "", config },
+      body: { title: "Title", content: "Body", snippet: "", config, source: "transcript" },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal Express response double for this route assertion.
     }, res as any);
 
-    expect(service.summarize).toHaveBeenCalledWith("Title", "Body", "", config);
+    expect(service.summarize).toHaveBeenCalledWith("Title", "Body", "", config, "transcript");
     expect(res.json).toHaveBeenCalledWith({ summary: "Summary" });
+  });
+
+  it("streams summary progress before returning the result", async () => {
+    service.summarize.mockImplementation(async (...args: unknown[]) => {
+      const onProgress = args[5] as ((progress: number) => void) | undefined;
+      onProgress?.(42);
+      return "Summary";
+    });
+    const res = {
+      status: vi.fn(),
+      setHeader: vi.fn(),
+      flushHeaders: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+    };
+    res.status.mockReturnValue(res);
+
+    await handler("/summarize", "post")({
+      query: { stream: "1" },
+      body: { title: "Title", content: "Body", source: "article" },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal streaming response double.
+    }, res as any);
+
+    expect(res.write).toHaveBeenNthCalledWith(1, '{"type":"progress","progress":42}\n');
+    expect(res.write).toHaveBeenNthCalledWith(2, '{"type":"result","summary":"Summary"}\n');
+    expect(res.end).toHaveBeenCalledOnce();
   });
 });
