@@ -5,7 +5,6 @@ import {
   Mail,
   MailOpen,
   FileText,
-  Sparkle,
   MessageSquareText,
   ChevronLeft,
   ChevronRight,
@@ -13,7 +12,6 @@ import {
   Maximize2,
   Minimize2,
   Menu,
-  AudioLines,
 } from "lucide-react";
 import { Article, ArticleNote, DetailTab, OverviewPipelineStage } from "../types";
 import { resolveImageUrl } from "./ArticleList";
@@ -26,6 +24,7 @@ import { useCloudTranscription } from "../hooks/useCloudTranscription";
 import { localPodcastApi } from "../services/localPodcastService";
 import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
+import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
 import { ArticleNotesTab } from "./ArticleNotesTab";
 import {
   deleteArticleNoteFromDB,
@@ -1228,8 +1227,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                 const InsightIcon = tab.key === "body"
                   ? FileText
                   : tab.key === "transcript"
-                    ? AudioLines
-                    : Sparkle;
+                    ? TranscriptWaveIcon
+                    : AiSummaryIcon;
                 return (
                   <button
                     type="button"
