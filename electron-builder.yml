@@ -17,6 +17,10 @@ artifactName: Duleme-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.news
   icon: build/icon.svg
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  notarize: true
   target:
     - target: dmg
       arch:
