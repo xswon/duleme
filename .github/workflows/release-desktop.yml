@@ -52,15 +52,27 @@ jobs:
             release/SHA256SUMS.txt
           if-no-files-found: error
 
+      - name: Resolve release tag
+        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "RELEASE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "RELEASE_PRERELEASE=false" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_TAG=v0.1.0-beta.1" >> "$GITHUB_ENV"
+            echo "RELEASE_PRERELEASE=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Check public release token
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
         shell: bash
         env:
           RELEASE_REPO_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
         run: test -n "$RELEASE_REPO_TOKEN"
 
       - name: Prepare release notes
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
         shell: bash
         run: |
           cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
@@ -79,8 +91,21 @@ jobs:
           EOF
 
       - name: Publish public GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
         env:
           GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+        shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME"             release/*.dmg release/SHA256SUMS.txt             --repo xswon/duleme-releases             --title "读了么 $GITHUB_REF_NAME"             --notes-file "$RUNNER_TEMP/release-notes.md"
+          args=(
+            "$RELEASE_TAG"
+            release/*.dmg
+            release/SHA256SUMS.txt
+            --repo xswon/duleme-releases
+            --target main
+            --title "读了么 $RELEASE_TAG"
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+          )
+          if [[ "$RELEASE_PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${args[@]}"
