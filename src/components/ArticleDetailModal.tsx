@@ -1220,10 +1220,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
             {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
               {tabs.map((tab) => {
-                const isInsightTab = tab.key === "overview" || tab.key === "digest";
-                const hasInsightContent = tab.key === "overview"
-                  ? !!(bidclubTldrHtml?.trim() || bidclubDigestHtml?.trim())
-                  : !!bidclubDigestHtml?.trim();
                 const InsightIcon = tab.key === "body"
                   ? FileText
                   : tab.key === "transcript"
@@ -1238,14 +1234,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                     aria-selected={detailTab === tab.key}
                     className={`reader-tab ${detailTab === tab.key ? "is-active" : ""}`}
                   >
-                    <InsightIcon
-                      className={`reader-tab-icon ${
-                        isInsightTab && enrichmentStatus === "available" && hasVerifiedBidclubEnrichment && hasInsightContent
-                          ? "text-violet-500"
-                          : "text-slate-400"
-                      }`}
-                      aria-hidden="true"
-                    />
+                    <InsightIcon className="reader-tab-icon" aria-hidden="true" />
                     {tab.label}
                   </button>
                 );
