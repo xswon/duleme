@@ -22,6 +22,7 @@ import { LocalAiSettingsPanel } from "./LocalAiSettingsModal";
 import { exportOpml } from "../services/rssService";
 import { feedCategory, orderFeedsInFolder, reorderItems, sortCategories, sortFeedsInFolder, type FeedOrderByFolder, SortMode } from "../services/feedSorting";
 import { KEYBOARD_SHORTCUTS } from "../data/keyboardShortcuts";
+import { isEnrichmentSourceEditorEnabled } from "../config/features";
 export type { SortMode } from "../services/feedSorting";
 
 const SortControl: React.FC<{ value: SortMode; onChange: (mode: SortMode) => void; label: string }> = ({ value, onChange, label }) => (
@@ -176,6 +177,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [feedSearchQuery, setFeedSearchQuery] = useState("");
   const [openMoreMenu, setOpenMoreMenu] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const enrichmentSourceEditorEnabled = isEnrichmentSourceEditorEnabled();
   const effectiveFeedSortMode = feedSortMode ?? sortMode ?? "default";
   const effectiveFolderSortMode = folderSortMode ?? sortMode ?? "default";
 
@@ -304,10 +306,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const handleSaveFeedUrls = (feed: Feed) => {
     const feedUrl = editFeedUrlInput.trim();
     if (!feedUrl) return;
-    onUpdateFeedUrls(feed.id, {
-      feedUrl,
-      bidclubFeedUrl: editBidclubFeedUrlInput.trim() || undefined,
-    });
+    const urls: { feedUrl: string; bidclubFeedUrl?: string } = { feedUrl };
+    if (enrichmentSourceEditorEnabled) {
+      urls.bidclubFeedUrl = editBidclubFeedUrlInput.trim() || undefined;
+    } else if (feed.bidclubFeedUrl) {
+      urls.bidclubFeedUrl = feed.bidclubFeedUrl;
+    }
+    onUpdateFeedUrls(feed.id, urls);
     if (editFeedCategoryInput && editFeedCategoryInput !== (feed.category || "未分类")) {
       onUpdateFeedCategory(feed.id, editFeedCategoryInput);
     }
@@ -608,16 +613,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 />
               </label>
 
-              <label>
-                <span>BidClub 辅助 Feed</span>
+              {enrichmentSourceEditorEnabled && <label>
+                <span>内容增强源（高级）</span>
                 <input
                   type="url"
                   value={editBidclubFeedUrlInput}
                   onChange={(event) => setEditBidclubFeedUrlInput(event.target.value)}
                   placeholder="https://bidclub.ai/feeds/example.xml"
                 />
-                <small>可选，仅在需要为当前订阅补充 BidClub 音频源时填写。</small>
-              </label>
+                <small>可选，用于补充摘要、章节和逐字稿；不会替换主 RSS 或音频来源。</small>
+              </label>}
             </div>
 
             <footer>

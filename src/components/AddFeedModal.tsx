@@ -10,6 +10,7 @@ import {
 import { CuratedFeedOption, Feed } from "../types";
 import { CURATED_FEEDS } from "../data/defaultFeeds";
 import { fetchRssFeed, matchBidclubItems } from "../services/rssService";
+import { isEnrichmentSourceEditorEnabled } from "../config/features";
 
 interface AddFeedModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
   const [failedCuratedId, setFailedCuratedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"custom" | "curated" | "opml">("custom");
   const [curatedCategory, setCuratedCategory] = useState("Featured");
+  const enrichmentSourceEditorEnabled = isEnrichmentSourceEditorEnabled();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,7 +68,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
 
     try {
       const parsedData = await fetchRssFeed(feedUrlInput.trim());
-      const bidclubData = bidclubFeedUrlInput.trim()
+      const bidclubData = enrichmentSourceEditorEnabled && bidclubFeedUrlInput.trim()
         ? await fetchRssFeed(bidclubFeedUrlInput.trim()).catch(() => null)
         : null;
       const matchResult = bidclubData
@@ -85,7 +87,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
         description: parsedData.description,
         unreadCount: parsedData.items ? parsedData.items.length : 0,
         lastUpdated: new Date().toISOString(),
-        bidclubFeedUrl: bidclubFeedUrlInput.trim() || undefined,
+        bidclubFeedUrl: enrichmentSourceEditorEnabled ? bidclubFeedUrlInput.trim() || undefined : undefined,
       };
 
       const newArticles = (matchedItems || []).map((item) => ({
@@ -283,9 +285,9 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                 </div>
               </div>
 
-              <div>
+              {enrichmentSourceEditorEnabled && <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  可选：BidClub 辅助 Feed
+                  内容增强源（高级）
                 </label>
                 <input
                   type="url"
@@ -294,8 +296,8 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                   placeholder="https://bidclub.ai/feeds/example.zh.xml"
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
-                <p className="text-[11px] text-slate-400 mt-1">主 RSS 保留音频；这里只用于匹配摘要、章节和逐字稿。</p>
-              </div>
+                <p className="text-[11px] text-slate-400 mt-1">可选，用于补充摘要、章节和逐字稿；不会替换主 RSS 或音频来源。</p>
+              </div>}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
