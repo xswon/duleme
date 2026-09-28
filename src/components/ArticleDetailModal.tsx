@@ -334,21 +334,22 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     let cancelled = false;
     const refreshCapabilities = () => {
       setRuntimeCapabilitiesLoaded(false);
+
       const localCheck = shouldCheckLocalTranscription
         ? localPodcastApi.preflight().then(() => true).catch(() => false)
         : Promise.resolve(false);
-      void Promise.all([getAiCapability(), getTranscriptionSettings(), localCheck])
-        .then(([ai, transcription, localAvailable]) => {
+      void localCheck.then((localAvailable) => {
+        if (!cancelled) setLocalTranscriptionAvailable(localAvailable);
+      });
+
+      void Promise.all([
+        getAiCapability().catch(() => ({ configured: false })),
+        getTranscriptionSettings().catch(() => null),
+      ])
+        .then(([ai, transcription]) => {
           if (cancelled) return;
           setAiConfigured(ai.configured);
           setCloudTranscriptionAvailable(Boolean(transcription?.apiKey));
-          setLocalTranscriptionAvailable(localAvailable);
-        })
-        .catch(() => {
-          if (cancelled) return;
-          setAiConfigured(false);
-          setCloudTranscriptionAvailable(false);
-          setLocalTranscriptionAvailable(false);
         })
         .finally(() => {
           if (!cancelled) setRuntimeCapabilitiesLoaded(true);
