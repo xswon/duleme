@@ -89,7 +89,7 @@ vi.mock("../src/hooks/useAudioPlayer", async () => {
     useSharedAudioPlayer: () => {
       const [currentTime, setCurrentTime] = useState(0);
       audioUpdates.advance = () => setCurrentTime((value) => value + 1);
-      return { stop: vi.fn(), loadArticle: vi.fn(), articleId: null, isPlaying: false, currentTime, duration: 0 };
+      return { stop: vi.fn(), loadArticle: vi.fn(), migrateArticleId: vi.fn(), articleId: null, isPlaying: false, currentTime, duration: 0 };
     },
   };
 });
@@ -137,6 +137,7 @@ const remoteFeed = (item: Article): RssParseResponse => ({
     snippet: item.snippet,
     content: item.content,
     audioUrl: item.audioUrl,
+    enrichment: item.enrichment,
   }],
 });
 
@@ -203,6 +204,33 @@ afterEach(() => {
 });
 
 describe("App persistence rollback", () => {
+  it("keeps a primary RSS refresh successful when its optional enrichment feed fails", async () => {
+    const feedWithEnrichment = {
+      ...feed,
+      bidclubFeedUrl: "https://bidclub.ai/feeds/example.xml",
+    };
+    const refreshed = article("main-rss-article", {
+      snippet: "main feed remains available",
+      enrichment: { provider: "bidclub", episodeId: "ep-1", status: "available", matchedBy: "api" },
+    });
+    await replaceFeedsInDB([feedWithEnrichment]);
+    rss.fetchRssFeed
+      .mockResolvedValueOnce(remoteFeed(refreshed))
+      .mockRejectedValueOnce(new Error("enrichment service unavailable"));
+
+    const { container, root } = await renderApp();
+    await waitFor(() => container.textContent?.includes("同步完成：已更新 1 个订阅源") === true);
+
+    expect(rss.fetchRssFeed.mock.calls.map(([url]) => url)).toEqual([
+      feedWithEnrichment.feedUrl,
+      feedWithEnrichment.bidclubFeedUrl,
+    ]);
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state"))
+      .toContain("main-rss-article:unread:plain");
+    expect(container.textContent).not.toContain("订阅源同步失败");
+    await act(async () => root.unmount());
+  });
+
   it("composes bootstrap, article mutation, navigation and refresh without losing local state", async () => {
     await replaceFeedsInDB([feed]);
     await saveArticlesToDB([article("a")]);

@@ -371,6 +371,45 @@ describe("ArticleInsightTabs", () => {
     expect(local).toContain("Local summary");
   });
 
+  it("attributes displayed enhancement content and links to its episode", () => {
+    const html = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", enrichment: { provider: "bidclub", episodeId: "ep-1", episodeUrl: "https://bidclub.ai/e/ep-1", status: "available", matchedBy: "api" } },
+      tab: "overview",
+      overviewHtml: "<p>Enhanced summary</p>",
+      bidclubEpisodeUrl: "https://bidclub.ai/e/ep-1",
+    });
+    const document = parseMarkup(html);
+    const attribution = document.querySelector('[data-testid="enrichment-attribution"]');
+    expect(attribution?.textContent).toContain("增强内容由 BidClub 提供");
+    expect(attribution?.querySelector("a")?.getAttribute("href")).toBe("https://bidclub.ai/e/ep-1");
+    expect(html).not.toContain("BidClub 摘要");
+    expect(html).not.toContain("BidClub 逐字稿");
+  });
+
+  it("does not attribute candidate references or user-generated summaries and transcripts", () => {
+    const candidate = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", enrichment: { provider: "bidclub", episodeId: "ep-1", status: "candidate", matchedBy: "title" } },
+      tab: "overview",
+      overviewHtml: "",
+    });
+    const userSummary = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", enrichment: { provider: "bidclub", episodeId: "ep-1", status: "available", matchedBy: "api" } },
+      tab: "overview",
+      summary: "User generated summary",
+      overviewHtml: "<p>Other enhanced summary</p>",
+    });
+    const userTranscript = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3", enrichment: { provider: "bidclub", episodeId: "ep-1", status: "available", matchedBy: "api" } },
+      tab: "transcript",
+      localArtifacts: { transcript: [{ startMs: 0, timestamp: "00:00:00,000", text: "User transcript" }] },
+    });
+    expect(candidate).not.toContain("enrichment-attribution");
+    expect(userSummary).toContain("User generated summary");
+    expect(userSummary).not.toContain("enrichment-attribution");
+    expect(userTranscript).toContain("User transcript");
+    expect(userTranscript).not.toContain("enrichment-attribution");
+  });
+
   it("does not add the local retranscription action to BidClub transcripts", () => {
     const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },

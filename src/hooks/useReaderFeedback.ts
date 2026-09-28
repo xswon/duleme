@@ -9,20 +9,29 @@ export interface RefreshFeedbackState {
 }
 
 export function useReaderToast() {
-  const [toast, setToast] = useState<{ message: string; action?: { label: string; run: () => void } } | null>(null);
+  type ReaderToast = { message: string; action?: { label: string; run: () => void } };
+  const [toastQueue, setToastQueue] = useState<ReaderToast[]>([]);
+  const toast = toastQueue[0] || null;
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = useCallback((message: string) => {
-    setToast({ message });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3000);
+    setToastQueue((current) => [...current, { message }]);
   }, []);
 
   const showToastWithAction = useCallback((message: string, action: { label: string; run: () => void }) => {
-    setToast({ message, action });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 5000);
+    setToastQueue((current) => [...current, { message, action }]);
   }, []);
+
+  useEffect(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    if (!toast) return;
+    toastTimer.current = setTimeout(() => {
+      setToastQueue((current) => current.slice(1));
+    }, toast.action ? 5000 : 3000);
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, [toast]);
 
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);

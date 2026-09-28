@@ -80,6 +80,7 @@ describe("ArticleDetailModal enrichment timing", () => {
     expect(html).toContain("正在检查整理内容");
     expect(html).toContain("AI 摘要");
     expect(html).toContain("逐字稿");
+    expect(html).not.toContain("增强内容由 BidClub 提供");
     expect(html).not.toContain("已整理");
     expect(html).toContain('data-insight-icon="ai-summary"');
     expect(html).toContain('data-insight-icon="transcript"');
@@ -149,6 +150,7 @@ describe("ArticleDetailModal enrichment timing", () => {
 
     expect(html).toContain("Original show notes");
     expect(html).toContain("整理内容暂时无法加载");
+    expect(html).not.toContain("增强内容由 BidClub 提供");
     expect(html).not.toContain("已整理");
     expect(html).not.toContain("AI 整理内容");
   });

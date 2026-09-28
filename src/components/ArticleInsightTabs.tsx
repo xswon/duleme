@@ -34,6 +34,7 @@ export interface InsightModel {
   digestHtml?: string;
   dek?: string;
   transcriptHtml?: string;
+  bidclubEpisodeUrl?: string;
   onSummarize: () => void;
   onRegenerateSummary?: () => void;
   onCancelPipeline?: () => void;
@@ -90,6 +91,14 @@ function BidclubRichTextContent({ html, emptyText, className = "" }: { html?: st
     />
   ) : (
     <p className="text-sm text-slate-400 py-4">{emptyText}</p>
+  );
+}
+
+function EnrichmentAttribution({ episodeUrl }: { episodeUrl?: string }) {
+  return (
+    <p className="mt-3 text-xs text-slate-400" data-testid="enrichment-attribution">
+      增强内容由 {episodeUrl ? <a href={episodeUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">BidClub</a> : "BidClub"} 提供
+    </p>
   );
 }
 
@@ -653,7 +662,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   };
 
   if (p.tab === "overview" || p.tab === "digest") {
-    if (!p.overviewHtml && !p.digestHtml) return renderLocalAiSummary();
+    if (!p.overviewHtml?.trim() && !p.digestHtml?.trim()) return renderLocalAiSummary();
     const hasOverview = !!p.overviewHtml?.trim();
     const hasDigest = !!(p.digestHtml?.trim() || p.dek?.trim());
     return (
@@ -671,14 +680,16 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             {p.digestHtml && <BidclubRichTextContent html={p.digestHtml} emptyText="暂无深度精华" className="bidclub-digest" />}
           </section>
         </>}
+        <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
       </div>
     );
   }
 
-  if (p.transcriptHtml) return (
+  if (p.transcriptHtml?.trim()) return (
     <div className="reader-service-content">
       <ContentServiceBar label="转录服务：读了么官方转录" />
       <HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" />
+      <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
     </div>
   );
   if (cloudTask?.segments?.length) return (

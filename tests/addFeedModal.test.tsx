@@ -145,7 +145,7 @@ describe("AddFeedModal manual RSS subscriptions", () => {
       bidclubShowSlug: known.bidclubShowSlug,
     });
     expect(onShowToast).toHaveBeenCalledTimes(1);
-    expect(onShowToast).toHaveBeenCalledWith("已识别为推荐节目，可直接使用已提供的摘要、章节或逐字稿。");
+    expect(onShowToast).toHaveBeenCalledWith("已识别为推荐节目。部分节目已提供摘要、章节或逐字稿；其他节目可在配置相关服务后生成。");
     await act(async () => root.unmount());
   });
 

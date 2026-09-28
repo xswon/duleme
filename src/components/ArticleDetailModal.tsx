@@ -21,6 +21,7 @@ import { useBidclubEpisode } from "../hooks/useBidclubEpisode";
 import type { SharedAudioPlayer } from "../hooks/useAudioPlayer";
 import { useLocalPodcast } from "../hooks/useLocalPodcast";
 import { useCloudTranscription } from "../hooks/useCloudTranscription";
+import type { ArticleGenerationController } from "../hooks/useArticleGenerationTasks";
 import { localPodcastApi } from "../services/localPodcastService";
 import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
@@ -227,6 +228,7 @@ interface ArticleDetailModalProps {
   onToggleImmersive?: () => void;
   onOpenAiSettings?: () => void;
   onOpenTranscriptionSettings?: () => void;
+  generation?: ArticleGenerationController;
 }
 
 export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
@@ -255,6 +257,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   onToggleImmersive,
   onOpenAiSettings,
   onOpenTranscriptionSettings,
+  generation,
 }) => {
   const [aiSummary, setAiSummary] = useState<string | null>(() => article?.aiSummary || null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -330,10 +333,12 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (audioPlayer.articleId === article.id) audioPlayer.seekTo(seconds);
     else audioPlayer.loadArticle(article.id, article.audioUrl, { currentTime: seconds, duration: savedProgress?.duration || 0 });
   }, [article, audioPlayer, savedProgress?.duration]);
-  const localPodcast = useLocalPodcast(article, onArticlePatch);
-  const cloudTranscription = useCloudTranscription(article, onArticlePatch);
+  const localPodcast = useLocalPodcast(generation ? null : article, onArticlePatch);
+  const cloudTranscription = useCloudTranscription(generation ? null : article, onArticlePatch);
   const startLocalTranscription = localPodcast.startTranscription;
   const startCloudTranscription = cloudTranscription.start;
+  const generationTask = article ? generation?.tasks[article.id] : undefined;
+  const generationArtifacts = article ? generation?.artifactsByArticleId[article.id] : undefined;
 
   const transcriptionAvailable = cloudTranscriptionAvailable || localTranscriptionAvailable;
   const shouldCheckLocalTranscription = Boolean(article?.audioUrl);
@@ -430,10 +435,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     return (
       htmlToPlainText(bidclub?.transcriptHtml)
       || formatSegments(article.transcription?.segments)
+      || formatSegments(generationArtifacts?.transcript)
       || formatSegments(localPodcast.artifacts?.transcript)
       || ""
     );
-  }, [article, bidclub?.transcriptHtml, localPodcast.artifacts?.transcript]);
+  }, [article, bidclub?.transcriptHtml, generationArtifacts?.transcript, localPodcast.artifacts?.transcript]);
 
   const generateSummary = useCallback(async (
     source: "article" | "transcript",
@@ -443,6 +449,15 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     const articleId = article.id;
     const input = source === "transcript" ? getTranscriptText() : article.content;
     if (source === "transcript" && !input) return false;
+    if (generation) {
+      return generation.startSummary(articleId, {
+        source,
+        input,
+        snippet: article.snippet,
+        preferLocal: localTranscriptionAvailable,
+        force: options.force,
+      });
+    }
 
     summaryInFlightRef.current = true;
     setIsSummarizing(true);
@@ -490,17 +505,31 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       summaryInFlightRef.current = false;
       if (activeArticleIdRef.current === articleId) setIsSummarizing(false);
     }
-  }, [article, aiSummary, getTranscriptText, onArticlePatch]);
+  }, [article, aiSummary, generation, getTranscriptText, localTranscriptionAvailable, onArticlePatch]);
 
   const startPreferredTranscription = useCallback(async () => {
+    if (generation && article) {
+      return generation.startTranscription(article.id, { preferLocal: localTranscriptionAvailable });
+    }
     if (localTranscriptionAvailable) return startLocalTranscription();
     return startCloudTranscription();
-  }, [localTranscriptionAvailable, startCloudTranscription, startLocalTranscription]);
+  }, [article, generation, localTranscriptionAvailable, startCloudTranscription, startLocalTranscription]);
 
   const startPodcastSummaryPipeline = useCallback(async (options: { force?: boolean } = {}) => {
     if (!article?.audioUrl || summaryInFlightRef.current) return;
     setSummaryError(null);
     setPipelineError(null);
+
+    if (generation) {
+      await generation.startSummary(article.id, {
+        source: "transcript",
+        input: getTranscriptText(),
+        snippet: article.snippet,
+        preferLocal: localTranscriptionAvailable,
+        force: options.force,
+      });
+      return;
+    }
 
     if (getTranscriptText()) {
       await generateSummary("transcript", { force: options.force });
@@ -519,10 +548,10 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       setPipelineStage("failed");
       setPipelineError(result.error || "逐字稿生成失败，请重试。");
     }
-  }, [article?.audioUrl, generateSummary, getTranscriptText, localTranscriptionAvailable, startPreferredTranscription]);
+  }, [article, generateSummary, generation, getTranscriptText, localTranscriptionAvailable, startPreferredTranscription]);
 
   useEffect(() => {
-    if (!pipelinePendingSummary || !article || !pipelineTranscriptionSource) return;
+    if (generation || !pipelinePendingSummary || !article || !pipelineTranscriptionSource) return;
 
     const status = pipelineTranscriptionSource === "local"
       ? article.localPodcast?.transcriptionStatus
@@ -564,6 +593,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     localPodcast.artifacts?.transcript,
     pipelinePendingSummary,
     pipelineTranscriptionSource,
+    generation,
   ]);
 
   const cancelPendingSummary = useCallback(() => {
@@ -1300,7 +1330,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: pipelineStage === "transcribing" || pipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage, pipelinePendingSummary, pipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryProgress, summaryServiceLabel: aiModelLabel, summaryError: pipelineError || summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: localPodcast.regenerateTranscription, onRetryTranscription: startPreferredTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: pipelineStage === "transcribing" || pipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage, pipelinePendingSummary, pipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, bidclubEpisodeUrl: article.enrichment?.episodeUrl, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryProgress, summaryServiceLabel: aiModelLabel, summaryError: pipelineError || summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: localPodcast.regenerateTranscription, onRetryTranscription: startPreferredTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}

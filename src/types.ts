@@ -174,6 +174,11 @@ export interface Article {
   aiSummary?: string;
   /** Identifies whether a generated summary came from article text or a completed transcript. */
   aiSummarySource?: "article" | "transcript";
+  /** Generated results that have not yet been opened in their corresponding detail tab. */
+  insightUnread?: {
+    transcript?: boolean;
+    summary?: boolean;
+  };
   /** Fraction of the article body that the reader has consumed (0..1). */
   readingProgress?: number;
   readingProgressUpdatedAt?: number;

@@ -116,7 +116,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
 
       const added = await onAddFeed(newFeed, newArticles);
       if (added === false) return;
-      if (knownSource.bidclubFeedUrl && !enrichmentDisabled) onShowToast?.("已识别为推荐节目，可直接使用已提供的摘要、章节或逐字稿。");
+      if (knownSource.bidclubFeedUrl && !enrichmentDisabled) onShowToast?.("已识别为推荐节目。部分节目已提供摘要、章节或逐字稿；其他节目可在配置相关服务后生成。");
       setFeedUrlInput("");
       setBidclubFeedUrlInput("");
       setEnrichmentDisabled(false);
@@ -387,6 +387,9 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
 
           {activeTab === "curated" && (
             <div className="space-y-4">
+              <p className="text-xs leading-5 text-slate-500">
+                部分节目已提供摘要、章节或逐字稿；其他节目可在配置相关服务后生成。
+              </p>
               {/* Category Pills */}
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {curatedCategories.map(
