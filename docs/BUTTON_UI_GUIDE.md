@@ -21,7 +21,8 @@
 | 次操作 | `wreader-btn wreader-btn-secondary` |
 | 轻量操作 | `wreader-btn wreader-btn-ghost` |
 | 危险操作 | `wreader-btn wreader-btn-danger` |
-| 文本操作 | `wreader-btn-link` |
+| 中性文本操作 | `wreader-btn-link` |
+| 强调文本操作 | `wreader-btn-link wreader-btn-link-accent` |
 | 小尺寸 | `wreader-btn-sm` |
 | 大尺寸 | `wreader-btn-lg` |
 | 通栏 | `wreader-btn-block` |
@@ -54,7 +55,7 @@
 - 默认：36px，设置、表单、弹窗等常规操作。
 - `lg`: 40px，欢迎页、主要 CTA。
 - icon action 默认 32 × 32px。
-- 移动端普通 action 会自动提高最小触控高度。
+- 移动端普通 action 会自动提高到 44px；`sm` 提高到 40px；icon action 提高到 40 × 40px。
 
 ## 颜色和状态
 
