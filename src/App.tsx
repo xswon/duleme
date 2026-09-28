@@ -162,7 +162,7 @@ export default function App() {
   }, [navigateToRoute, setDetailOpenIntent]);
 
   const feedManagement = useFeedManagement({
-    feeds, setFeeds, feedsRef, setArticles, categories, setCategories, setFeedOrderByFolder,
+    feeds, setFeeds, feedsRef, articlesRef, setArticles, categories, setCategories, setFeedOrderByFolder,
     selectedFeedId, setSelectedFeedId, selectedCategory, setSelectedCategory,
     selectedArticle, setSelectedArticleId, isSettingsOpen, navigateToRoute,
     queueRefresh, invalidateRefresh, showToast,

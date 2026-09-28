@@ -30,21 +30,40 @@ export function useReaderLibrary() {
   const [isInitializing, setIsInitializing] = useState(true);
   const feedsRef = useLatestRef(feeds);
   const articlesRef = useLatestRef(articles);
+  const disabledFeedIdsKey = feeds.filter((feed) => feed.enrichmentDisabled === true).map((feed) => feed.id).sort().join("|");
 
   useEffect(() => saveStoredSortMode(STORAGE_KEY_FEED_SORT_MODE, feedSortMode), [feedSortMode]);
   useEffect(() => saveStoredSortMode(STORAGE_KEY_FOLDER_SORT_MODE, folderSortMode), [folderSortMode]);
 
   useEffect(() => {
     let cancelled = false;
+    const hideDisabledEnrichment = (storedArticles: Article[]) => {
+      const disabledFeedIds = new Set(feedsRef.current.filter((feed) => feed.enrichmentDisabled === true).map((feed) => feed.id));
+      return storedArticles.map((article) => disabledFeedIds.has(article.feedId)
+        ? { ...article, enrichment: undefined } : article);
+    };
     loadStoredArticlesAsync()
-      .then((storedArticles) => { if (!cancelled) setArticles(storedArticles); })
+      .then((storedArticles) => {
+        if (cancelled) return;
+        setArticles(hideDisabledEnrichment(storedArticles));
+      })
       .catch((error) => {
         console.error("Failed to initialize article storage:", error);
-        if (!cancelled) setArticles(getStoredArticles());
+        if (!cancelled) setArticles(hideDisabledEnrichment(getStoredArticles()));
       })
       .finally(() => { if (!cancelled) setIsInitializing(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [feedsRef]);
+
+  useEffect(() => {
+    if (!disabledFeedIdsKey) return;
+    const disabledFeedIds = new Set(feedsRef.current.filter((feed) => feed.enrichmentDisabled === true).map((feed) => feed.id));
+    setArticles((current) => {
+      if (!current.some((article) => disabledFeedIds.has(article.feedId) && article.enrichment)) return current;
+      return current.map((article) => disabledFeedIds.has(article.feedId) && article.enrichment
+        ? { ...article, enrichment: undefined } : article);
+    });
+  }, [disabledFeedIdsKey, feedsRef]);
 
   return {
     feeds, setFeeds, feedsRef,

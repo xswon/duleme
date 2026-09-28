@@ -23,6 +23,7 @@ import { exportOpml } from "../services/rssService";
 import { feedCategory, orderFeedsInFolder, reorderItems, sortCategories, sortFeedsInFolder, type FeedOrderByFolder, SortMode } from "../services/feedSorting";
 import { KEYBOARD_SHORTCUTS } from "../data/keyboardShortcuts";
 import { isEnrichmentSourceEditorEnabled } from "../config/features";
+import { resolveFeedEnrichmentSource, type FeedUrlChanges } from "../services/feedEnrichment";
 export type { SortMode } from "../services/feedSorting";
 
 const SortControl: React.FC<{ value: SortMode; onChange: (mode: SortMode) => void; label: string }> = ({ value, onChange, label }) => (
@@ -64,7 +65,7 @@ interface SettingsPageProps {
   onUpdateFeedCategory: (feedId: string, newCategory: string) => void;
   onUpdateFeedUrls: (
     feedId: string,
-    urls: { feedUrl: string; bidclubFeedUrl?: string }
+    urls: FeedUrlChanges
   ) => void;
   onDeleteFeed: (feedId: string) => void;
   feedSortMode?: SortMode;
@@ -174,6 +175,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [editFeedCategoryInput, setEditFeedCategoryInput] = useState("");
   const [editFeedUrlInput, setEditFeedUrlInput] = useState("");
   const [editBidclubFeedUrlInput, setEditBidclubFeedUrlInput] = useState("");
+  const [editEnrichmentAction, setEditEnrichmentAction] = useState<"disabled" | "auto" | "manual" | null>(null);
   const [feedSearchQuery, setFeedSearchQuery] = useState("");
   const [openMoreMenu, setOpenMoreMenu] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
@@ -293,7 +295,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setEditingFeedId(feed.id);
     setEditFeedCategoryInput(feed.category || "未分类");
     setEditFeedUrlInput(feed.feedUrl);
-    setEditBidclubFeedUrlInput(feed.bidclubFeedUrl || "");
+    setEditBidclubFeedUrlInput(resolveFeedEnrichmentSource(feed).bidclubFeedUrl || "");
+    setEditEnrichmentAction(feed.enrichmentDisabled === true ? "disabled" : null);
   };
 
   const handleCancelEditFeed = () => {
@@ -301,16 +304,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setEditFeedCategoryInput("");
     setEditFeedUrlInput("");
     setEditBidclubFeedUrlInput("");
+    setEditEnrichmentAction(null);
   };
 
   const handleSaveFeedUrls = (feed: Feed) => {
     const feedUrl = editFeedUrlInput.trim();
     if (!feedUrl) return;
-    const urls: { feedUrl: string; bidclubFeedUrl?: string } = { feedUrl };
-    if (enrichmentSourceEditorEnabled) {
-      urls.bidclubFeedUrl = editBidclubFeedUrlInput.trim() || undefined;
-    } else if (feed.bidclubFeedUrl) {
-      urls.bidclubFeedUrl = feed.bidclubFeedUrl;
+    const urls: FeedUrlChanges = { feedUrl };
+    if (enrichmentSourceEditorEnabled && editEnrichmentAction) {
+      urls.enrichmentDisabled = editEnrichmentAction === "disabled";
+      if (editEnrichmentAction === "manual") urls.bidclubFeedUrl = editBidclubFeedUrlInput.trim();
     }
     onUpdateFeedUrls(feed.id, urls);
     if (editFeedCategoryInput && editFeedCategoryInput !== (feed.category || "未分类")) {
@@ -613,16 +616,29 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 />
               </label>
 
-              {enrichmentSourceEditorEnabled && <label>
-                <span>内容增强源（高级）</span>
-                <input
-                  type="url"
-                  value={editBidclubFeedUrlInput}
-                  onChange={(event) => setEditBidclubFeedUrlInput(event.target.value)}
-                  placeholder="https://bidclub.ai/feeds/example.xml"
-                />
-                <small>可选，用于补充摘要、章节和逐字稿；不会替换主 RSS 或音频来源。</small>
-              </label>}
+              {enrichmentSourceEditorEnabled && <div>
+                <label>
+                  <span>内容增强源（高级）</span>
+                  <input
+                    type="url"
+                    value={editEnrichmentAction === "disabled" ? "" : editBidclubFeedUrlInput}
+                    onChange={(event) => {
+                      setEditBidclubFeedUrlInput(event.target.value);
+                      setEditEnrichmentAction(event.target.value.trim() ? "manual" : "auto");
+                    }}
+                    placeholder="https://bidclub.ai/feeds/example.xml"
+                  />
+                  <small>可选，用于补充摘要、章节和逐字稿；不会替换主 RSS 或音频来源。</small>
+                </label>
+                <button type="button" className="secondary" onClick={() => {
+                  if (editEnrichmentAction === "disabled") {
+                    setEditEnrichmentAction("auto");
+                    setEditBidclubFeedUrlInput("");
+                  } else {
+                    setEditEnrichmentAction("disabled");
+                  }
+                }}>{editEnrichmentAction === "disabled" ? "恢复自动增强" : "关闭内容增强"}</button>
+              </div>}
             </div>
 
             <footer>

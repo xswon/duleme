@@ -29,6 +29,17 @@ const feed = (overrides: Partial<Feed> = {}): Feed => ({
 });
 
 describe("backfillArticleBidclubReferences", () => {
+  it("does not fetch or attach references for an explicitly disabled feed", async () => {
+    const fetchFeed = vi.fn();
+    const result = await backfillArticleBidclubReferences(
+      [article()],
+      [feed({ enrichmentDisabled: true })],
+      fetchFeed
+    );
+    expect(fetchFeed).not.toHaveBeenCalled();
+    expect(result.articles[0].enrichment).toBeUndefined();
+  });
+
   it("adds references to historical articles from a BidClub primary feed", async () => {
     const existing = article({
       id: "bidclub-primary-1",

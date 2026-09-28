@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { Article, AudioProgress, Feed } from "../types";
+import { resolveFeedEnrichmentSource } from "../services/feedEnrichment";
 import {
   attachBidclubSelfReferences,
   backfillArticleBidclubReferences,
@@ -74,9 +75,10 @@ export function useFeedSync(options: UseFeedSyncOptions) {
           try {
             const parsed = await fetchRssFeed(feed.feedUrl);
             const feedIcon = parsed.feedImage || parsed.favicon || feed.favicon;
-            const parsedItems = isBidclubFeedUrl(feed.feedUrl) ? attachBidclubSelfReferences(parsed.items) : parsed.items;
-            const bidclubData = feed.bidclubFeedUrl
-              ? await fetchRssFeed(feed.bidclubFeedUrl).catch((error) => {
+            const parsedItems = feed.enrichmentDisabled !== true && isBidclubFeedUrl(feed.feedUrl) ? attachBidclubSelfReferences(parsed.items) : parsed.items;
+            const bidclubFeedUrl = resolveFeedEnrichmentSource(feed).bidclubFeedUrl;
+            const bidclubData = bidclubFeedUrl
+              ? await fetchRssFeed(bidclubFeedUrl).catch((error) => {
                   console.warn(`Failed to sync BidClub helper feed for ${feed.title}:`, error);
                   return null;
                 })
@@ -173,8 +175,9 @@ export function useFeedSync(options: UseFeedSyncOptions) {
     setRefreshState({ ...EMPTY_REFRESH_STATE, total: 1, failed: [feed], startedAt: Date.now() });
     try {
       const parsed = await fetchRssFeed(feed.feedUrl);
-      const parsedItems = isBidclubFeedUrl(feed.feedUrl) ? attachBidclubSelfReferences(parsed.items) : parsed.items;
-      const helper = feed.bidclubFeedUrl ? await fetchRssFeed(feed.bidclubFeedUrl).catch(() => null) : null;
+      const parsedItems = feed.enrichmentDisabled !== true && isBidclubFeedUrl(feed.feedUrl) ? attachBidclubSelfReferences(parsed.items) : parsed.items;
+      const bidclubFeedUrl = resolveFeedEnrichmentSource(feed).bidclubFeedUrl;
+      const helper = bidclubFeedUrl ? await fetchRssFeed(bidclubFeedUrl).catch(() => null) : null;
       if (refreshGeneration.current !== generation || !feedsRef.current.some((item) => item.id === feedId)) return;
       const matched = helper ? matchBidclubItems(parsedItems, helper.items).items : parsedItems;
       const refreshed = (matched || []).map((item) => ({
@@ -232,28 +235,38 @@ export function useFeedSync(options: UseFeedSyncOptions) {
   useEffect(() => () => { isMounted.current = false; }, []);
   const bidclubFeedConfigFingerprint = useMemo(() => JSON.stringify(
     feeds
-      .filter((feed) => !!feed.bidclubFeedUrl)
-      .map((feed) => `${feed.id}:${feed.bidclubFeedUrl}`)
+      .filter((feed) => !!resolveFeedEnrichmentSource(feed).bidclubFeedUrl)
+      .map((feed) => `${feed.id}:${resolveFeedEnrichmentSource(feed).bidclubFeedUrl}`)
       .sort(),
   ), [feeds]);
 
   useEffect(() => {
     if (isInitializing || articles.length === 0) return;
-    const repairFeedIds = new Set(feeds.filter((feed) => !!feed.bidclubFeedUrl || isBidclubFeedUrl(feed.feedUrl)).map((feed) => feed.id));
+    const repairFeedIds = new Set(feeds.filter((feed) => feed.enrichmentDisabled !== true && (!!resolveFeedEnrichmentSource(feed).bidclubFeedUrl || isBidclubFeedUrl(feed.feedUrl))).map((feed) => feed.id));
     const repairableIds = articles.filter((article) => repairFeedIds.has(article.feedId) && article.enrichment?.status !== "available")
       .map((article) => `${article.feedId}:${article.id}`).sort();
     if (repairableIds.length === 0) return;
-    const helperUrls = feeds.flatMap((feed) => [feed.bidclubFeedUrl, isBidclubFeedUrl(feed.feedUrl) ? feed.feedUrl : undefined]).filter(Boolean).sort();
+    const helperUrls = feeds.flatMap((feed) => feed.enrichmentDisabled === true ? [] : [resolveFeedEnrichmentSource(feed).bidclubFeedUrl, isBidclubFeedUrl(feed.feedUrl) ? feed.feedUrl : undefined]).filter(Boolean).sort();
     const fingerprint = JSON.stringify([repairableIds, helperUrls]);
-    if (bidclubRepairInFlight.current === fingerprint || completedBidclubRepairFingerprint.current === fingerprint) return;
-    bidclubRepairInFlight.current = fingerprint;
+    const generation = refreshGeneration.current;
+    const inFlightKey = JSON.stringify([generation, fingerprint]);
+    if (bidclubRepairInFlight.current === inFlightKey || completedBidclubRepairFingerprint.current === inFlightKey) return;
+    bidclubRepairInFlight.current = inFlightKey;
     void (async () => {
       try {
         const result = await backfillArticleBidclubReferences(articles, feeds);
-        if (isMounted.current && result.changed) {
-          const enrichmentById = new Map(result.articles.filter((article) => !!article.enrichment).map((article) => [article.id, article.enrichment!]));
+        if (isMounted.current && generation === refreshGeneration.current && result.changed) {
+          const currentFeeds = new Map(feedsRef.current.map((feed) => [feed.id, feed]));
+          const fetchedFeeds = new Map(feeds.map((feed) => [feed.id, feed]));
+          const enrichmentById = new Map(result.articles.filter((article) => {
+            const current = currentFeeds.get(article.feedId);
+            const fetched = fetchedFeeds.get(article.feedId);
+            return !!article.enrichment && !!current && !!fetched && current.enrichmentDisabled !== true &&
+              current.feedUrl === fetched.feedUrl &&
+              resolveFeedEnrichmentSource(current).bidclubFeedUrl === resolveFeedEnrichmentSource(fetched).bidclubFeedUrl;
+          }).map((article) => [article.id, article.enrichment!]));
           await Promise.all(Array.from(enrichmentById, ([articleId, enrichment]) => updateStoredArticleStatus(articleId, { enrichment })));
-          if (isMounted.current) {
+          if (isMounted.current && generation === refreshGeneration.current) {
             const committed = articlesRef.current.map((article) => {
               const enrichment = enrichmentById.get(article.id);
               return enrichment ? { ...article, enrichment } : article;
@@ -262,16 +275,16 @@ export function useFeedSync(options: UseFeedSyncOptions) {
             setArticles(committed);
           }
         }
-        if (result.failedFeedUrls.length === 0) completedBidclubRepairFingerprint.current = fingerprint;
+        if (result.failedFeedUrls.length === 0 && generation === refreshGeneration.current) completedBidclubRepairFingerprint.current = inFlightKey;
         console.info("BidClub repair summary", result.diagnostics);
       } catch (error) {
         console.warn("Failed to repair BidClub helper feeds:", error);
         if (isMounted.current) showToast("节目内容补全保存失败，请稍后重试");
       } finally {
-        if (bidclubRepairInFlight.current === fingerprint) bidclubRepairInFlight.current = "";
+        if (bidclubRepairInFlight.current === inFlightKey) bidclubRepairInFlight.current = "";
       }
     })();
-  }, [articles, articlesRef, bidclubFeedConfigFingerprint, feeds, isInitializing, setArticles, showToast]);
+  }, [articles, articlesRef, bidclubFeedConfigFingerprint, feeds, feedsRef, isInitializing, setArticles, showToast]);
 
   return { isRefreshing, refreshState, refreshAll, retryFeed, queueRefresh, invalidateRefresh };
 }

@@ -11,6 +11,7 @@ import { CuratedFeedOption, Feed } from "../types";
 import { CURATED_FEEDS, resolveKnownEnrichmentSource } from "../data/defaultFeeds";
 import { fetchRssFeed, matchBidclubItems } from "../services/rssService";
 import { isEnrichmentSourceEditorEnabled } from "../config/features";
+import { resolveFeedEnrichmentSource } from "../services/feedEnrichment";
 
 interface AddFeedModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
 }) => {
   const [feedUrlInput, setFeedUrlInput] = useState("");
   const [bidclubFeedUrlInput, setBidclubFeedUrlInput] = useState("");
+  const [enrichmentDisabled, setEnrichmentDisabled] = useState(false);
   const [categoryInput, setCategoryInput] = useState("未分类");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -71,9 +73,14 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
     try {
       const feedUrl = feedUrlInput.trim();
       const parsedData = await fetchRssFeed(feedUrl);
-      const knownSource = resolveKnownEnrichmentSource(feedUrl);
       const manualBidclubFeedUrl = enrichmentSourceEditorEnabled ? bidclubFeedUrlInput.trim() : "";
-      const bidclubFeedUrl = manualBidclubFeedUrl || knownSource.bidclubFeedUrl;
+      const knownSource = resolveKnownEnrichmentSource(feedUrl);
+      const source = resolveFeedEnrichmentSource({
+        feedUrl,
+        bidclubFeedUrl: manualBidclubFeedUrl || undefined,
+        enrichmentDisabled: enrichmentSourceEditorEnabled && enrichmentDisabled,
+      });
+      const bidclubFeedUrl = source.bidclubFeedUrl;
       const bidclubData = bidclubFeedUrl
         ? await fetchRssFeed(bidclubFeedUrl).catch(() => null)
         : null;
@@ -94,7 +101,8 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
         unreadCount: parsedData.items ? parsedData.items.length : 0,
         lastUpdated: new Date().toISOString(),
         bidclubFeedUrl,
-        bidclubShowSlug: manualBidclubFeedUrl ? undefined : knownSource.bidclubShowSlug,
+        bidclubShowSlug: source.bidclubShowSlug,
+        ...(enrichmentSourceEditorEnabled && (enrichmentDisabled || manualBidclubFeedUrl) ? { enrichmentDisabled } : {}),
       };
 
       const newArticles = (matchedItems || []).map((item) => ({
@@ -108,9 +116,10 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
 
       const added = await onAddFeed(newFeed, newArticles);
       if (added === false) return;
-      if (knownSource.bidclubFeedUrl) onShowToast?.("已识别为推荐节目，可直接使用已提供的摘要、章节或逐字稿。");
+      if (knownSource.bidclubFeedUrl && !enrichmentDisabled) onShowToast?.("已识别为推荐节目，可直接使用已提供的摘要、章节或逐字稿。");
       setFeedUrlInput("");
       setBidclubFeedUrlInput("");
+      setEnrichmentDisabled(false);
       onClose();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing feed-service rejections have no typed error contract.
     } catch (err: any) {
@@ -302,11 +311,18 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                 <input
                   type="url"
                   value={bidclubFeedUrlInput}
-                  onChange={(e) => setBidclubFeedUrlInput(e.target.value)}
+                  onChange={(e) => {
+                    setBidclubFeedUrlInput(e.target.value);
+                    if (e.target.value.trim()) setEnrichmentDisabled(false);
+                  }}
                   placeholder="https://bidclub.ai/feeds/example.zh.xml"
                   className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">可选，用于补充摘要、章节和逐字稿；不会替换主 RSS 或音频来源。</p>
+                <button type="button" onClick={() => {
+                  setEnrichmentDisabled((current) => !current);
+                  setBidclubFeedUrlInput("");
+                }}>{enrichmentDisabled ? "恢复自动增强" : "关闭内容增强"}</button>
               </div>}
 
               <div>

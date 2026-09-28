@@ -9,14 +9,16 @@ import {
   removeFeedFromOrder,
   renameFolderInOrder,
 } from "../services/feedSorting";
-import { saveStoredArticles } from "../services/rssService";
+import { saveStoredArticles, updateStoredArticlesStatus } from "../services/rssService";
 import { resolveKnownEnrichmentSource, resolveKnownPrimaryFeedUrl } from "../data/defaultFeeds";
+import { resolveFeedEnrichmentSource, updateFeedEnrichment, type FeedUrlChanges } from "../services/feedEnrichment";
 import { deleteFeedAndArticlesFromDB, updateFeedAndDeleteArticlesFromDB } from "../services/dbService";
 
 interface UseFeedManagementOptions {
   feeds: Feed[];
   setFeeds: Dispatch<SetStateAction<Feed[]>>;
   feedsRef: MutableRefObject<Feed[]>;
+  articlesRef: MutableRefObject<Article[]>;
   setArticles: Dispatch<SetStateAction<Article[]>>;
   categories: string[];
   setCategories: Dispatch<SetStateAction<string[]>>;
@@ -36,7 +38,7 @@ interface UseFeedManagementOptions {
 
 export function useFeedManagement(options: UseFeedManagementOptions) {
   const {
-    feeds, setFeeds, feedsRef, setArticles, categories, setCategories, setFeedOrderByFolder,
+    feeds, setFeeds, feedsRef, articlesRef, setArticles, categories, setCategories, setFeedOrderByFolder,
     selectedFeedId, setSelectedFeedId, selectedCategory, setSelectedCategory,
     selectedArticle, setSelectedArticleId, isSettingsOpen, navigateToRoute,
     queueRefresh, invalidateRefresh, showToast,
@@ -117,10 +119,15 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
     setFeedOrderByFolder((current) => ({ ...current, [category]: [...feedIds] }));
   }, [setFeedOrderByFolder]);
 
-  const updateFeedUrls = useCallback(async (feedId: string, urls: { feedUrl: string; bidclubFeedUrl?: string }) => {
+  const updateFeedUrls = useCallback(async (feedId: string, urls: FeedUrlChanges) => {
     const currentFeed = feeds.find((feed) => feed.id === feedId);
     const feedUrlChanged = !!currentFeed && currentFeed.feedUrl !== urls.feedUrl;
-    const updatedFeed = currentFeed && { ...currentFeed, ...urls, lastUpdated: new Date().toISOString() };
+    const lastUpdated = new Date().toISOString();
+    const updatedFeed = currentFeed && { ...updateFeedEnrichment(currentFeed, urls), lastUpdated };
+    const sourceChanged = !!currentFeed && !!updatedFeed &&
+      resolveFeedEnrichmentSource(currentFeed).bidclubFeedUrl !== resolveFeedEnrichmentSource(updatedFeed).bidclubFeedUrl;
+    const enrichmentChanged = sourceChanged || currentFeed?.enrichmentDisabled !== updatedFeed?.enrichmentDisabled;
+    if (feedUrlChanged || enrichmentChanged) invalidateRefresh();
     if (feedUrlChanged && updatedFeed) {
       try {
         await updateFeedAndDeleteArticlesFromDB(updatedFeed);
@@ -130,14 +137,26 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
         return;
       }
     }
+    if (!feedUrlChanged && enrichmentChanged) {
+      const articleIds = articlesRef.current.filter((article) => article.feedId === feedId && article.enrichment).map((article) => article.id);
+      try {
+        await updateStoredArticlesStatus(articleIds, { enrichment: undefined });
+      } catch (error) {
+        console.warn("Failed to clear old enhancement references:", error);
+        showToast("内容增强设置更新失败，请重试");
+        return;
+      }
+      setArticles((current) => current.map((article) => article.feedId === feedId && article.enrichment
+        ? { ...article, enrichment: undefined } : article));
+    }
     setFeeds((current) => current.map((feed) => feed.id === feedId
-      ? updatedFeed || { ...feed, ...urls, lastUpdated: new Date().toISOString() }
+      ? { ...updateFeedEnrichment(feed, urls), lastUpdated }
       : feed));
     if (feedUrlChanged) {
       setArticles((current) => current.filter((article) => article.feedId !== feedId));
       if (selectedArticle?.feedId === feedId) setSelectedArticleId(null);
     }
-  }, [feeds, selectedArticle, setArticles, setFeeds, setSelectedArticleId, showToast]);
+  }, [articlesRef, feeds, invalidateRefresh, selectedArticle, setArticles, setFeeds, setSelectedArticleId, showToast]);
 
   const importOpmlFile = useCallback(async (file: File): Promise<boolean> => {
     try {

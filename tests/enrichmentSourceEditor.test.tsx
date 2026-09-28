@@ -2,6 +2,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Feed, RssParseResponse } from "../src/types";
+import { CURATED_FEEDS } from "../src/data/defaultFeeds";
 
 const serviceMocks = vi.hoisted(() => ({
   fetchRssFeed: vi.fn(),
@@ -64,14 +65,14 @@ function renderAddFeed(onAddFeed = vi.fn()) {
   return { container, root, onAddFeed };
 }
 
-function renderSettings(onUpdateFeedUrls = vi.fn()) {
+function renderSettings(onUpdateFeedUrls = vi.fn(), currentFeed = feed) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
     root.render(
       <SettingsPage
-        feeds={[feed]}
+        feeds={[currentFeed]}
         categories={["未分类", "科技"]}
         onAddCategory={vi.fn()}
         onRenameCategory={vi.fn()}
@@ -138,9 +139,53 @@ describe("enrichment source editor feature flag", () => {
     });
     act(() => container.querySelector<HTMLButtonElement>('button[aria-label="保存订阅设置"]')?.click());
 
+    expect(onUpdateFeedUrls).toHaveBeenCalledWith("feed-1", { feedUrl: feed.feedUrl });
+    act(() => root.unmount());
+  });
+
+  it("keeps explicit disablement untouched in regular mode", () => {
+    const onUpdateFeedUrls = vi.fn();
+    const { container, root } = renderSettings(onUpdateFeedUrls, { ...feed, enrichmentDisabled: true });
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="编辑Example"]')?.click());
+    expect(container.textContent).not.toContain("恢复自动增强");
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="保存订阅设置"]')?.click());
+    expect(onUpdateFeedUrls).toHaveBeenCalledWith("feed-1", { feedUrl: feed.feedUrl });
+    act(() => root.unmount());
+  });
+
+  it("offers explicit disable and automatic restore in advanced mode", () => {
+    vi.stubEnv("VITE_ENABLE_ENRICHMENT_SOURCE_EDITOR", "true");
+    const onUpdateFeedUrls = vi.fn();
+    const { container, root } = renderSettings(onUpdateFeedUrls);
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="编辑Example"]')?.click());
+    act(() => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "关闭内容增强")?.click());
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="保存订阅设置"]')?.click());
+    expect(onUpdateFeedUrls).toHaveBeenCalledWith("feed-1", { feedUrl: feed.feedUrl, enrichmentDisabled: true });
+    act(() => root.unmount());
+
+    const restored = renderSettings(onUpdateFeedUrls, { ...feed, enrichmentDisabled: true });
+    act(() => restored.container.querySelector<HTMLButtonElement>('button[aria-label="编辑Example"]')?.click());
+    act(() => Array.from(restored.container.querySelectorAll("button")).find((button) => button.textContent === "恢复自动增强")?.click());
+    act(() => restored.container.querySelector<HTMLButtonElement>('button[aria-label="保存订阅设置"]')?.click());
+    expect(onUpdateFeedUrls).toHaveBeenLastCalledWith("feed-1", { feedUrl: feed.feedUrl, enrichmentDisabled: false });
+    act(() => restored.root.unmount());
+  });
+
+  it("re-enables enhancement when a custom URL is entered in advanced mode", () => {
+    vi.stubEnv("VITE_ENABLE_ENRICHMENT_SOURCE_EDITOR", "true");
+    const onUpdateFeedUrls = vi.fn();
+    const { container, root } = renderSettings(onUpdateFeedUrls, { ...feed, enrichmentDisabled: true });
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="编辑Example"]')?.click());
+    const input = container.querySelector<HTMLInputElement>('input[placeholder*="bidclub"]')!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "https://bidclub.ai/feeds/custom.xml");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => container.querySelector<HTMLButtonElement>('button[aria-label="保存订阅设置"]')?.click());
     expect(onUpdateFeedUrls).toHaveBeenCalledWith("feed-1", {
       feedUrl: feed.feedUrl,
-      bidclubFeedUrl: feed.bidclubFeedUrl,
+      enrichmentDisabled: false,
+      bidclubFeedUrl: "https://bidclub.ai/feeds/custom.xml",
     });
     act(() => root.unmount());
   });
@@ -166,6 +211,24 @@ describe("enrichment source editor feature flag", () => {
 
     expect(onAddFeed).toHaveBeenCalledTimes(1);
     expect(onAddFeed.mock.calls[0][0].feedUrl).toBe(parsedFeed.feedUrl);
+    act(() => root.unmount());
+  });
+
+  it("can subscribe to a known RSS with enhancement explicitly disabled", async () => {
+    vi.stubEnv("VITE_ENABLE_ENRICHMENT_SOURCE_EDITOR", "true");
+    const known = CURATED_FEEDS.find((candidate) => candidate.bidclubFeedUrl)!;
+    serviceMocks.fetchRssFeed.mockResolvedValueOnce({ ...parsedFeed, feedUrl: known.feedUrl });
+    const onAddFeed = vi.fn();
+    const { container, root } = renderAddFeed(onAddFeed);
+    const input = container.querySelector<HTMLInputElement>('input[type="url"]')!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, known.feedUrl);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "关闭内容增强")?.click();
+    });
+    await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click());
+    expect(serviceMocks.fetchRssFeed).toHaveBeenCalledTimes(1);
+    expect(onAddFeed.mock.calls[0][0]).toMatchObject({ feedUrl: known.feedUrl, enrichmentDisabled: true, bidclubFeedUrl: undefined });
     act(() => root.unmount());
   });
 });

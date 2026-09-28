@@ -201,6 +201,7 @@ export interface Feed {
   lastSyncError?: string;
   bidclubFeedUrl?: string;
   bidclubShowSlug?: string;
+  enrichmentDisabled?: boolean;
 }
 
 export interface Folder {

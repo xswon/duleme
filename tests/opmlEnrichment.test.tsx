@@ -20,7 +20,7 @@ describe("OPML import enrichment", () => {
     let importOpmlFile: ReturnType<typeof useFeedManagement>["importOpmlFile"] = async () => false;
     function Harness() {
       ({ importOpmlFile } = useFeedManagement({
-        feeds: [], setFeeds, feedsRef: { current: [] },
+        feeds: [], setFeeds, feedsRef: { current: [] }, articlesRef: { current: [] },
         setArticles: vi.fn(), categories: [], setCategories: vi.fn(), setFeedOrderByFolder: vi.fn(),
         selectedFeedId: null, setSelectedFeedId: vi.fn(), selectedCategory: null, setSelectedCategory: vi.fn(),
         selectedArticle: null, setSelectedArticleId: vi.fn(), isSettingsOpen: false,

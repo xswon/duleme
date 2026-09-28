@@ -9,6 +9,7 @@ import {
   EnrichmentReference,
 } from "../types";
 import { LEGACY_DEFAULT_FEEDS, INITIAL_ARTICLES, resolveKnownPrimaryFeedUrl } from "../data/defaultFeeds";
+import { resolveFeedEnrichmentSource } from "./feedEnrichment";
 import type { SortMode } from "./feedSorting";
 
 const STORAGE_KEY_FEEDS = "inoreader_feeds_v2";
@@ -66,7 +67,7 @@ export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = LEGACY_
       merged = {
         ...merged,
         feedUrl: defaultFeed.feedUrl,
-        bidclubFeedUrl: feed.feedUrl,
+        ...(feed.enrichmentDisabled === true ? {} : { bidclubFeedUrl: feed.feedUrl }),
       };
     }
     if (resolveKnownPrimaryFeedUrl(merged.feedUrl) === defaultFeed.feedUrl && merged.feedUrl !== defaultFeed.feedUrl) {
@@ -84,7 +85,11 @@ export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = LEGACY_
       merged = { ...merged, favicon: defaultFeed.favicon };
     }
 
+    const knownBidclubFeedUrl = resolveFeedEnrichmentSource({ feedUrl: merged.feedUrl }).bidclubFeedUrl;
     Object.entries(defaultFeed).forEach(([key, defaultValue]) => {
+      if ((key === "bidclubFeedUrl" || key === "bidclubShowSlug") &&
+        (merged.enrichmentDisabled === true || knownBidclubFeedUrl !== defaultFeed.bidclubFeedUrl ||
+          (merged.bidclubFeedUrl && merged.bidclubFeedUrl !== defaultFeed.bidclubFeedUrl))) return;
       // JSON storage omits undefined values; null is also treated as missing.
       if (defaultValue !== undefined && defaultValue !== null && (merged[key as keyof Feed] === null || merged[key as keyof Feed] === undefined)) {
         merged = { ...merged, [key]: defaultValue };
@@ -992,14 +997,15 @@ export async function backfillArticleBidclubReferences(
 }> {
   const helperFeeds = new Map<string, { feedId?: string; url: string; allowFallback: boolean }>();
   const bidclubPrimaryFeedIds = new Set(
-    feeds.filter((feed) => isBidclubFeedUrl(feed.feedUrl)).map((feed) => feed.id)
+    feeds.filter((feed) => feed.enrichmentDisabled !== true && isBidclubFeedUrl(feed.feedUrl)).map((feed) => feed.id)
   );
 
   feeds.forEach((feed) => {
-    if (feed.bidclubFeedUrl) {
-      helperFeeds.set(feed.bidclubFeedUrl, {
+    const bidclubFeedUrl = resolveFeedEnrichmentSource(feed).bidclubFeedUrl;
+    if (bidclubFeedUrl) {
+      helperFeeds.set(bidclubFeedUrl, {
         feedId: feed.id,
-        url: feed.bidclubFeedUrl,
+        url: bidclubFeedUrl,
         allowFallback: true,
       });
     }
