@@ -168,7 +168,7 @@ function PrimaryActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold leading-5 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-5 wreader-btn wreader-btn-lg wreader-btn-primary"
     >
       {children}
     </button>
@@ -395,7 +395,7 @@ function PipelineProgressCard({
       </div>
       {error && <p className="mt-4 text-xs text-rose-600" role="alert">{error}</p>}
       {autoContinue && transcribing && onCancel && (
-        <button type="button" onClick={onCancel} className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-700">
+        <button type="button" onClick={onCancel} className="mt-4 wreader-btn-link">
           取消
         </button>
       )}

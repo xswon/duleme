@@ -204,7 +204,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="关闭添加订阅源"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="wreader-btn-icon"
           >
             <X className="w-5 h-5" />
           </button>
@@ -340,7 +340,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="wreader-btn wreader-btn-lg wreader-btn-primary wreader-btn-block"
               >
                 {isLoading ? (
                   <>

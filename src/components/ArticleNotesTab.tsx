@@ -89,8 +89,8 @@ export function ArticleNotesTab({ notes, onUpdate, onDelete, onOpenTranscript }:
                   placeholder="写下你的想法（可留空）"
                 />
                 <div className="reader-note-editor-actions mt-2 flex justify-end gap-2">
-                  <button type="button" onClick={() => setEditingId(null)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100">取消</button>
-                  <button type="button" onClick={() => { onUpdate(item, draft); setEditingId(null); }} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">保存</button>
+                  <button type="button" onClick={() => setEditingId(null)} className="wreader-btn wreader-btn-sm wreader-btn-ghost">取消</button>
+                  <button type="button" onClick={() => { onUpdate(item, draft); setEditingId(null); }} className="wreader-btn wreader-btn-sm wreader-btn-primary">保存</button>
                 </div>
               </div>
             ) : item.note ? (

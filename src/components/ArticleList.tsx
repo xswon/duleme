@@ -196,7 +196,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
               <button
                 type="button"
                 onClick={onShowOlder}
-                className="mt-3 min-h-10 rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="mt-3 wreader-btn wreader-btn-ghost"
               >
                 查看最近 {nextWindowDays} 天
               </button>

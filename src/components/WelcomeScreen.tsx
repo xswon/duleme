@@ -51,7 +51,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <button
             type="button"
             onClick={() => setView("welcome")}
-            className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800"
+            className="mb-5 wreader-btn wreader-btn-sm wreader-btn-ghost"
           >
             <ArrowLeft className="h-4 w-4" />
             返回
@@ -100,7 +100,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               type="button"
               disabled={selectedIds.size === 0}
               onClick={() => onUseFeatured(featuredFeeds.filter((feed) => selectedIds.has(feed.id)).map((feed) => feed.id))}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="wreader-btn wreader-btn-lg wreader-btn-primary"
             >
               开始使用
               <ArrowRight className="h-4 w-4" />
@@ -126,7 +126,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <button
             type="button"
             onClick={() => setView("featured")}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+            className="wreader-btn wreader-btn-lg wreader-btn-primary wreader-btn-block"
           >
             使用精选订阅开始
             <ArrowRight className="h-4 w-4" />
@@ -136,7 +136,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             type="button"
             disabled={isImporting}
             onClick={() => fileInputRef.current?.click()}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="wreader-btn wreader-btn-lg wreader-btn-secondary wreader-btn-block"
           >
             <Upload className="h-4 w-4" />
             {isImporting ? "正在导入…" : "导入 OPML"}
@@ -152,7 +152,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <button
             type="button"
             onClick={onStartEmpty}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            className="wreader-btn wreader-btn-lg wreader-btn-secondary wreader-btn-block"
           >
             从空白开始
           </button>

@@ -1341,24 +1341,24 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                   className="w-full resize-y rounded-lg border border-slate-200 p-2.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 />
                 <div className="mt-1.5 flex justify-end gap-2">
-                  <button type="button" onClick={() => { removeSelectionPreview(selectableContentRef.current); setSelectionAction(null); }} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100">取消</button>
-                  <button type="button" onClick={() => void addSelectedNote(noteDraft)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">保存</button>
+                  <button type="button" onClick={() => { removeSelectionPreview(selectableContentRef.current); setSelectionAction(null); }} className="wreader-btn wreader-btn-sm wreader-btn-ghost">取消</button>
+                  <button type="button" onClick={() => void addSelectedNote(noteDraft)} className="wreader-btn wreader-btn-sm wreader-btn-primary">保存</button>
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-1">
                 {selectionAction.noteId ? (
                   <>
-                    <button type="button" onClick={() => setSelectionAction((current) => current ? { ...current, writing: true } : null)} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">编辑笔记</button>
-                    <button type="button" onClick={() => { const item = notes.find((note) => note.id === selectionAction.noteId); if (item) void deleteNote(item); }} className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50">删除</button>
+                    <button type="button" onClick={() => setSelectionAction((current) => current ? { ...current, writing: true } : null)} className="wreader-btn wreader-btn-sm wreader-btn-ghost">编辑笔记</button>
+                    <button type="button" onClick={() => { const item = notes.find((note) => note.id === selectionAction.noteId); if (item) void deleteNote(item); }} className="wreader-btn wreader-btn-sm wreader-btn-danger">删除</button>
                   </>
                 ) : (
                   <>
-                    <button type="button" onClick={() => void addSelectedNote()} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-800">高亮</button>
-                    <button type="button" onClick={() => setSelectionAction((current) => current ? { ...current, writing: true } : null)} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">写笔记</button>
+                    <button type="button" onClick={() => void addSelectedNote()} className="wreader-btn wreader-btn-sm wreader-btn-ghost wreader-annotation-highlight">高亮</button>
+                    <button type="button" onClick={() => setSelectionAction((current) => current ? { ...current, writing: true } : null)} className="wreader-btn wreader-btn-sm wreader-btn-ghost">写笔记</button>
                   </>
                 )}
-                <button type="button" onClick={() => { void navigator.clipboard.writeText(selectionAction.quote); removeSelectionPreview(selectableContentRef.current); setSelectionAction(null); window.getSelection()?.removeAllRanges(); }} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">复制</button>
+                <button type="button" onClick={() => { void navigator.clipboard.writeText(selectionAction.quote); removeSelectionPreview(selectableContentRef.current); setSelectionAction(null); window.getSelection()?.removeAllRanges(); }} className="wreader-btn wreader-btn-sm wreader-btn-ghost">复制</button>
               </div>
             )}
           </div>

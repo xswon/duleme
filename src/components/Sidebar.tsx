@@ -470,7 +470,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <p className="mt-1 text-xs leading-5 text-slate-500">用于整理订阅源，创建后会立即出现在侧栏。</p>
             <input autoFocus value={folderName} onChange={(event) => { setFolderName(event.target.value); setFolderError(null); }} className="mt-4 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="文件夹名称" aria-invalid={Boolean(folderError)} />
             {folderError && <p className="mt-2 text-xs text-rose-600" role="alert">{folderError}</p>}
-            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={closeFolderDialog} className="min-h-9 rounded-lg px-3 text-xs font-medium text-slate-600 hover:bg-slate-100">取消</button><button type="submit" className="min-h-9 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white hover:bg-blue-700">创建</button></div>
+            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={closeFolderDialog} className="wreader-btn wreader-btn-sm wreader-btn-secondary">取消</button><button type="submit" className="wreader-btn wreader-btn-sm wreader-btn-primary">创建</button></div>
           </form>
         </div>
       )}
