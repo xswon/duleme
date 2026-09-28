@@ -227,7 +227,7 @@ describe("navigation chrome", () => {
     expect(html).toContain("AI 摘要");
     expect(html).toContain("数据与备份");
     expect(html).toContain("快捷键");
-    expect(html).toContain("逐字稿");
+    expect(html).toContain("转录");
     expect(html).toContain("AI 摘要");
     expect(html).toContain('role="tablist"');
     expect(html).toContain('aria-labelledby="settings-tab-feeds"');
