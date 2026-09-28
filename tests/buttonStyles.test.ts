@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const buttonStyles = readFileSync(
-  new URL("../src/styles/button-system.css", import.meta.url),
+  resolve(process.cwd(), "src/styles/button-system.css"),
   "utf8",
 );
 
 const mainEntry = readFileSync(
-  new URL("../src/main.tsx", import.meta.url),
+  resolve(process.cwd(), "src/main.tsx"),
   "utf8",
 );
 
