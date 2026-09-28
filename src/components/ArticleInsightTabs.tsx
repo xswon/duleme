@@ -344,7 +344,7 @@ function SummaryActions({
         </a>
       )}
       {onOpenTranscript && (
-        <button type="button" onClick={onOpenTranscript} className="ml-auto wreader-btn-link">
+        <button type="button" onClick={onOpenTranscript} className="ml-auto wreader-btn-link wreader-btn-link-accent">
           查看完整逐字稿
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
