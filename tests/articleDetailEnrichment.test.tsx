@@ -81,8 +81,8 @@ describe("ArticleDetailModal enrichment timing", () => {
     expect(html).toContain("AI 摘要");
     expect(html).toContain("逐字稿");
     expect(html).not.toContain("已整理");
-    expect(html).toContain("lucide-sparkle");
-    expect(html).toContain("lucide-audio-lines");
+    expect(html).toContain('data-insight-icon="ai-summary"');
+    expect(html).toContain('data-insight-icon="transcript"');
     expect(html).not.toContain("text-violet-500");
   });
 
@@ -109,8 +109,8 @@ describe("ArticleDetailModal enrichment timing", () => {
 
     expect(html).toContain("正文");
     expect(html).toContain("AI 摘要");
-    expect(html).toContain("lucide-sparkle");
-    expect(html).toContain("text-violet-500");
+    expect(html).toContain('data-insight-icon="ai-summary"');
+    expect(html).not.toContain("text-violet-500");
     expect(html).not.toContain("已整理");
     expect(html).toContain("逐字稿");
   });
@@ -128,13 +128,13 @@ describe("ArticleDetailModal enrichment timing", () => {
     if (_kind === "digest") {
       expect(html).toContain("AI 摘要");
       expect(html).toContain("逐字稿");
-      expect(html).toContain("lucide-sparkle");
-      expect(html).toContain("text-violet-500");
+      expect(html).toContain('data-insight-icon="ai-summary"');
+      expect(html).not.toContain("text-violet-500");
     } else {
       expect(html).toContain("AI 摘要");
       expect(html).toContain("逐字稿");
-      expect(html).toContain("lucide-sparkle");
-      expect(html).toContain("lucide-audio-lines");
+      expect(html).toContain('data-insight-icon="ai-summary"');
+      expect(html).toContain('data-insight-icon="transcript"');
       expect(html).not.toContain("text-violet-500");
     }
     expect(html).not.toContain("已整理");
@@ -150,7 +150,6 @@ describe("ArticleDetailModal enrichment timing", () => {
     expect(html).toContain("Original show notes");
     expect(html).toContain("整理内容暂时无法加载");
     expect(html).not.toContain("已整理");
-    expect(html).not.toContain("lucide-sparkles");
     expect(html).not.toContain("AI 整理内容");
   });
 

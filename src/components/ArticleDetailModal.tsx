@@ -5,7 +5,6 @@ import {
   Mail,
   MailOpen,
   FileText,
-  Sparkle,
   MessageSquareText,
   ChevronLeft,
   ChevronRight,
@@ -13,7 +12,6 @@ import {
   Maximize2,
   Minimize2,
   Menu,
-  AudioLines,
 } from "lucide-react";
 import { Article, ArticleNote, DetailTab, OverviewPipelineStage } from "../types";
 import { resolveImageUrl } from "./ArticleList";
@@ -26,6 +24,7 @@ import { useCloudTranscription } from "../hooks/useCloudTranscription";
 import { localPodcastApi } from "../services/localPodcastService";
 import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
+import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
 import { ArticleNotesTab } from "./ArticleNotesTab";
 import {
   deleteArticleNoteFromDB,
@@ -42,7 +41,6 @@ import {
 } from "./detailTabState";
 import {
   hasBidclubEnrichment,
-  isVerifiedBidclubEnrichment,
   resolveBidclubEnrichmentReference,
 } from "../services/bidclubEpisodeCache";
 
@@ -389,7 +387,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   }, [article?.id, article?.audioUrl, audioPlayer, autoPlay, onAutoPlayStarted, savedProgress]);
 
   const hasBidclubReference = article?.enrichment?.provider === "bidclub";
-  const hasVerifiedBidclubEnrichment = isVerifiedBidclubEnrichment(article?.enrichment);
   const enrichmentStatus = !hasBidclubReference
     ? "none"
     : bidclubLoading
@@ -1221,15 +1218,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
             {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
               {tabs.map((tab) => {
-                const isInsightTab = tab.key === "overview" || tab.key === "digest";
-                const hasInsightContent = tab.key === "overview"
-                  ? !!(bidclubTldrHtml?.trim() || bidclubDigestHtml?.trim())
-                  : !!bidclubDigestHtml?.trim();
                 const InsightIcon = tab.key === "body"
                   ? FileText
                   : tab.key === "transcript"
-                    ? AudioLines
-                    : Sparkle;
+                    ? TranscriptWaveIcon
+                    : AiSummaryIcon;
                 return (
                   <button
                     type="button"
@@ -1239,14 +1232,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                     aria-selected={detailTab === tab.key}
                     className={`reader-tab ${detailTab === tab.key ? "is-active" : ""}`}
                   >
-                    <InsightIcon
-                      className={`reader-tab-icon ${
-                        isInsightTab && enrichmentStatus === "available" && hasVerifiedBidclubEnrichment && hasInsightContent
-                          ? "text-violet-500"
-                          : "text-slate-400"
-                      }`}
-                      aria-hidden="true"
-                    />
+                    <InsightIcon className="reader-tab-icon" aria-hidden="true" />
                     {tab.label}
                   </button>
                 );
