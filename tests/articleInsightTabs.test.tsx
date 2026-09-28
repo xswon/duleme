@@ -91,13 +91,15 @@ describe("ArticleInsightTabs", () => {
       onStartTranscription: vi.fn(),
     });
     expect(html).toContain("生成逐字稿");
-    expect(html).toContain("点击开始生成完整逐字稿");
+    expect(html).toContain("将音频内容转写为可阅读文本，便于搜索和回看。");
     expect(html).toContain("转录方式：本地");
+    expect(html).toContain("开始转录");
+    expect(html).not.toContain("重新转录");
     expect(html).not.toContain("NextEcho");
   });
 
-  it("offers a cache-bypassing retranscription action for local transcription only", () => {
-    const local = renderModel({
+  it("keeps retranscription out of the transcript empty state", () => {
+    const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
       tab: "transcript",
       transcriptState: "can_generate",
@@ -105,18 +107,9 @@ describe("ArticleInsightTabs", () => {
       onStartTranscription: vi.fn(),
       onRegenerateTranscript: vi.fn(),
     });
-    const cloud = renderModel({
-      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
-      tab: "transcript",
-      transcriptState: "can_generate",
-      transcriptionMode: "cloud",
-      onStartTranscription: vi.fn(),
-      onRegenerateTranscript: vi.fn(),
-    });
-    expect(local).toContain("已有结果不准确？");
-    expect(local).toContain("重新转录");
-    expect(local).not.toContain("忽略缓存");
-    expect(cloud).not.toContain("已有结果不准确？");
+    expect(html).toContain("开始转录");
+    expect(html).not.toContain("已有结果不准确？");
+    expect(html).not.toContain("重新转录");
   });
 
   it("confirms before forcing a local retranscription", async () => {
@@ -124,18 +117,28 @@ describe("ArticleInsightTabs", () => {
     const container = document.createElement("div");
     const root = createRoot(container);
     const model: InsightModel = {
-      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      article: {
+        ...article,
+        audioUrl: "https://cdn.example.com/a.mp3",
+        localPodcast: {
+          sourceAudioUrl: "https://cdn.example.com/a.mp3",
+          transcriptionStatus: "completed",
+          insightStatus: "not_started",
+          updatedAt: "now",
+        },
+      },
       tab: "transcript",
       summary: null,
       overviewState: "ready",
-      transcriptState: "can_generate",
+      transcriptState: "ready",
       enrichmentLoading: false,
       enrichmentError: null,
       onSummarize: vi.fn(),
       summarizing: false,
       summaryError: null,
-      transcriptionMode: "local",
-      onStartTranscription: vi.fn(),
+      localArtifacts: {
+        transcript: [{ startMs: 0, timestamp: "00:00:00,000", text: "已有逐字稿" }],
+      },
       onRegenerateTranscript,
     };
     await act(async () => root.render(<ArticleInsightTabs model={model} />));
@@ -231,7 +234,9 @@ describe("ArticleInsightTabs", () => {
       onSummarize: vi.fn(),
     });
     expect(html).toContain("生成 AI 摘要");
-    expect(html).toContain("将自动生成逐字稿并提炼摘要");
+    expect(html).toContain("文章将基于正文提炼要点，播客将基于逐字稿提炼要点。");
+    expect(html).toContain("立即生成");
+    expect(html).not.toContain("✨ 生成 AI 摘要");
   });
 
   it("shows the actual local transcription percentage", () => {
