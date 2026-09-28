@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell } from "electron";
 import { startServer } from "../server.ts";
 
 let localServer;
+let localAppUrl;
 
 function isHttpUrl(value) {
   try {
@@ -17,7 +18,9 @@ async function openExternal(value) {
   if (isHttpUrl(value)) await shell.openExternal(value);
 }
 
-async function createMainWindow() {
+async function ensureLocalServer() {
+  if (localServer && localAppUrl) return localAppUrl;
+
   const localHost = "127.0.0.1";
   const staticDir = path.join(app.getAppPath(), "dist");
   localServer = await startServer({
@@ -29,7 +32,12 @@ async function createMainWindow() {
 
   const address = localServer.address();
   if (!address || typeof address === "string") throw new Error("Unable to resolve desktop server port");
-  const appUrl = `http://${localHost}:${address.port}`;
+  localAppUrl = `http://${localHost}:${address.port}`;
+  return localAppUrl;
+}
+
+async function createMainWindow() {
+  const appUrl = await ensureLocalServer();
   const appOrigin = new URL(appUrl).origin;
 
   const win = new BrowserWindow({
@@ -83,6 +91,8 @@ app.whenReady().then(async () => {
 
 app.on("before-quit", () => {
   localServer?.close();
+  localServer = undefined;
+  localAppUrl = undefined;
 });
 
 app.on("window-all-closed", () => {
