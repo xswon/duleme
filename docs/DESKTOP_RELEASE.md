@@ -7,26 +7,59 @@
 - Desktop runtime: Electron 44.4.3
 - Primary target: macOS DMG (arm64 + x64)
 - Data: local IndexedDB
-- Distribution: GitHub Release
+- Source repository: private `xswon/duleme`
+- Binary distribution repository: public `xswon/duleme-releases`
+- Apple signing/notarization: deferred
 
-## Required GitHub Actions secrets
+## One required GitHub Actions secret
 
-The desktop release workflow never stores signing credentials in the repository.
+Create a fine-grained GitHub personal access token that can write releases to the public
+`xswon/duleme-releases` repository, then save it in the private source repository as:
 
-- `MAC_CSC_LINK`: Developer ID Application certificate in a format accepted by electron-builder (for example base64 encoded `.p12`).
-- `MAC_CSC_KEY_PASSWORD`: password for the certificate.
-- `APPLE_API_KEY_BASE64`: base64 encoded App Store Connect API key (`.p8`).
-- `APPLE_API_KEY_ID`: App Store Connect API key ID.
-- `APPLE_API_ISSUER`: App Store Connect issuer ID.
-- `APPLE_TEAM_ID`: Apple Developer Team ID.
+- `RELEASE_REPO_TOKEN`
+
+The token should be scoped only to `xswon/duleme-releases` and needs repository
+`Contents: Read and write` permission. Do not grant access to the private source repository
+unless it is otherwise required.
+
+## Public release repository
+
+Create `xswon/duleme-releases` as a **public** repository and initialize it with a README.
+It is intentionally separate from the private source repository.
+
+Its purpose is only to expose:
+
+- macOS DMGs;
+- SHA-256 checksums;
+- release notes.
+
+Source code remains in the private `xswon/duleme` repository.
 
 ## Release flow
 
-1. Merge the release changes to `main`.
+1. Merge the Desktop V1 changes to `main`.
 2. Confirm CI is green, including storage/backup tests and the desktop main-process bundle.
-3. Create and push a version tag, for example `v0.1.0`.
-4. The Desktop Release workflow builds, signs, notarizes, and uploads both macOS DMGs.
-5. Verify the downloaded DMG on a clean macOS account before sharing it.
+3. Run the Desktop Release workflow manually once to verify the unsigned macOS build.
+4. Test the generated arm64/x64 DMG artifact on a clean Mac.
+5. Create and push a version tag, for example `v0.1.0`.
+6. The Desktop Release workflow builds both unsigned DMGs and publishes them to
+   `xswon/duleme-releases`.
+
+## Unsigned macOS behavior
+
+Desktop V1 intentionally has no Apple Developer ID signature or notarization.
+
+On first launch, macOS may block the app. The user should:
+
+1. try opening 读了么 once;
+2. open **System Settings → Privacy & Security**;
+3. find the blocked app notice and choose **Open Anyway**;
+4. confirm **Open**.
+
+Do not instruct ordinary users to run Terminal commands such as `xattr`.
+
+When the project later joins the paid Apple Developer Program, signing/notarization can
+be re-enabled without changing the local-first application architecture.
 
 ## Backup/restore regression
 
@@ -40,13 +73,8 @@ The existing storage test suite is the V1 compatibility gate. It covers:
 
 Do not bump the backup format for Desktop V1 unless the stored schema actually changes.
 
-## Public-download constraint
+## GitHub Pages
 
-This source repository is currently private. GitHub Release assets in a private repository are not suitable as public download links for ordinary users.
-
-Before public launch, use one of these options:
-
-1. make the release repository public; or
-2. publish the DMGs to a separate public GitHub release repository dedicated to binary distribution.
-
-For V1, there is no separate website project. A minimal GitHub Pages entry page is deployed from `docs/index.html` for basic project/download information.
+There is no separate website project. A minimal GitHub Pages entry page is deployed from
+`docs/index.html` for basic project and download information. Its download button points
+to the latest public release in `xswon/duleme-releases`.
