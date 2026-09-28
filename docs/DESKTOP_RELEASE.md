@@ -49,4 +49,4 @@ Before public launch, use one of these options:
 1. make the release repository public; or
 2. publish the DMGs to a separate public GitHub release repository dedicated to binary distribution.
 
-For V1, no website deployment is included.
+For V1, there is no separate website project. A minimal GitHub Pages entry page is deployed from `docs/index.html` for basic project/download information.
