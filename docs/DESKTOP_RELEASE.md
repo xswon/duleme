@@ -27,11 +27,12 @@ unless it is otherwise required.
 Create `xswon/duleme-releases` as a **public** repository and initialize it with a README.
 It is intentionally separate from the private source repository.
 
-Its purpose is only to expose:
+Its purpose is to expose:
 
 - macOS DMGs;
 - SHA-256 checksums;
-- release notes.
+- release notes;
+- a minimal GitHub Pages download entry.
 
 Source code remains in the private `xswon/duleme` repository.
 
@@ -75,6 +76,15 @@ Do not bump the backup format for Desktop V1 unless the stored schema actually c
 
 ## GitHub Pages
 
-There is no separate website project. A minimal GitHub Pages entry page is deployed from
-`docs/index.html` for basic project and download information. Its download button points
-to the latest public release in `xswon/duleme-releases`.
+GitHub Pages should be hosted from the public `xswon/duleme-releases` repository rather
+than the private source repository. This keeps the source private and also allows Pages to
+work on GitHub Free.
+
+The Pages site should remain intentionally minimal:
+
+- product name and one-sentence description;
+- latest macOS public-beta download link;
+- unsigned-build first-launch instructions;
+- version/platform note.
+
+No separate website framework or marketing site is required for V1.
