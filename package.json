@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "dist-electron/main.cjs",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "dev": "tsx server-entry.ts",
+    "build": "vite build && esbuild server-entry.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:desktop-main": "esbuild electron/main.mjs --bundle --platform=node --format=cjs --packages=external --external:electron --sourcemap --outfile=dist-electron/main.cjs",
+    "build:desktop": "npm run build && npm run build:desktop-main",
+    "desktop:dev": "npm run build:desktop && npx --yes electron@44.4.3 .",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "test": "vitest run",
@@ -14,8 +18,8 @@
     "typecheck": "tsc --noEmit",
     "check:bundle": "tsx scripts/checkBundleSize.ts",
     "check:architecture": "tsx scripts/checkArchitecture.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test:coverage && npm run build && npm run check:bundle && npm run check:architecture",
-    "clean": "rm -rf dist server.js",
+    "verify": "npm run typecheck && npm run lint && npm run test:coverage && npm run build && npm run build:desktop-main && npm run check:bundle && npm run check:architecture",
+    "clean": "rm -rf dist dist-electron release server.js",
     "lint": "eslint . --max-warnings=0"
   },
   "dependencies": {
