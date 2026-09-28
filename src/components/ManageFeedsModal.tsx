@@ -382,6 +382,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     );
   };
 
+  const activeDescription = activeTab === "transcript"
+    ? "可选增强功能。不配置也不影响 RSS 阅读和播客播放。"
+    : activeTab === "insight"
+      ? "可选增强功能。不配置也不影响 RSS 阅读、收藏和笔记。"
+      : activeTab === "data"
+        ? "订阅和阅读数据优先保存在本机。定期导出完整备份可避免浏览器数据被清理后无法恢复。"
+        : null;
+
   return (
     <div ref={settingsDialogRef} className="wreader-settings-modal fixed inset-0 z-[70] grid place-items-center p-6" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
       <button type="button" className="wreader-settings-backdrop absolute inset-0" onClick={onBack} aria-label="关闭设置" />
@@ -403,7 +411,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
             <div className="wreader-settings-nav-group">
               <div className="wreader-settings-nav-group-title">可选增强</div>
-              <button type="button" {...tabProps("transcript")} className={tabClassName("transcript")}><AudioLines /><span>转录</span></button>
+              <button type="button" {...tabProps("transcript")} className={tabClassName("transcript")}><AudioLines /><span>逐字稿</span></button>
               <button type="button" {...tabProps("insight")} className={tabClassName("insight")}><Sparkles /><span>AI 摘要</span></button>
             </div>
             <div className="wreader-settings-nav-standalone">
@@ -413,8 +421,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </nav>
         </aside>
         <div className="wreader-settings-main min-w-0">
-          <header className="wreader-settings-header flex shrink-0 items-center justify-between">
-            <h1 id="settings-modal-title">{{ feeds: "订阅源", folders: "文件夹", transcript: "转录", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
+          <header className="wreader-settings-header flex shrink-0 items-start justify-between">
+            <div className="wreader-settings-heading">
+              <h1 id="settings-modal-title">{{ feeds: "订阅源", folders: "文件夹", transcript: "转录", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
+              {activeDescription && <p>{activeDescription}</p>}
+            </div>
             <button type="button" onClick={onBack} aria-label="关闭设置" className="wreader-settings-close"><X /></button>
           </header>
           <div className="wreader-settings-body scrollbar-thin">
@@ -499,7 +510,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {activeTab === "insight" && <LocalAiSettingsPanel view="insight" panelId="settings-panel-insight" />}
           {activeTab === "data" && (
             <section id="settings-panel-data" role="tabpanel" aria-labelledby="settings-tab-data" className="wreader-settings-data">
-              <p className="wreader-settings-note">订阅和阅读数据优先保存在本机。定期导出完整备份可避免浏览器数据被清理后无法恢复。</p>
               <div className="wreader-settings-data-grid">
                 <button type="button" onClick={() => exportOpml(feeds)} className="wreader-settings-action-card"><Download /><strong>导出 OPML</strong><span>仅导出订阅源和文件夹，适合迁移到其他阅读器。</span></button>
                 <button type="button" onClick={onOpenAddFeed} className="wreader-settings-action-card"><Upload /><strong>导入 OPML</strong><span>打开添加订阅流程，并报告新增、重复和无效数量。</span></button>

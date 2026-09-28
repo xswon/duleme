@@ -23,6 +23,7 @@ vi.mock("../src/hooks/useLocalPodcast", () => ({
     restoring: false,
     refresh: vi.fn(),
     startTranscription: vi.fn(),
+    regenerateTranscription: vi.fn(),
     retryTranscription: vi.fn(),
     createInsight: vi.fn(),
   }),
@@ -152,8 +153,10 @@ describe("podcast AI summary pipeline", () => {
     expect(pipeline.start).toHaveBeenCalledTimes(1);
     expect(pipeline.summarize).toHaveBeenCalledWith(
       "Pipeline episode",
-      "First segment\nSecond segment",
-      "",
+      "[00:00] First segment\n[00:10] Second segment",
+      "Show notes",
+      "transcript",
+      expect.any(Function),
     );
     expect(patches).toEqual(expect.arrayContaining([
       expect.objectContaining({

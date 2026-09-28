@@ -612,10 +612,6 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     return (
       <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-insight" className="wreader-ai-settings">
         <section className="wreader-model-settings-page">
-          <div>
-            <h3>AI 摘要</h3>
-            <p className="wreader-model-hint">可选增强功能。不配置也不影响 RSS 阅读、收藏和笔记。</p>
-          </div>
           <ModelSummaryCard
             title={insight?.configured ? insight.model || "已配置" : "尚未配置"}
             provider={insight?.configured ? insight.provider : undefined}
@@ -788,10 +784,6 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   return (
     <section id={panelId} role="tabpanel" aria-labelledby="settings-tab-transcript" className="wreader-ai-settings">
       <section className="wreader-model-settings-page">
-        <div>
-          <h3>转录</h3>
-          <p className="wreader-model-hint">可选增强功能。不配置也不影响 RSS 阅读和播客播放。</p>
-        </div>
         <ModelSummaryCard
           title={settings ? model.name : "尚未配置"}
           provider={settings ? provider.name : undefined}

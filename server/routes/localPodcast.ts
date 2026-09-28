@@ -36,11 +36,11 @@ export function createLocalPodcastRouter() {
   });
   router.post("/sessions", async (req, res, next) => {
     try {
-      const { audioUrl, title, showNotes } = req.body || {};
+      const { audioUrl, title, showNotes, force } = req.body || {};
       if (!/^https?:\/\//i.test(String(audioUrl || ""))) return res.status(400).json({ error: "缺少有效的音频地址。" });
       res.status(202).json(await nextEchoRequest("/api/transcription-sessions", {
         method: "POST",
-        body: JSON.stringify({ url: audioUrl, force_local_asr: true, page_context: { page_title: title || "", show_notes: showNotes || "" } }),
+        body: JSON.stringify({ url: audioUrl, model: "small", force: Boolean(force), force_local_asr: true, page_context: { page_title: title || "", show_notes: showNotes || "" } }),
       }));
     } catch (error) { next(error); }
   });

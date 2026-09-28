@@ -31,6 +31,17 @@ function sendAiError(res: any, error: unknown) {
   });
 }
 
+function aiErrorPayload(error: unknown) {
+  if (error instanceof AiServiceError) {
+    return {
+      error: error.message,
+      code: error.code,
+      ...(error.status ? { upstreamStatus: error.status } : {}),
+    };
+  }
+  return { error: "AI request failed.", code: "upstream_error" };
+}
+
 export function createAiRouter() {
   const router = Router();
 
@@ -71,13 +82,35 @@ export function createAiRouter() {
   });
 
   router.post("/summarize", async (req, res) => {
-    const { title, content, snippet, config } = req.body || {};
+    const { title, content, snippet, config, source } = req.body || {};
     if (!title && !content && !snippet) {
       return res.status(400).json({ error: "Missing article title or content", code: "invalid_request" });
     }
+    if (req.query?.stream === "1") {
+      res.status(200);
+      res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders?.();
+      const send = (event: object) => res.write(`${JSON.stringify(event)}\n`);
+      try {
+        const summary = await summarizeArticle(
+          title,
+          content,
+          snippet,
+          config,
+          source === "transcript" ? "transcript" : "article",
+          (progress) => send({ type: "progress", progress }),
+        );
+        send({ type: "result", summary });
+      } catch (error) {
+        send({ type: "error", ...aiErrorPayload(error) });
+      }
+      return res.end();
+    }
     try {
       return res.json({
-        summary: await summarizeArticle(title, content, snippet, config),
+        summary: await summarizeArticle(title, content, snippet, config, source === "transcript" ? "transcript" : "article"),
       });
     } catch (error) {
       return sendAiError(res, error);

@@ -29,7 +29,7 @@ export interface LocalSessionStatus {
 }
 
 export const localPodcastApi = {
-  start: (input: { audioUrl: string; title: string; showNotes: string }) => request<LocalSessionResponse>("/api/local-podcast/sessions", { method: "POST", body: JSON.stringify(input) }),
+  start: (input: { audioUrl: string; title: string; showNotes: string; force?: boolean }) => request<LocalSessionResponse>("/api/local-podcast/sessions", { method: "POST", body: JSON.stringify(input) }),
   status: (sessionId: string) => request<LocalSessionStatus>(`/api/local-podcast/sessions/${encodeURIComponent(sessionId)}`),
   createInsight: (sessionId: string) => request(`/api/local-podcast/sessions/${encodeURIComponent(sessionId)}/insight`, { method: "POST", body: "{}" }),
   getSettings: () => request<LocalAiSettings>("/api/local-podcast/settings"),

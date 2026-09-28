@@ -30,6 +30,22 @@ describe("useLocalPodcast", () => {
     await act(async () => root.unmount());
   });
 
+  it("forces a new session when regenerating a completed local transcript", async () => {
+    api.start.mockResolvedValue({ session_id: "s2", job_id: "j2", reused: false });
+    let regenerate: (() => Promise<{ started: boolean; error?: string }>) | undefined;
+    function Harness() {
+      const [article, setArticle] = useState({ ...baseArticle, localPodcast: { sessionId: "s1", jobId: "j1", sourceAudioUrl: baseArticle.audioUrl!, transcriptionStatus: "completed" as const, insightStatus: "not_started" as const, updatedAt: "before" } });
+      const local = useLocalPodcast(article, (_id, patch) => setArticle((current) => ({ ...current, ...patch }) as typeof current));
+      regenerate = local.regenerateTranscription;
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    await act(async () => root.render(<Harness />));
+    await act(async () => { await regenerate!(); });
+    expect(api.start).toHaveBeenCalledWith(expect.objectContaining({ force: true }));
+    await act(async () => root.unmount());
+  });
+
   it("restores a persisted session and records completed state", async () => {
     api.status.mockResolvedValue({ session_id: "s1", job_id: "j1", job: { status: "completed", insight_status: "not_requested", progress: 100 }, artifacts: { transcript: [{ startMs: 0, text: "Recovered" }] } });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test records provider patch payloads without constraining their evolving shape.

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Headphones } from "lucide-react";
+import { Podcast } from "lucide-react";
 import type { Article, ArticleNote, Feed } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
@@ -292,7 +292,7 @@ export default function App() {
   const totalUnread = articleMetrics.totalRecentUnread;
   const totalSaved = articleMetrics.totalSaved;
   const activeTitle = useMemo(() => {
-    if (activeTab === "playlist") return "音频";
+    if (activeTab === "playlist") return "播客";
     if (activeTab === "notes") return "笔记";
     if (activeTab === "saved") return "收藏文章";
     if (activeTab === "search") return "搜索";
@@ -339,7 +339,7 @@ export default function App() {
     onToggleImmersive={() => setIsImmersive((immersive) => !immersive)} onOpenAiSettings={() => openSettings("insight")}
     onOpenTranscriptionSettings={() => openSettings("transcript")} />
     : invalidArticleId ? <div className="flex h-full items-center justify-center px-6 text-center"><div className="max-w-sm"><h2 className="text-base font-semibold text-slate-700">这篇文章暂时不可用</h2><p className="mt-2 text-sm leading-6 text-slate-500">文章可能已被删除或所属订阅源已取消。</p><button type="button" onClick={closeArticle} className="mt-4 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">返回列表</button></div></div>
-      : activeTab === "playlist" ? <div className="wreader-empty-detail wreader-playlist-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><Headphones className="wreader-playlist-detail-empty-icon" aria-hidden="true" /><h2>选择一个节目查看详情</h2><p>从中栏播放列表选择标题或封面，详情会显示在这里。</p></div>
+      : activeTab === "playlist" ? <div className="wreader-empty-detail wreader-playlist-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><Podcast className="wreader-playlist-detail-empty-icon" aria-hidden="true" /><h2>选择一个节目查看详情</h2><p>从中栏播放列表选择标题或封面，详情会显示在这里。</p></div>
         : <div className="wreader-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><svg className="wreader-empty-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" /><path d="M4 4.5v18M8 7h8M8 11h7" /></svg><h2>选择一篇文章开始阅读</h2><p>从左侧时间线选择文章，正文、概要和音频会显示在这里。</p><div className="wreader-empty-shortcuts">快捷键 <kbd>J</kbd> <kbd>K</kbd> 切换文章 · <kbd>⌘K</kbd> 搜索</div></div>;
 
   if (isInitializing || !isAppStateReady) {

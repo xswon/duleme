@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   AiServiceError,
+  cleanPodcastTranscriptForSummary,
   createChatCompletion,
   listAiModels,
+  splitTranscriptForSummary,
+  summarizeArticle,
 } from "../server/services/aiService";
 import { outboundTransport } from "../server/services/outboundNetwork";
 
@@ -23,6 +26,50 @@ afterEach(() => {
 });
 
 describe("OpenAI-compatible AI client", () => {
+  it("removes obvious transcription filler and prompt artifacts before podcast summarization", () => {
+    const transcript = [
+      "[01:00] 这里是需要保留的节目观点。",
+      "[01:30] 嗯，嗯，嗯，嗯，嗯。",
+      "[02:00] 请用简体的文字点符号。",
+      "[02:30] 另一个有效观点。",
+    ].join("\n");
+
+    expect(cleanPodcastTranscriptForSummary(transcript)).toBe([
+      "[01:00] 这里是需要保留的节目观点。",
+      "[02:30] 另一个有效观点。",
+    ].join("\n"));
+  });
+
+  it("splits long transcripts without dropping the ending", () => {
+    const transcript = `${"第一段内容。".repeat(4_000)}\nEND_MARKER`;
+    const chunks = splitTranscriptForSummary(transcript, 10_000);
+    expect(chunks.length).toBeGreaterThan(2);
+    expect(chunks.join("\n")).toContain("END_MARKER");
+    expect(chunks.every((chunk) => chunk.length <= 10_000)).toBe(true);
+  });
+
+  it("summarizes every chunk of a long podcast before final synthesis", async () => {
+    const transcript = `${"[00:00] 第一段内容。".repeat(3_000)}\n[59:59] END_MARKER`;
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({
+      choices: [{ message: { content: `note-${fetchMock.mock.calls.length}` } }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    stubFetch(fetchMock);
+
+    const progress: number[] = [];
+    await expect(summarizeArticle("Podcast", transcript, "Show notes", remoteConfig, "transcript", (value) => progress.push(value)))
+      .resolves.toMatch(/^note-/);
+
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(2);
+    const requestBodies = fetchMock.mock.calls.map((call) => JSON.parse(String((call[1] as RequestInit).body)));
+    expect(requestBodies.some((body) => JSON.stringify(body).includes("END_MARKER"))).toBe(true);
+    const finalPrompt = requestBodies.at(-1).messages.at(-1).content;
+    expect(finalPrompt).toContain("覆盖完整逐字稿的分段证据笔记");
+    expect(finalPrompt).toContain("## 深度精华");
+    expect(progress[0]).toBe(8);
+    expect(progress.at(-1)).toBe(100);
+    expect(progress.some((value) => value > 10 && value < 85)).toBe(true);
+  });
+
   it("rejects plaintext HTTP for a non-loopback endpoint even with an API key", async () => {
     await expect(listAiModels({
       baseURL: "http://public-ai.example.com/v1",

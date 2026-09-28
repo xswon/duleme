@@ -70,13 +70,13 @@ describe("navigation chrome", () => {
     expect(html).toContain("overflow-y-auto");
     expect(html).toContain('id="subscription-tree-scroll"');
     expect(html).not.toContain(">工具<");
-    expect(html.indexOf("收藏")).toBeLessThan(html.indexOf("音频"));
-    expect(html.indexOf("音频")).toBeLessThan(html.indexOf("笔记"));
+    expect(html.indexOf("收藏")).toBeLessThan(html.indexOf("播客"));
+    expect(html.indexOf("播客")).toBeLessThan(html.indexOf("笔记"));
     expect(html.indexOf("笔记")).toBeLessThan(html.indexOf("科技"));
     expect(html.indexOf("搜索")).toBeLessThan(html.indexOf("科技"));
     expect(html.indexOf("添加")).toBeGreaterThan(html.lastIndexOf("科技"));
 
-    const quickEntryOrder = ["时间线", "收藏", "音频", "笔记"].map((label) =>
+    const quickEntryOrder = ["时间线", "收藏", "播客", "笔记"].map((label) =>
       html.indexOf(label)
     );
     expect(quickEntryOrder).toEqual([...quickEntryOrder].sort((a, b) => a - b));
@@ -92,7 +92,7 @@ describe("navigation chrome", () => {
   it("marks every utility label for the collapsed rail", () => {
     const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ isCollapsed: true })} />);
 
-    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">音频</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">播客</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>');
     expect(html).toContain('class="wreader-nav-label truncate text-xs">搜索</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">设置</span>');
@@ -223,11 +223,11 @@ describe("navigation chrome", () => {
     expect(html).toContain('aria-label="关闭设置"');
     expect(html).toContain("内容");
     expect(html).toContain("可选增强");
-    expect(html).toContain("转录");
+    expect(html).toContain('id="settings-tab-transcript"');
+    expect(html).toContain("逐字稿");
     expect(html).toContain("AI 摘要");
     expect(html).toContain("数据与备份");
     expect(html).toContain("快捷键");
-    expect(html).toContain("转录");
     expect(html).toContain("AI 摘要");
     expect(html).toContain('role="tablist"');
     expect(html).toContain('aria-labelledby="settings-tab-feeds"');
@@ -272,9 +272,27 @@ describe("navigation chrome", () => {
     });
 
     await act(async () => {
+      Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "逐字稿")?.click();
+    });
+
+    expect(container.querySelector("#settings-modal-title")?.textContent).toBe("转录");
+    expect(container.querySelector(".wreader-settings-heading p")?.textContent).toBe("可选增强功能。不配置也不影响 RSS 阅读和播客播放。");
+    expect(Array.from(container.querySelectorAll("#settings-panel-transcript h3")).map((heading) => heading.textContent)).toEqual(["转录设置"]);
+
+    await act(async () => {
+      Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "AI 摘要")?.click();
+    });
+
+    expect(container.querySelector("#settings-modal-title")?.textContent).toBe("AI 摘要");
+    expect(container.querySelector(".wreader-settings-heading p")?.textContent).toBe("可选增强功能。不配置也不影响 RSS 阅读、收藏和笔记。");
+    expect(container.querySelector("#settings-panel-insight h3")).toBeNull();
+
+    await act(async () => {
       Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("数据与备份"))?.click();
     });
 
+    expect(container.querySelector(".wreader-settings-heading p")?.textContent).toBe("订阅和阅读数据优先保存在本机。定期导出完整备份可避免浏览器数据被清理后无法恢复。");
+    expect(container.querySelector("#settings-panel-data > .wreader-settings-note")).toBeNull();
     expect(container.textContent).toContain("导出 OPML");
     expect(container.textContent).toContain("导入 OPML");
     expect(container.textContent).toContain("导出完整备份");
@@ -646,7 +664,7 @@ describe("navigation chrome", () => {
       onNavigateSearch: vi.fn(),
       unreadCount: 0,
     };
-    const audioHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="playlist" currentTitle="音频" currentCountLabel="2 条" />);
+    const audioHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="playlist" currentTitle="播客" currentCountLabel="2 条" />);
     const notesHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="notes" currentTitle="笔记" currentCountLabel="4 条" />);
     const favoritesHtml = renderToStaticMarkup(<Header {...baseProps} activeTab="feeds" filterType="starred" currentTitle="收藏" currentCountLabel="7 条" />);
 
@@ -656,7 +674,7 @@ describe("navigation chrome", () => {
       expect(html).not.toContain(">4 条</span>");
       expect(html).not.toContain(">7 条</span>");
     }
-    expect(audioHtml).toContain("音频");
+    expect(audioHtml).toContain("播客");
     expect(notesHtml).toContain("笔记");
     expect(favoritesHtml).toContain("收藏");
   });
@@ -752,7 +770,7 @@ describe("navigation chrome", () => {
     const audioHtml = renderToStaticMarkup(
       <Header
         activeTab="playlist"
-        currentTitle="音频 2 条"
+        currentTitle="播客 2 条"
         filterType="all"
         setFilterType={vi.fn()}
         onRefresh={vi.fn()}

@@ -125,6 +125,11 @@
 #article-reader .reader-tab em { min-width: 20px; margin-left: 3px; padding: 1px 5px; border-radius: 8px; background: #eef2f6; color: #637286; font-size: 11px; font-style: normal; text-align: center; }
 
 #article-reader .audio-tab-panel { max-width: 650px; margin: 0; color: #2a3542; font-size: 15px; line-height: 1.7; }
+#article-reader .reader-service-content { display: flex; max-width: 650px; flex-direction: column; gap: 9px; }
+#article-reader .reader-service-bar { display: flex; min-height: 28px; align-items: center; justify-content: space-between; gap: 12px; color: #8a96a3; font-size: 11px; line-height: 18px; }
+#article-reader .reader-service-bar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#article-reader .reader-service-bar > button { display: inline-flex; flex: none; align-items: center; gap: 5px; min-height: 28px; padding: 0 5px; border-radius: 7px; color: #667585; font-size: 11px; font-weight: 600; }
+#article-reader .reader-service-bar > button:hover { background: #f1f4f7; color: #3477c5; }
 #article-reader .audio-insight-layout { display: flex; flex-direction: column; gap: 30px; }
 #article-reader .audio-highlight-body { padding: 16px 20px 19px; border-radius: 12px; background: #f4f7fa; }
 #article-reader .audio-highlight-body p,#article-reader .audio-deep-summary p { margin: 0 0 14px; }

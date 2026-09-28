@@ -1,8 +1,11 @@
-import React from "react";
+import React, { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { ArticleInsightTabs, InsightModel } from "../src/components/ArticleInsightTabs";
 import { Article } from "../src/types";
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const article: Article = {
   id: "article-1",
@@ -93,6 +96,65 @@ describe("ArticleInsightTabs", () => {
     expect(html).not.toContain("NextEcho");
   });
 
+  it("offers a cache-bypassing retranscription action for local transcription only", () => {
+    const local = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      tab: "transcript",
+      transcriptState: "can_generate",
+      transcriptionMode: "local",
+      onStartTranscription: vi.fn(),
+      onRegenerateTranscript: vi.fn(),
+    });
+    const cloud = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      tab: "transcript",
+      transcriptState: "can_generate",
+      transcriptionMode: "cloud",
+      onStartTranscription: vi.fn(),
+      onRegenerateTranscript: vi.fn(),
+    });
+    expect(local).toContain("已有结果不准确？");
+    expect(local).toContain("重新转录");
+    expect(local).not.toContain("忽略缓存");
+    expect(cloud).not.toContain("已有结果不准确？");
+  });
+
+  it("confirms before forcing a local retranscription", async () => {
+    const onRegenerateTranscript = vi.fn();
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const model: InsightModel = {
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      tab: "transcript",
+      summary: null,
+      overviewState: "ready",
+      transcriptState: "can_generate",
+      enrichmentLoading: false,
+      enrichmentError: null,
+      onSummarize: vi.fn(),
+      summarizing: false,
+      summaryError: null,
+      transcriptionMode: "local",
+      onStartTranscription: vi.fn(),
+      onRegenerateTranscript,
+    };
+    await act(async () => root.render(<ArticleInsightTabs model={model} />));
+    const retranscribe = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.trim() === "重新转录") as HTMLButtonElement;
+    await act(async () => retranscribe.click());
+    const dialog = document.body.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.textContent).toContain("确认重新转录？");
+    expect(dialog.textContent).toContain("将使用 Small 模型重新生成本地逐字稿。");
+    expect(dialog.textContent).not.toContain("BidClub");
+    expect(onRegenerateTranscript).not.toHaveBeenCalled();
+    const confirm = Array.from(dialog.querySelectorAll("button"))
+      .find((button) => button.textContent?.trim() === "确认") as HTMLButtonElement;
+    await act(async () => confirm.click());
+    expect(onRegenerateTranscript).toHaveBeenCalledTimes(1);
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => root.unmount());
+  });
+
   it("keeps retry and error context in the transcript card", () => {
     const html = renderModel({
       article: {
@@ -172,6 +234,28 @@ describe("ArticleInsightTabs", () => {
     expect(html).toContain("将自动生成逐字稿并提炼摘要");
   });
 
+  it("shows the actual local transcription percentage", () => {
+    const html = renderModel({
+      article: {
+        ...article,
+        audioUrl: "https://cdn.example.com/a.mp3",
+        localPodcast: {
+          sourceAudioUrl: "https://cdn.example.com/a.mp3",
+          transcriptionStatus: "processing",
+          insightStatus: "not_started",
+          updatedAt: "now",
+        },
+      },
+      tab: "transcript",
+      transcriptState: "generating",
+      localProgress: 63.4,
+    });
+    expect(html).toContain("转录进度");
+    expect(html).toContain("63%");
+    expect(html).toContain('aria-valuenow="63"');
+    expect(html).toContain("width:63%");
+  });
+
   it("renders the two-stage podcast pipeline", () => {
     const transcribing = renderModel({
       article: {
@@ -201,28 +285,50 @@ describe("ArticleInsightTabs", () => {
       overviewState: "processing",
       pipelineStage: "summarizing",
       pipelinePendingSummary: true,
+      summaryProgress: 68,
     });
     expect(summarizing).toContain("已完成");
-    expect(summarizing).toContain("进行中");
+    expect(summarizing).toContain("68%");
+    expect(summarizing).toContain('aria-label="AI 摘要进度"');
+    expect(summarizing).toContain('aria-valuenow="68"');
+    expect(summarizing).toContain("width:68%");
   });
 
-  it("adds lightweight actions below a generated summary", () => {
+  it("moves generated-summary service and regeneration controls above the card", () => {
     const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
       tab: "overview",
       summary: "Generated summary",
       transcriptState: "ready",
+      summaryServiceLabel: "DeepSeek · deepseek-chat",
       onRegenerateSummary: vi.fn(),
-      onOpenTranscript: vi.fn(),
     });
     expect(html).toContain("Generated summary");
-    expect(html).toContain("复制");
+    expect(html).toContain("摘要模型：DeepSeek · deepseek-chat");
     expect(html).toContain("重新生成");
-    expect(html).toContain("原文");
-    expect(html).toContain("查看完整逐字稿");
+    expect(html).not.toContain("复制");
+    expect(html).not.toContain("原文");
+    expect(html).not.toContain("查看完整逐字稿");
   });
 
-  it("shows local transcript timestamps only to the minute", () => {
+  it("renders generated podcast Markdown with collapsed deep highlights", () => {
+    const html = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      tab: "overview",
+      summary: "## 核心摘要\n\n- **核心观点**：正文。\n\n## 深度精华\n\n### 1. 第一部分\n\n深入说明。",
+      transcriptState: "ready",
+    });
+    const document = parseMarkup(html);
+    expect(document.querySelector(".bidclub-overview strong")?.textContent).toBe("核心观点");
+    expect(document.querySelector(".bidclub-overview h2")).toBeNull();
+    expect(document.querySelector(".bidclub-overview")?.textContent).not.toContain("核心摘要");
+    expect(document.querySelector(".audio-deep-summary-toggle")?.textContent).toContain("展开深度精华");
+    expect(document.querySelector(".audio-deep-summary")?.hasAttribute("hidden")).toBe(true);
+    expect(document.querySelector(".bidclub-digest h3")?.textContent).toBe("1. 第一部分");
+    expect(html).not.toContain("**核心观点**");
+  });
+
+  it("shows precise local transcript timestamps", () => {
     const html = renderModel({
       article: {
         ...article,
@@ -236,12 +342,15 @@ describe("ArticleInsightTabs", () => {
           { startMs: 6523000, timestamp: "01:48:43,000", text: "第二段" },
         ],
       },
+      onRegenerateTranscript: vi.fn(),
     });
-    const buttons = Array.from(parseMarkup(html).querySelectorAll("button"));
-    expect(buttons.map((button) => button.textContent)).toEqual(["12:00", "108:00"]);
+    const document = parseMarkup(html);
+    const buttons = Array.from(document.querySelectorAll("button.transcript-time"));
+    expect(buttons.map((button) => button.textContent)).toEqual(["12:34", "1:48:43"]);
+    expect(document.body.textContent).toContain("重新转录");
     expect(html).toContain('data-transcript-start-ms="754000"');
     expect(html).toContain('data-transcript-start-ms="6523000"');
-    expect(html).toContain("转录服务：本地");
+    expect(html).toContain("转录服务：本地 · Small");
     expect(html).not.toContain("NextEcho");
     expect(html).not.toContain("00:12:34,000");
     expect(html).not.toContain("01:48:43,000");
@@ -256,23 +365,28 @@ describe("ArticleInsightTabs", () => {
     expect(local).toContain("Local summary");
   });
 
-  it("labels distinct AI evidence clearly and hides duplicate article links", () => {
-    const distinct = renderModel({
-      tab: "overview",
-      overviewHtml: "<p>Prepared highlights</p>",
-      sourceUrl: "https://youtube.com/watch?v=1",
-      sourceLabel: "YouTube",
+  it("does not add the local retranscription action to BidClub transcripts", () => {
+    const html = renderModel({
+      article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
+      tab: "transcript",
+      transcriptHtml: "<p>BidClub transcript</p>",
+      onRegenerateTranscript: vi.fn(),
     });
-    const duplicate = renderModel({
+    expect(html).toContain("BidClub transcript");
+    expect(html).toContain("转录服务：读了么官方转录");
+    expect(html).not.toContain("重新转录");
+  });
+
+  it("labels prepared summaries as official without exposing regeneration controls", () => {
+    const official = renderModel({
       tab: "overview",
       overviewHtml: "<p>Prepared highlights</p>",
-      sourceUrl: article.link,
-      sourceLabel: "Example",
+      onRegenerateSummary: vi.fn(),
     });
 
-    expect(distinct).toContain("摘要依据");
-    expect(distinct).toContain("YouTube");
-    expect(duplicate).not.toContain("摘要依据");
+    expect(official).toContain("摘要服务：读了么官方整理");
+    expect(official).not.toContain("摘要依据");
+    expect(official).not.toContain("重新生成");
   });
 
   it("keeps the body available when BidClub enrichment fails", () => {

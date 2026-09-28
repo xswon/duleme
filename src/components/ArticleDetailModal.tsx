@@ -193,6 +193,14 @@ function htmlToPlainText(value?: string): string {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function formatAiModelLabel(model?: string): string {
+  const value = model?.trim();
+  if (!value) return "用户配置模型";
+  if (/^deepseek$/i.test(value)) return "DeepSeek";
+  if (/deepseek/i.test(value)) return `DeepSeek · ${value}`;
+  return value;
+}
+
 interface ArticleDetailModalProps {
   article: Article | null;
   onClose: () => void;
@@ -252,6 +260,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 }) => {
   const [aiSummary, setAiSummary] = useState<string | null>(() => article?.aiSummary || null);
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summaryProgress, setSummaryProgress] = useState(0);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [pipelinePendingSummary, setPipelinePendingSummary] = useState(false);
   const [pipelineStage, setPipelineStage] = useState<OverviewPipelineStage>("idle");
@@ -260,6 +269,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const summaryInFlightRef = useRef(false);
   const pipelineForceSummaryRef = useRef(false);
   const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiModelLabel, setAiModelLabel] = useState("用户配置模型");
   const [cloudTranscriptionAvailable, setCloudTranscriptionAvailable] = useState(false);
   const [localTranscriptionAvailable, setLocalTranscriptionAvailable] = useState(false);
   const [runtimeCapabilitiesLoaded, setRuntimeCapabilitiesLoaded] = useState(false);
@@ -349,6 +359,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         .then(([ai, transcription]) => {
           if (cancelled) return;
           setAiConfigured(ai.configured);
+          setAiModelLabel(formatAiModelLabel("model" in ai ? ai.model : undefined));
           setCloudTranscriptionAvailable(Boolean(transcription?.apiKey));
         })
         .finally(() => {
@@ -407,10 +418,22 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
   const getTranscriptText = useCallback(() => {
     if (!article) return "";
+    const formatTimestamp = (startMs: number) => {
+      const totalSeconds = Math.max(0, Math.floor(startMs / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return hours > 0
+        ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+        : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    };
+    const formatSegments = (segments?: Array<{ startMs: number; text: string }>) => (
+      segments?.map((segment) => `[${formatTimestamp(segment.startMs)}] ${segment.text}`).join("\n").trim() || ""
+    );
     return (
       htmlToPlainText(bidclub?.transcriptHtml)
-      || article.transcription?.segments?.map((segment) => segment.text).join("\n").trim()
-      || localPodcast.artifacts?.transcript?.map((segment) => segment.text).join("\n").trim()
+      || formatSegments(article.transcription?.segments)
+      || formatSegments(localPodcast.artifacts?.transcript)
       || ""
     );
   }, [article, bidclub?.transcriptHtml, localPodcast.artifacts?.transcript]);
@@ -426,15 +449,20 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
     summaryInFlightRef.current = true;
     setIsSummarizing(true);
+    setSummaryProgress(0);
     setSummaryError(null);
     setPipelineError(null);
-    if (source === "transcript") setPipelineStage("summarizing");
+    setPipelineStage("summarizing");
 
     try {
       const summary = await summarizeArticleWithAI(
         article.title,
         input,
-        source === "article" ? article.snippet : "",
+        source === "article" ? article.snippet : htmlToPlainText(article.content || article.snippet),
+        source,
+        (progress) => {
+          if (activeArticleIdRef.current === articleId) setSummaryProgress(progress);
+        },
       );
       onArticlePatch?.(articleId, {
         aiSummary: summary,
@@ -456,6 +484,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           setPipelinePendingSummary(false);
           setPipelineStage("failed");
           setPipelineTranscriptionSource(null);
+        } else {
+          setPipelineStage("idle");
         }
       }
       return false;
@@ -555,6 +585,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     if (isNewArticle) {
       setDetachedCurrentTime(savedProgress?.currentTime || 0);
       setAiSummary(article.aiSummary || null);
+      setSummaryProgress(0);
       setSummaryError(null);
       pipelineForceSummaryRef.current = false;
       setPipelineTranscriptionSource(null);
@@ -1283,7 +1314,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: pipelineStage === "transcribing" || pipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage, pipelinePendingSummary, pipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, sourceUrl: bidclub?.sourceUrl, sourceLabel: bidclub?.sourceLabel, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: cancelPendingSummary, onOpenTranscript: () => handleDetailTabChange("transcript"), onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryError: pipelineError || summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRetryTranscription: startPreferredTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: pipelineStage === "transcribing" || pipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage, pipelinePendingSummary, pipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: isSummarizing, summaryProgress, summaryServiceLabel: aiModelLabel, summaryError: pipelineError || summaryError, localArtifacts: localPodcast.artifacts, localProgress: localPodcast.progress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: localPodcast.regenerateTranscription, onRetryTranscription: startPreferredTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}
