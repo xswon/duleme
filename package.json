@@ -1,7 +1,7 @@
 {
-  "name": "react-example",
+  "name": "duleme",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {
@@ -20,7 +20,8 @@
     "check:architecture": "tsx scripts/checkArchitecture.ts",
     "verify": "npm run typecheck && npm run lint && npm run test:coverage && npm run build && npm run build:desktop-main && npm run check:bundle && npm run check:architecture",
     "clean": "rm -rf dist dist-electron release server.js",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "desktop:dist": "npm run build:desktop && npx --yes electron-builder@26.17.0 --config electron-builder.yml --mac"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.14",
@@ -57,5 +58,7 @@
     "typescript-eslint": "^8.70.1",
     "vite": "^6.2.3",
     "vitest": "^3.2.4"
-  }
+  },
+  "description": "本地优先的 RSS 阅读器",
+  "author": "xswon"
 }
