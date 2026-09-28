@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 
 export function AiSummaryIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return <Sparkles className={className} aria-hidden="true" />;
+  return <Sparkles className={className} data-insight-icon="ai-summary" aria-hidden="true" />;
 }
 
 export function TranscriptWaveIcon({ className = "h-5 w-5" }: { className?: string }) {
@@ -10,6 +10,7 @@ export function TranscriptWaveIcon({ className = "h-5 w-5" }: { className?: stri
       viewBox="0 0 24 24"
       fill="none"
       className={className}
+      data-insight-icon="transcript"
       aria-hidden="true"
     >
       <path
