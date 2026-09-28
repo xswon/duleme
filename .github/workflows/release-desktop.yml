@@ -63,10 +63,10 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npx --yes electron-builder@26.17.0 --config electron-builder.yml --mac --publish never
+        run: npx --yes electron-builder@26.16.1 --config electron-builder.yml --mac --publish never
 
       - name: Upload DMGs
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: duleme-macos-${{ github.ref_name }}
           path: release/*.dmg
