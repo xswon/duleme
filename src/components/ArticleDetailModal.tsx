@@ -41,7 +41,6 @@ import {
 } from "./detailTabState";
 import {
   hasBidclubEnrichment,
-  isVerifiedBidclubEnrichment,
   resolveBidclubEnrichmentReference,
 } from "../services/bidclubEpisodeCache";
 
@@ -388,7 +387,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   }, [article?.id, article?.audioUrl, audioPlayer, autoPlay, onAutoPlayStarted, savedProgress]);
 
   const hasBidclubReference = article?.enrichment?.provider === "bidclub";
-  const hasVerifiedBidclubEnrichment = isVerifiedBidclubEnrichment(article?.enrichment);
   const enrichmentStatus = !hasBidclubReference
     ? "none"
     : bidclubLoading
