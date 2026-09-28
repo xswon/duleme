@@ -47,6 +47,6 @@ This source repository is currently private. GitHub Release assets in a private 
 Before public launch, use one of these options:
 
 1. make the release repository public; or
-2. publish the DMGs to a separate public GitHub release repository and update `website/index.html` to that repository's `/releases/latest` URL.
+2. publish the DMGs to a separate public GitHub release repository dedicated to binary distribution.
 
-The website can remain independent of where binaries are hosted.
+For V1, no website deployment is included.
