@@ -152,12 +152,21 @@ button[aria-disabled="true"] {
   gap: 5px;
   padding: 0 6px;
   border-radius: var(--wreader-btn-radius-sm);
-  color: var(--wreader-btn-primary);
+  color: var(--wreader-btn-ghost-text);
   font-size: var(--wreader-btn-font-sm);
   font-weight: var(--wreader-btn-font-weight);
 }
 
 .wreader-btn-link:hover:not(:disabled) {
+  background: var(--wreader-btn-ghost-hover);
+  color: #33475a;
+}
+
+.wreader-btn-link-accent {
+  color: var(--wreader-btn-primary);
+}
+
+.wreader-btn-link-accent:hover:not(:disabled) {
   background: #eef5fc;
   color: var(--wreader-btn-primary-hover);
 }
@@ -204,7 +213,7 @@ button[aria-disabled="true"] {
  * Existing semantic surfaces mapped onto the same action tokens.
  * These selectors intentionally preserve their component-specific markup.
  */
-:where(
+:is(
   .wreader-settings-actions button,
   .wreader-settings-folder-composer button,
   .wreader-feed-edit-card footer button,
@@ -220,7 +229,7 @@ button[aria-disabled="true"] {
   font-weight: var(--wreader-btn-font-weight);
 }
 
-:where(
+:is(
   .wreader-settings-actions button,
   .wreader-settings-folder-composer button[type="submit"],
   .wreader-feed-edit-card footer button[type="submit"],
@@ -231,7 +240,7 @@ button[aria-disabled="true"] {
   color: var(--wreader-btn-primary-text);
 }
 
-:where(
+:is(
   .wreader-settings-actions button,
   .wreader-settings-folder-composer button[type="submit"],
   .wreader-feed-edit-card footer button[type="submit"],
@@ -241,7 +250,7 @@ button[aria-disabled="true"] {
   background: var(--wreader-btn-primary-hover);
 }
 
-:where(
+:is(
   .wreader-settings-actions button.secondary,
   .wreader-settings-folder-composer button[type="button"],
   .wreader-feed-edit-card footer button.secondary,
@@ -252,7 +261,7 @@ button[aria-disabled="true"] {
   color: var(--wreader-btn-secondary-text);
 }
 
-:where(
+:is(
   .wreader-settings-actions button.secondary,
   .wreader-settings-folder-composer button[type="button"],
   .wreader-feed-edit-card footer button.secondary,
@@ -264,7 +273,7 @@ button[aria-disabled="true"] {
 }
 
 /* Standard square icon actions: settings, dialogs, row tools and failure detail. */
-:where(
+:is(
   .wreader-settings-close,
   .wreader-settings-row-actions button,
   .wreader-feed-edit-card header > button,
@@ -281,7 +290,7 @@ button[aria-disabled="true"] {
   color: #748291;
 }
 
-:where(
+:is(
   .wreader-settings-close,
   .wreader-settings-row-actions button,
   .wreader-feed-edit-card header > button,
@@ -292,7 +301,7 @@ button[aria-disabled="true"] {
 }
 
 /* Compact row tools stay visually light but share the same geometry/state model. */
-:where(.wreader-notes-actions button, .wreader-search-box button) {
+:is(.wreader-notes-actions button, .wreader-search-box button) {
   width: 28px;
   height: 28px;
   min-width: 28px;
@@ -303,7 +312,7 @@ button[aria-disabled="true"] {
   border-radius: 7px;
 }
 
-:where(.wreader-notes-actions button, .wreader-search-box button):hover:not(:disabled) {
+:is(.wreader-notes-actions button, .wreader-search-box button):hover:not(:disabled) {
   background: var(--wreader-btn-ghost-hover);
 }
 
@@ -346,7 +355,7 @@ button[aria-disabled="true"] {
 }
 
 /* Lightweight text actions use one consistent hover/focus treatment. */
-:where(
+:is(
   .wreader-toast button,
   .wreader-failure-list button,
   .wreader-timeline-load-more button,
@@ -355,7 +364,7 @@ button[aria-disabled="true"] {
   border-radius: var(--wreader-btn-radius-sm);
 }
 
-:where(
+:is(
   .wreader-toast button,
   .wreader-failure-list button,
   .wreader-timeline-load-more button,
@@ -365,7 +374,7 @@ button[aria-disabled="true"] {
 }
 
 /* Destructive actions use the same red treatment wherever they appear. */
-:where(
+:is(
   .wreader-settings-row-actions button.danger,
   .wreader-settings-row-actions .wreader-settings-danger-button,
   .wreader-settings-menu button.danger,
@@ -374,7 +383,7 @@ button[aria-disabled="true"] {
   color: var(--wreader-btn-danger);
 }
 
-:where(
+:is(
   .wreader-settings-row-actions button.danger,
   .wreader-settings-row-actions .wreader-settings-danger-button,
   .wreader-settings-menu button.danger,
@@ -393,10 +402,17 @@ button[aria-disabled="true"] {
 
 @media (max-width: 767px) {
   .wreader-btn {
-    min-height: 40px;
+    min-height: 44px;
   }
 
   .wreader-btn-sm {
-    min-height: 36px;
+    min-height: 40px;
+  }
+
+  .wreader-btn-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 }
