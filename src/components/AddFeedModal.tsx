@@ -204,7 +204,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="关闭添加订阅源"
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="wreader-btn-icon"
           >
             <X className="w-5 h-5" />
           </button>
