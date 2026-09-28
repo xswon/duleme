@@ -5,6 +5,7 @@ import {
   FEATURED_CURATED_FEED_IDS,
   LEGACY_DEFAULT_FEEDS,
   resolveKnownEnrichmentSource,
+  resolveKnownPrimaryFeedUrl,
 } from "../src/data/defaultFeeds";
 
 describe("curated feed catalog", () => {
@@ -68,5 +69,14 @@ describe("known enrichment source resolver", () => {
   it("does not infer an enrichment source from an unknown URL or a matching title", () => {
     expect(resolveKnownEnrichmentSource("https://unknown.example/rss.xml")).toEqual({});
     expect(resolveKnownEnrichmentSource("十字路口Crossing")).toEqual({});
+  });
+});
+
+describe("known primary RSS URL migration", () => {
+  it("migrates only the listed legacy Dwarkesh URL", () => {
+    expect(resolveKnownPrimaryFeedUrl("https://apple.dwarkesh-podcast.workers.dev/feed.rss"))
+      .toBe("https://api.substack.com/feed/podcast/69345.rss");
+    expect(resolveKnownPrimaryFeedUrl("https://unknown.example/rss.xml"))
+      .toBe("https://unknown.example/rss.xml");
   });
 });

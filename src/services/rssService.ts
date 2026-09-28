@@ -8,7 +8,7 @@ import {
   EnrichmentMatchMethod,
   EnrichmentReference,
 } from "../types";
-import { LEGACY_DEFAULT_FEEDS, INITIAL_ARTICLES } from "../data/defaultFeeds";
+import { LEGACY_DEFAULT_FEEDS, INITIAL_ARTICLES, resolveKnownPrimaryFeedUrl } from "../data/defaultFeeds";
 import type { SortMode } from "./feedSorting";
 
 const STORAGE_KEY_FEEDS = "inoreader_feeds_v2";
@@ -16,10 +16,6 @@ const STORAGE_KEY_ARTICLES = "inoreader_articles_v2";
 export const STORAGE_KEY_CATEGORIES = "wreader_categories_v1";
 export const STORAGE_KEY_FEED_SORT_MODE = "wreader_feed_sort_mode";
 export const STORAGE_KEY_FOLDER_SORT_MODE = "wreader_folder_sort_mode";
-const LEGACY_FEED_URL_REPLACEMENTS: Record<string, string> = {
-  "https://apple.dwarkesh-podcast.workers.dev/feed.rss":
-    "https://api.substack.com/feed/podcast/69345.rss",
-};
 
 export function getBidclubFeedSlug(feedUrl?: string): string | undefined {
   if (!feedUrl) return undefined;
@@ -73,7 +69,7 @@ export function mergeDefaultFeedFields(feeds: Feed[], defaults: Feed[] = LEGACY_
         bidclubFeedUrl: feed.feedUrl,
       };
     }
-    if (LEGACY_FEED_URL_REPLACEMENTS[merged.feedUrl] === defaultFeed.feedUrl) {
+    if (resolveKnownPrimaryFeedUrl(merged.feedUrl) === defaultFeed.feedUrl && merged.feedUrl !== defaultFeed.feedUrl) {
       merged = { ...merged, feedUrl: defaultFeed.feedUrl };
     }
     if (

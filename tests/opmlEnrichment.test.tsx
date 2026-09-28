@@ -12,8 +12,9 @@ afterEach(() => {
 });
 
 describe("OPML import enrichment", () => {
-  it("adds explicit enrichment fields for known RSS URLs without matching unknown feed titles", async () => {
+  it("migrates a legacy RSS URL before enrichment without matching unknown feed titles", async () => {
     const known = CURATED_FEEDS.find((feed) => feed.bidclubFeedUrl)!;
+    const dwarkesh = CURATED_FEEDS.find((feed) => feed.id === "feed-dwarkesh")!;
     const setFeeds = vi.fn();
     const queueRefresh = vi.fn();
     let importOpmlFile: ReturnType<typeof useFeedManagement>["importOpmlFile"] = async () => false;
@@ -31,7 +32,7 @@ describe("OPML import enrichment", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     await act(async () => root.render(<Harness />));
-    const xml = `<opml><body><outline title="${known.title}" xmlUrl="${known.feedUrl}"/><outline title="${known.title}" xmlUrl="https://unknown.example/rss.xml"/></body></opml>`;
+    const xml = `<opml><body><outline title="${known.title}" xmlUrl="${known.feedUrl}"/><outline title="${dwarkesh.title}" xmlUrl="https://apple.dwarkesh-podcast.workers.dev/feed.rss"/><outline title="${dwarkesh.title}" xmlUrl="https://unknown.example/rss.xml"/></body></opml>`;
     const file = new File([xml], "feeds.opml", { type: "text/xml" });
     Object.defineProperty(file, "text", { value: async () => xml });
 
@@ -39,8 +40,10 @@ describe("OPML import enrichment", () => {
 
     const saved = setFeeds.mock.calls[0][0]([]) as Feed[];
     expect(saved[0]).toMatchObject({ feedUrl: known.feedUrl, bidclubFeedUrl: known.bidclubFeedUrl, bidclubShowSlug: known.bidclubShowSlug });
-    expect(saved[1]).toMatchObject({ feedUrl: "https://unknown.example/rss.xml" });
-    expect(saved[1].bidclubFeedUrl).toBeUndefined();
+    expect(saved[1]).toMatchObject({ feedUrl: dwarkesh.feedUrl, bidclubFeedUrl: dwarkesh.bidclubFeedUrl, bidclubShowSlug: dwarkesh.bidclubShowSlug });
+    expect(saved[2]).toMatchObject({ feedUrl: "https://unknown.example/rss.xml", title: dwarkesh.title });
+    expect(saved[2].bidclubFeedUrl).toBeUndefined();
+    expect(saved[2].bidclubShowSlug).toBeUndefined();
     expect(queueRefresh).toHaveBeenCalledWith(saved.map((feed) => feed.id));
     await act(async () => root.unmount());
   });

@@ -51,6 +51,23 @@ describe("feed and folder preference storage", () => {
     expect(getStoredFeeds()).toEqual([custom]);
   });
 
+  it("still migrates a stored legacy Dwarkesh RSS URL", () => {
+    const legacy = {
+      ...feed("old-dwarkesh", "科技"),
+      title: "Dwarkesh Podcast",
+      feedUrl: "https://apple.dwarkesh-podcast.workers.dev/feed.rss",
+    };
+    localStorage.setItem("inoreader_feeds_v2", JSON.stringify([legacy]));
+
+    expect(getStoredFeeds()[0]).toMatchObject({
+      feedUrl: "https://api.substack.com/feed/podcast/69345.rss",
+      bidclubFeedUrl: "https://bidclub.ai/feeds/dwarkesh.zh.xml",
+      bidclubShowSlug: "dwarkesh",
+    });
+    expect(JSON.parse(localStorage.getItem("inoreader_feeds_v2") || "[]")[0].feedUrl)
+      .toBe("https://api.substack.com/feed/podcast/69345.rss");
+  });
+
   it("persists the two sort modes independently", () => {
     saveStoredSortMode("feeds", "alphabetical");
     saveStoredSortMode("folders", "unread");

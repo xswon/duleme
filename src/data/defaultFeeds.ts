@@ -486,6 +486,15 @@ function normalizedFeedUrl(feedUrl: string): string | undefined {
   }
 }
 
+const LEGACY_FEED_URL_REPLACEMENTS = new Map([
+  ["https://apple.dwarkesh-podcast.workers.dev/feed.rss", "https://api.substack.com/feed/podcast/69345.rss"],
+]);
+
+/** Migrate only explicitly listed historical primary RSS URLs. */
+export function resolveKnownPrimaryFeedUrl(feedUrl: string): string {
+  return LEGACY_FEED_URL_REPLACEMENTS.get(feedUrl) ?? feedUrl;
+}
+
 const knownEnrichmentSources = new Map(
   CURATED_FEEDS.filter((feed) => feed.bidclubFeedUrl).map((feed) => [
     normalizedFeedUrl(feed.feedUrl),

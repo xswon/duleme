@@ -10,7 +10,7 @@ import {
   renameFolderInOrder,
 } from "../services/feedSorting";
 import { saveStoredArticles } from "../services/rssService";
-import { resolveKnownEnrichmentSource } from "../data/defaultFeeds";
+import { resolveKnownEnrichmentSource, resolveKnownPrimaryFeedUrl } from "../data/defaultFeeds";
 import { deleteFeedAndArticlesFromDB, updateFeedAndDeleteArticlesFromDB } from "../services/dbService";
 
 interface UseFeedManagementOptions {
@@ -166,7 +166,10 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
         showToast(`OPML 导入：新增 0，重复 0，无效 ${invalidCount || allOutlines.length}`);
         return false;
       }
-      const normalized = importedFeeds.map((feed) => ({ ...feed, ...resolveKnownEnrichmentSource(feed.feedUrl) }));
+      const normalized = importedFeeds.map((feed) => {
+        const feedUrl = resolveKnownPrimaryFeedUrl(feed.feedUrl);
+        return { ...feed, feedUrl, ...resolveKnownEnrichmentSource(feedUrl) };
+      });
       const existingUrls = new Set(feedsRef.current.map((feed) => feed.feedUrl.trim().toLowerCase()));
       const seenUrls = new Set<string>();
       const newFeeds = normalized.filter((feed) => {
