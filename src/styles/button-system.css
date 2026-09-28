@@ -140,6 +140,11 @@ button[aria-disabled="true"] {
   color: var(--wreader-btn-danger-hover);
 }
 
+.wreader-annotation-highlight:hover:not(:disabled) {
+  background: #fff7dc;
+  color: #8a651d;
+}
+
 .wreader-btn-link {
   min-height: 28px;
   display: inline-flex;
