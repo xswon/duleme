@@ -144,7 +144,7 @@ describe("podcast AI summary pipeline", () => {
     await waitFor(() => container.textContent?.includes("生成 AI 摘要") === true);
 
     const generate = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("生成 AI 摘要"));
+      .find((button) => button.textContent?.trim() === "立即生成");
     expect(generate).toBeTruthy();
 
     await act(async () => generate?.click());
