@@ -21,7 +21,7 @@
     .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
     a { display: inline-flex; min-height: 46px; align-items: center; padding: 0 18px; border-radius: 11px; text-decoration: none; font-weight: 700; }
     .primary { background: #2563eb; color: white; }
-    .secondary { background: white; color: #27364d; border: 1px solid #dce3ee; }
+    .notice { margin-top: 18px; padding: 14px 16px; border-radius: 12px; background: #fff7ed; color: #9a4d0b; font-size: 14px; line-height: 1.7; }
     section { margin-top: 72px; padding-top: 30px; border-top: 1px solid #e2e8f0; }
     h2 { margin: 0 0 16px; font-size: 22px; }
     ul { padding-left: 20px; color: #5d6b80; line-height: 1.9; }
@@ -40,7 +40,11 @@
     <p>一个本地优先的 RSS 阅读器。订阅、阅读、收藏、笔记和播客集中在一个应用里；AI 与转录按需开启，不影响基础阅读体验。</p>
 
     <div class="actions">
-      <span class="primary" style="display:inline-flex;min-height:46px;align-items:center;padding:0 18px;border-radius:11px;font-weight:700;opacity:.68">macOS 下载即将开放</span>
+      <a class="primary" href="https://github.com/xswon/duleme-releases/releases/latest">下载 macOS 公测版</a>
+    </div>
+
+    <div class="notice">
+      当前 macOS 公测版未经过 Apple Developer ID 签名。首次打开时如果被系统阻止，请前往“系统设置 → 隐私与安全性 → 仍要打开”。
     </div>
 
     <div class="meta">Desktop V0.1 · macOS 优先 · 数据默认保存在本地</div>
