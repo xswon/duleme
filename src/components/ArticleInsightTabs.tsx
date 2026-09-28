@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowRight,
   AudioLines,
   Bot,
   Check,
   ChevronDown,
-  Copy,
-  ExternalLink,
   RotateCcw,
   Sparkles,
 } from "lucide-react";
@@ -36,15 +35,14 @@ export interface InsightModel {
   digestHtml?: string;
   dek?: string;
   transcriptHtml?: string;
-  sourceUrl?: string;
-  sourceLabel?: string;
   onSummarize: () => void;
   onRegenerateSummary?: () => void;
   onCancelPipeline?: () => void;
-  onOpenTranscript?: () => void;
   onConfigureAi?: () => void;
   onConfigureTranscription?: () => void;
   summarizing: boolean;
+  summaryProgress?: number;
+  summaryServiceLabel?: string;
   summaryError: string | null;
   localArtifacts?: LocalPodcastArtifacts | null;
   localProgress?: number;
@@ -52,6 +50,7 @@ export interface InsightModel {
   localRestoring?: boolean;
   transcriptionMode?: "local" | "cloud";
   onStartTranscription?: () => void;
+  onRegenerateTranscript?: () => void;
   onRetryTranscription?: () => void;
   onCreateInsight?: () => void;
   onSeekTranscript?: (seconds: number) => void;
@@ -96,7 +95,30 @@ function BidclubRichTextContent({ html, emptyText, className = "" }: { html?: st
 }
 
 function formatMinuteTimestamp(startMs: number): string {
-  return `${Math.floor(startMs / 60000)}:00`;
+  const totalSeconds = Math.max(0, Math.floor(startMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const minuteLabel = hours > 0 ? String(minutes).padStart(2, "0") : String(minutes);
+  const secondLabel = String(seconds).padStart(2, "0");
+
+  return hours > 0
+    ? `${hours}:${minuteLabel}:${secondLabel}`
+    : `${minuteLabel}:${secondLabel}`;
+}
+
+function splitGeneratedPodcastSummary(summary: string): { overview: string; deepSummary: string } {
+  const match = /^##\s+深度精华\s*$/m.exec(summary);
+  const withoutOverviewHeading = (value: string) => value
+    .replace(/^\s*#{1,3}\s+核心摘要\s*(?:\n+|$)/, "")
+    .trim();
+  if (!match || match.index === undefined) {
+    return { overview: withoutOverviewHeading(summary), deepSummary: "" };
+  }
+  return {
+    overview: withoutOverviewHeading(summary.slice(0, match.index)),
+    deepSummary: summary.slice(match.index + match[0].length).trim(),
+  };
 }
 
 
@@ -219,22 +241,88 @@ function ConfigRequirementCard({
   );
 }
 
+function RetranscriptionConfirmDialog({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onCancel]);
+
+  if (!open || typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/35 p-4"
+      onMouseDown={onCancel}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="retranscription-dialog-title"
+        aria-describedby="retranscription-dialog-description"
+        className="w-full max-w-xs rounded-2xl bg-white p-5 text-left shadow-2xl ring-1 ring-slate-200/80"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h3 id="retranscription-dialog-title" className="text-base font-semibold text-slate-900">
+          确认重新转录？
+        </h3>
+        <p id="retranscription-dialog-description" className="mt-2 text-sm leading-6 text-slate-500">
+          将使用 Small 模型重新生成本地逐字稿。
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="min-h-10 rounded-lg px-4 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            autoFocus
+            onClick={onConfirm}
+            className="min-h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            确认
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function PipelineProgressCard({
   stage,
   autoContinue,
   error,
   transcriptionFailed,
   onCancel,
+  progress = 0,
+  showTranscriptionStep = true,
 }: {
   stage: OverviewPipelineStage;
   autoContinue: boolean;
   error?: string | null;
   transcriptionFailed?: boolean;
   onCancel?: () => void;
+  progress?: number;
+  showTranscriptionStep?: boolean;
 }) {
   const transcribing = stage === "transcribing";
   const summarizing = stage === "summarizing";
   const failed = stage === "failed";
+  const roundedProgress = Math.min(100, Math.max(0, Math.round(progress)));
   const stepOneDone = summarizing || (failed && !transcriptionFailed);
   const stepOneClass = stepOneDone
     ? "bg-emerald-50 text-emerald-600"
@@ -252,14 +340,16 @@ function PipelineProgressCard({
   return (
     <EmptyStateContainer
       icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
-      title={failed ? "生成遇到问题" : "正在准备 AI 摘要…"}
-      description={autoContinue
-        ? "无需切换页面，完成后自动显示。"
-        : "逐字稿处理中，完成后即可生成摘要。"}
+      title={failed ? "生成遇到问题" : summarizing ? "正在生成 AI 摘要…" : "正在准备 AI 摘要…"}
+      description={summarizing
+        ? "正在提炼完整内容，完成后自动显示。"
+        : autoContinue
+          ? "无需切换页面，完成后自动显示。"
+          : "逐字稿处理中，完成后即可生成摘要。"}
       tone="blue"
     >
       <div className="mt-5 space-y-4 text-left">
-        <div className="flex gap-3">
+        {showTranscriptionStep && <div className="flex gap-3">
           <span className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold " + stepOneClass}>
             {stepOneDone ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : "1"}
           </span>
@@ -276,19 +366,28 @@ function PipelineProgressCard({
               </div>
             )}
           </div>
-        </div>
+        </div>}
         <div className="flex gap-3">
-          <span className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold " + stepTwoClass}>2</span>
+          <span className={"flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold " + stepTwoClass}>
+            {showTranscriptionStep ? "2" : "1"}
+          </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-semibold text-slate-700">生成 AI 摘要</p>
               <span className="text-[11px] text-slate-400">
-                {summarizing ? "进行中" : failed && !transcriptionFailed ? "失败" : "等待"}
+                {summarizing ? `${roundedProgress}%` : failed && !transcriptionFailed ? "失败" : "等待"}
               </span>
             </div>
             {summarizing && (
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-full w-2/3 animate-pulse rounded-full bg-blue-500" />
+              <div
+                className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"
+                role="progressbar"
+                aria-label="AI 摘要进度"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={roundedProgress}
+              >
+                <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${roundedProgress}%` }} />
               </div>
             )}
           </div>
@@ -304,49 +403,22 @@ function PipelineProgressCard({
   );
 }
 
-function SummaryActions({
-  summary,
-  onRegenerate,
-  onOpenTranscript,
-  articleUrl,
+function ContentServiceBar({
+  label,
+  actionLabel,
+  onAction,
 }: {
-  summary: string;
-  onRegenerate?: () => void;
-  onOpenTranscript?: () => void;
-  articleUrl?: string;
+  label: string;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
-  const copySummary = async () => {
-    try {
-      await navigator.clipboard?.writeText(summary);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  };
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-xs">
-      <button type="button" onClick={copySummary} className="wreader-btn-link">
-        <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-        {copied ? "已复制" : "复制"}
-      </button>
-      {onRegenerate && (
-        <button type="button" onClick={onRegenerate} className="wreader-btn-link">
+    <div className="reader-service-bar">
+      <span>{label}</span>
+      {actionLabel && onAction && (
+        <button type="button" onClick={onAction}>
           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-          重新生成
-        </button>
-      )}
-      {articleUrl && (
-        <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700">
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          原文
-        </a>
-      )}
-      {onOpenTranscript && (
-        <button type="button" onClick={onOpenTranscript} className="ml-auto wreader-btn-link wreader-btn-link-accent">
-          查看完整逐字稿
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          {actionLabel}
         </button>
       )}
     </div>
@@ -355,10 +427,26 @@ function SummaryActions({
 
 export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   const [deepSummaryExpanded, setDeepSummaryExpanded] = useState(false);
+  const [retranscriptionConfirmOpen, setRetranscriptionConfirmOpen] = useState(false);
+  const transcriptionProgress = typeof p.localProgress === "number" && Number.isFinite(p.localProgress)
+    ? Math.min(100, Math.max(0, Math.round(p.localProgress)))
+    : null;
 
   useEffect(() => {
     setDeepSummaryExpanded(false);
+    setRetranscriptionConfirmOpen(false);
   }, [p.article.id]);
+
+  const retranscriptionDialog = (
+    <RetranscriptionConfirmDialog
+      open={retranscriptionConfirmOpen}
+      onCancel={() => setRetranscriptionConfirmOpen(false)}
+      onConfirm={() => {
+        setRetranscriptionConfirmOpen(false);
+        p.onRegenerateTranscript?.();
+      }}
+    />
+  );
 
   const deepSummaryToggle = (
     <button
@@ -391,17 +479,25 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
   );
 
   if (p.tab === "overview" && p.summary) {
+    const generatedSummary = splitGeneratedPodcastSummary(p.summary);
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
-        <section className="audio-highlight-body">
-          <div className="reader-content bidclub-overview whitespace-pre-wrap">{p.summary}</div>
-          <SummaryActions
-            summary={p.summary}
-            onRegenerate={p.onRegenerateSummary}
-            onOpenTranscript={p.article.audioUrl && p.transcriptState === "ready" ? p.onOpenTranscript : undefined}
-            articleUrl={p.article.link}
+        <div className="reader-service-content">
+          <ContentServiceBar
+            label={`摘要模型：${p.summaryServiceLabel || "用户配置模型"}`}
+            actionLabel="重新生成"
+            onAction={p.onRegenerateSummary}
           />
-        </section>
+          <section className="audio-highlight-body">
+            <BidclubRichTextContent html={generatedSummary.overview} emptyText="暂无摘要" className="bidclub-overview" />
+          </section>
+        </div>
+        {generatedSummary.deepSummary && <>
+          {deepSummaryToggle}
+          <section className="audio-deep-summary" hidden={!deepSummaryExpanded}>
+            <BidclubRichTextContent html={generatedSummary.deepSummary} emptyText="暂无深度精华" className="bidclub-digest" />
+          </section>
+        </>}
       </div>
     );
   }
@@ -487,6 +583,8 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             error={p.pipelineError || p.summaryError}
             transcriptionFailed={transcriptionFailed}
             onCancel={p.onCancelPipeline}
+            progress={p.summaryProgress}
+            showTranscriptionStep={Boolean(p.article.audioUrl)}
           />
         );
     }
@@ -511,13 +609,16 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     const deepSummaryAvailable = sections.length > 0 || chapters.length > 0;
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
-        <section className="audio-highlight-body">
-          <div className="reader-content bidclub-overview">
-          {oneSentenceText && <p>{oneSentenceText}</p>}
-          {renderList(localDigest.key_insights)}
-          {renderList(localDigest.listen_again)}
-          </div>
-        </section>
+        <div className="reader-service-content">
+          <ContentServiceBar label="摘要模型：本地 AI" actionLabel="重新生成" onAction={p.onCreateInsight} />
+          <section className="audio-highlight-body">
+            <div className="reader-content bidclub-overview">
+            {oneSentenceText && <p>{oneSentenceText}</p>}
+            {renderList(localDigest.key_insights)}
+            {renderList(localDigest.listen_again)}
+            </div>
+          </section>
+        </div>
         {deepSummaryAvailable && <>
           {deepSummaryToggle}
           <section className="audio-deep-summary" hidden={!deepSummaryExpanded}>
@@ -528,7 +629,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             </div>
           </section>
         </>}
-        <p className="mt-4 text-xs text-slate-400">来源：本地 AI 整理</p>
       </div>
     );
   };
@@ -539,9 +639,12 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     const hasDigest = !!(p.digestHtml?.trim() || p.dek?.trim());
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
-        {hasOverview && <section className="audio-highlight-body">
-          <BidclubRichTextContent html={p.overviewHtml} emptyText="暂无短精华" className="bidclub-overview" />
-        </section>}
+        <div className="reader-service-content">
+          <ContentServiceBar label="摘要服务：读了么官方整理" />
+          {hasOverview && <section className="audio-highlight-body">
+            <BidclubRichTextContent html={p.overviewHtml} emptyText="暂无短精华" className="bidclub-overview" />
+          </section>}
+        </div>
         {hasDigest && <>
           {deepSummaryToggle}
           <section className="audio-deep-summary" hidden={!deepSummaryExpanded}>
@@ -549,32 +652,41 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             {p.digestHtml && <BidclubRichTextContent html={p.digestHtml} emptyText="暂无深度精华" className="bidclub-digest" />}
           </section>
         </>}
-        {p.sourceUrl && p.sourceUrl !== p.article.link && (
-          <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
-            <span>摘要依据：</span>
-            <a href={p.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-              {p.sourceLabel || p.sourceUrl}
-            </a>
-          </div>
-        )}
       </div>
     );
   }
 
-  if (p.transcriptHtml) return <><HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" /><p className="reader-attribution">来源：BidClub</p></>;
+  if (p.transcriptHtml) return (
+    <div className="reader-service-content">
+      <ContentServiceBar label="转录服务：读了么官方转录" />
+      <HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" />
+    </div>
+  );
   if (cloudTask?.segments?.length) return (
-    <div className="audio-tab-panel audio-transcript-panel"><p className="reader-attribution">转录服务：阿里云百炼</p>{cloudTask.segments.map((segment, index) => <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}><button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button><span>{segment.speaker && <small className="mr-2 text-slate-400">{segment.speaker}</small>}{segment.text}</span></p>)}</div>
+    <div className="reader-service-content">
+      <ContentServiceBar label="转录服务：阿里云百炼" />
+      <div className="audio-tab-panel audio-transcript-panel">{cloudTask.segments.map((segment, index) => <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}><button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button><span>{segment.speaker && <small className="mr-2 text-slate-400">{segment.speaker}</small>}{segment.text}</span></p>)}</div>
+    </div>
   );
   if (p.localArtifacts?.transcript?.length) return (
-    <div className="audio-tab-panel audio-transcript-panel">
-      <p className="reader-attribution">转录服务：本地</p>
-      {p.localArtifacts.transcript.map((segment, index) => (
-        <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}>
-          <button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button>
-          <span>{segment.text}</span>
-        </p>
-      ))}
-    </div>
+    <>
+      <div className="reader-service-content">
+        <ContentServiceBar
+          label="转录服务：本地 · Small"
+          actionLabel="重新转录"
+          onAction={p.onRegenerateTranscript ? () => setRetranscriptionConfirmOpen(true) : undefined}
+        />
+        <div className="audio-tab-panel audio-transcript-panel">
+          {p.localArtifacts.transcript.map((segment, index) => (
+            <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}>
+              <button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button>
+              <span>{segment.text}</span>
+            </p>
+          ))}
+        </div>
+      </div>
+      {retranscriptionDialog}
+    </>
   );
   switch (p.transcriptState) {
     case "ready":
@@ -587,31 +699,62 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           description="完成后会自动显示在这里。"
           tone="slate"
         >
-          <div className="mx-auto mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-slate-200">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
+          <div className="mx-auto mt-5 w-full max-w-xs">
+            <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500">
+              <span>转录进度</span>
+              {transcriptionProgress !== null && <span>{transcriptionProgress}%</span>}
+            </div>
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-slate-200"
+              role="progressbar"
+              aria-label="转录进度"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={transcriptionProgress ?? undefined}
+            >
+              <div
+                className={`h-full rounded-full bg-blue-500 transition-[width] duration-500 ease-out ${transcriptionProgress === null ? "w-1/2 animate-pulse" : ""}`}
+                style={transcriptionProgress === null ? undefined : { width: `${transcriptionProgress}%` }}
+              />
+            </div>
           </div>
         </EmptyStateContainer>
       );
     case "can_generate":
       return (
-        <EmptyStateContainer
-          icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
-          title="生成逐字稿"
-          description="点击开始生成完整逐字稿。"
-          tone="slate"
-        >
-          {p.transcriptionMode && (
-            <p className="mt-3 text-xs text-slate-400">
-              转录方式：{p.transcriptionMode === "local" ? "本地" : "云端（阿里云百炼）"}
-            </p>
-          )}
-          {(p.localFetchError || localTask?.error || cloudTask?.error) && (
-            <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || localTask?.error || cloudTask?.error}</p>
-          )}
-          <PrimaryActionButton onClick={transcriptionFailed ? p.onRetryTranscription : p.onStartTranscription}>
-            {transcriptionFailed ? "重试生成" : "生成逐字稿"}
-          </PrimaryActionButton>
-        </EmptyStateContainer>
+        <>
+          <EmptyStateContainer
+            icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
+            title="生成逐字稿"
+            description="点击开始生成完整逐字稿。"
+            tone="slate"
+          >
+            {p.transcriptionMode && (
+              <p className="mt-3 text-xs text-slate-400">
+                转录方式：{p.transcriptionMode === "local" ? "本地" : "云端（阿里云百炼）"}
+              </p>
+            )}
+            {(p.localFetchError || localTask?.error || cloudTask?.error) && (
+              <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || localTask?.error || cloudTask?.error}</p>
+            )}
+            <PrimaryActionButton onClick={transcriptionFailed ? p.onRetryTranscription : p.onStartTranscription}>
+              {transcriptionFailed ? "重试生成" : "生成逐字稿"}
+            </PrimaryActionButton>
+            {p.transcriptionMode === "local" && p.onRegenerateTranscript && (
+              <p className="mt-4 text-xs text-slate-400">
+                已有结果不准确？
+                <button
+                  type="button"
+                  onClick={() => setRetranscriptionConfirmOpen(true)}
+                  className="ml-1 font-medium text-blue-600 hover:text-blue-700"
+                >
+                  重新转录
+                </button>
+              </p>
+            )}
+          </EmptyStateContainer>
+          {retranscriptionDialog}
+        </>
       );
     case "needs_config":
     default:
