@@ -2,12 +2,10 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
-  AudioLines,
   Bot,
   Check,
   ChevronDown,
   RotateCcw,
-  Sparkles,
 } from "lucide-react";
 import {
   Article,
@@ -18,6 +16,7 @@ import {
   TranscriptPanelState,
 } from "../types";
 import { renderBidclubRichText } from "../services/bidclubRichText";
+import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
 import { sanitizeHtml } from "../utils/sanitizeHtml";
 
 export interface InsightModel {
@@ -153,14 +152,50 @@ function EmptyStateContainer({
   );
 }
 
+function FeatureEmptyStateContainer({
+  icon,
+  title,
+  description,
+  meta,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  meta?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="px-4 py-8 sm:py-10">
+      <div className="mx-auto max-w-[540px] rounded-[28px] border border-slate-200/80 bg-white px-6 py-10 text-center shadow-[0_18px_45px_rgba(15,23,42,0.06)] sm:px-10 sm:py-12">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px] bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100">
+          {icon}
+        </div>
+        <h3 className="mt-6 text-xl font-semibold leading-8 tracking-tight text-slate-900">{title}</h3>
+        <p className="mx-auto mt-3 max-w-[460px] text-sm leading-6 text-slate-500 sm:text-[15px]">
+          {description}
+        </p>
+        {meta && (
+          <div className="mt-4 inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600">
+            {meta}
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function PrimaryActionButton({
   children,
   onClick,
   disabled = false,
+  className = "",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  className?: string;
 }) {
   if (!onClick) return null;
   return (
@@ -168,7 +203,7 @@ function PrimaryActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-5 wreader-btn wreader-btn-lg wreader-btn-primary"
+      className={`mt-5 wreader-btn wreader-btn-lg wreader-btn-primary ${className}`.trim()}
     >
       {children}
     </button>
@@ -339,7 +374,7 @@ function PipelineProgressCard({
 
   return (
     <EmptyStateContainer
-      icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+      icon={<AiSummaryIcon className="h-5 w-5" />}
       title={failed ? "生成遇到问题" : summarizing ? "正在生成 AI 摘要…" : "正在准备 AI 摘要…"}
       description={summarizing
         ? "正在提炼完整内容，完成后自动显示。"
@@ -509,12 +544,12 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       case "needs_all_config":
         return (
           <ConfigRequirementCard
-            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            icon={<AiSummaryIcon className="h-5 w-5" />}
             title="生成 AI 摘要"
             description="这是可选增强功能。配置以下服务后即可生成，不影响正常 RSS 阅读。"
             requirements={[
               {
-                icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
+                icon: <TranscriptWaveIcon className="h-4 w-4" />,
                 label: "逐字稿",
                 onConfigure: p.onConfigureTranscription,
               },
@@ -529,12 +564,12 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       case "needs_transcription_config":
         return (
           <ConfigRequirementCard
-            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            icon={<AiSummaryIcon className="h-5 w-5" />}
             title="生成 AI 摘要"
             description="配置以下服务后即可生成"
             requirements={[
               {
-                icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
+                icon: <TranscriptWaveIcon className="h-4 w-4" />,
                 label: "逐字稿",
                 onConfigure: p.onConfigureTranscription,
               },
@@ -544,7 +579,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       case "needs_ai_config":
         return (
           <ConfigRequirementCard
-            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+            icon={<AiSummaryIcon className="h-5 w-5" />}
             title="生成 AI 摘要"
             description="AI 摘要是可选功能。配置模型后即可生成，不影响正常 RSS 阅读。"
             requirements={[
@@ -558,21 +593,20 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         );
       case "can_generate":
         return (
-          <EmptyStateContainer
-            icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+          <FeatureEmptyStateContainer
+            icon={<AiSummaryIcon className="h-8 w-8" />}
             title="生成 AI 摘要"
-            description={p.article.audioUrl
-              ? p.transcriptState === "ready"
-                ? "基于逐字稿提炼核心观点。"
-                : "将自动生成逐字稿并提炼摘要。"
-              : "提取核心摘要与关键观点。"}
-            tone="blue"
+            description="文章将基于正文提炼要点，播客将基于逐字稿提炼要点。"
           >
             {p.summaryError && <p className="mt-4 text-xs text-rose-600" role="alert">{p.summaryError}</p>}
-            <PrimaryActionButton onClick={p.onSummarize} disabled={p.summarizing}>
-              {p.pipelineError ? "重试生成" : p.summarizing ? "正在生成…" : "✨ 生成 AI 摘要"}
+            <PrimaryActionButton
+              onClick={p.onSummarize}
+              disabled={p.summarizing}
+              className="min-w-[180px]"
+            >
+              {p.pipelineError ? "重试生成" : p.summarizing ? "正在生成…" : "立即生成"}
             </PrimaryActionButton>
-          </EmptyStateContainer>
+          </FeatureEmptyStateContainer>
         );
       case "processing":
       case "transcribing":
@@ -694,7 +728,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     case "generating":
       return (
         <EmptyStateContainer
-          icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
+          icon={<TranscriptWaveIcon className="h-5 w-5" />}
           title="正在生成逐字稿…"
           description="完成后会自动显示在这里。"
           tone="slate"
@@ -722,50 +756,35 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       );
     case "can_generate":
       return (
-        <>
-          <EmptyStateContainer
-            icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
-            title="生成逐字稿"
-            description="点击开始生成完整逐字稿。"
-            tone="slate"
+        <FeatureEmptyStateContainer
+          icon={<TranscriptWaveIcon className="h-8 w-8" />}
+          title="生成逐字稿"
+          description="将音频内容转写为可阅读文本，便于搜索和回看。"
+          meta={p.transcriptionMode
+            ? <>转录方式：{p.transcriptionMode === "local" ? "本地" : "云端（阿里云百炼）"}</>
+            : undefined}
+        >
+          {(p.localFetchError || localTask?.error || cloudTask?.error) && (
+            <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || localTask?.error || cloudTask?.error}</p>
+          )}
+          <PrimaryActionButton
+            onClick={transcriptionFailed ? p.onRetryTranscription : p.onStartTranscription}
+            className="min-w-[180px]"
           >
-            {p.transcriptionMode && (
-              <p className="mt-3 text-xs text-slate-400">
-                转录方式：{p.transcriptionMode === "local" ? "本地" : "云端（阿里云百炼）"}
-              </p>
-            )}
-            {(p.localFetchError || localTask?.error || cloudTask?.error) && (
-              <p className="mt-4 text-xs text-rose-600" role="alert">{p.localFetchError || localTask?.error || cloudTask?.error}</p>
-            )}
-            <PrimaryActionButton onClick={transcriptionFailed ? p.onRetryTranscription : p.onStartTranscription}>
-              {transcriptionFailed ? "重试生成" : "生成逐字稿"}
-            </PrimaryActionButton>
-            {p.transcriptionMode === "local" && p.onRegenerateTranscript && (
-              <p className="mt-4 text-xs text-slate-400">
-                已有结果不准确？
-                <button
-                  type="button"
-                  onClick={() => setRetranscriptionConfirmOpen(true)}
-                  className="ml-1 font-medium text-blue-600 hover:text-blue-700"
-                >
-                  重新转录
-                </button>
-              </p>
-            )}
-          </EmptyStateContainer>
-          {retranscriptionDialog}
-        </>
+            {transcriptionFailed ? "重试生成" : "开始转录"}
+          </PrimaryActionButton>
+        </FeatureEmptyStateContainer>
       );
     case "needs_config":
     default:
       return (
         <ConfigRequirementCard
-          icon={<AudioLines className="h-5 w-5" aria-hidden="true" />}
+          icon={<TranscriptWaveIcon className="h-5 w-5" />}
           title="生成逐字稿"
           description="逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。"
           requirements={[
             {
-              icon: <AudioLines className="h-4 w-4" aria-hidden="true" />,
+              icon: <TranscriptWaveIcon className="h-4 w-4" />,
               label: "逐字稿",
               onConfigure: p.onConfigureTranscription,
             },
