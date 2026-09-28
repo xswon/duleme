@@ -475,6 +475,30 @@ export const CURATED_FEEDS: CuratedFeedOption[] = [
   featured: featuredCuratedFeedIds.has(feed.id),
 }));
 
+function normalizedFeedUrl(feedUrl: string): string | undefined {
+  try {
+    const url = new URL(feedUrl.trim());
+    if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+    url.hash = "";
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
+
+const knownEnrichmentSources = new Map(
+  CURATED_FEEDS.filter((feed) => feed.bidclubFeedUrl).map((feed) => [
+    normalizedFeedUrl(feed.feedUrl),
+    { bidclubFeedUrl: feed.bidclubFeedUrl, bidclubShowSlug: feed.bidclubShowSlug },
+  ])
+);
+
+/** Resolve only explicitly configured primary RSS URLs, never titles or legacy identifiers. */
+export function resolveKnownEnrichmentSource(feedUrl: string): Pick<Feed, "bidclubFeedUrl" | "bidclubShowSlug"> {
+  const normalized = normalizedFeedUrl(feedUrl);
+  return normalized ? knownEnrichmentSources.get(normalized) || {} : {};
+}
+
 export const FEATURED_CURATED_FEEDS = CURATED_FEEDS.filter((feed) => feed.featured);
 
 // BidClub Coverage subscriptions with original RSS sources. Shows without

@@ -398,7 +398,7 @@ export default function App() {
       <button type="button" className={activeTab === "feeds" && filterType === "starred" ? "is-active" : ""} onClick={() => navigateToRoute({ activeTab: "feeds", filterType: "starred", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.78 5.63 6.22.9-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.92 1.06-6.2L3 9.53l6.22-.9L12 3Z" /></svg><span>收藏</span></button>
       <button type="button" aria-expanded={isMobileMenuOpen} aria-controls="inoreader-sidebar" onClick={() => setIsMobileMenuOpen((open) => !open)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg><span>更多</span></button>
     </nav>}
-    <AddFeedModal isOpen={isAddFeedOpen} onClose={() => setIsAddFeedOpen(false)} existingFeeds={feeds} onAddFeed={feedManagement.addFeed} onImportOpmlFile={feedManagement.importOpmlFile} />
+    <AddFeedModal isOpen={isAddFeedOpen} onClose={() => setIsAddFeedOpen(false)} existingFeeds={feeds} onAddFeed={feedManagement.addFeed} onImportOpmlFile={feedManagement.importOpmlFile} onShowToast={showToast} />
     <KeyboardShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
     <ReaderFeedbackLayer toast={toast} refreshFeedback={refreshFeedback.refreshFeedback} refreshState={refreshState}
       failureDetailsOpen={refreshFeedback.isRefreshFailureDetailsOpen} onFailureDetailsOpenChange={refreshFeedback.setIsRefreshFailureDetailsOpen}

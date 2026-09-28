@@ -35,7 +35,7 @@ const parsedFeed: RssParseResponse = {
   }],
 };
 
-async function renderModal(onAddFeed = vi.fn()) {
+async function renderModal(onAddFeed = vi.fn(), onShowToast = vi.fn()) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -47,10 +47,25 @@ async function renderModal(onAddFeed = vi.fn()) {
         existingFeeds={[]}
         onAddFeed={onAddFeed}
         onImportOpmlFile={vi.fn()}
+        onShowToast={onShowToast}
       />
     );
   });
-  return { container, root, onAddFeed };
+  return { container, root, onAddFeed, onShowToast };
+}
+
+function setInputValue(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+async function subscribeUrl(container: HTMLElement, feedUrl: string, helperUrl?: string) {
+  const inputs = container.querySelectorAll<HTMLInputElement>('input[type="url"]');
+  await act(async () => {
+    setInputValue(inputs[0], feedUrl);
+    if (helperUrl) setInputValue(inputs[1], helperUrl);
+  });
+  await act(async () => container.querySelector<HTMLButtonElement>('button[type="submit"]')?.click());
 }
 
 function buttonWithText(container: HTMLElement, text: string) {
@@ -106,6 +121,87 @@ describe("AddFeedModal curated subscriptions", () => {
 
     expect(onAddFeed).toHaveBeenCalledTimes(1);
     expect(onAddFeed.mock.calls[0][1]).toHaveLength(1);
+    expect(onAddFeed.mock.calls[0][0].bidclubFeedUrl).toBe(CURATED_FEEDS[0].bidclubFeedUrl);
+    expect(onAddFeed.mock.calls[0][0].bidclubShowSlug).toBe(CURATED_FEEDS[0].bidclubShowSlug);
+    await act(async () => root.unmount());
+  });
+});
+
+describe("AddFeedModal manual RSS subscriptions", () => {
+  it("loads and saves the mapped enrichment source and shows a one-time recommendation notice", async () => {
+    const known = CURATED_FEEDS.find((feed) => feed.bidclubFeedUrl)!;
+    const helperItems = [{ ...parsedFeed.items[0], id: "helper-1" }];
+    serviceMocks.fetchRssFeed.mockResolvedValueOnce(parsedFeed).mockResolvedValueOnce({ ...parsedFeed, items: helperItems });
+    serviceMocks.matchBidclubItems.mockReturnValue({ items: parsedFeed.items, diagnostics: {} });
+    const { container, root, onAddFeed, onShowToast } = await renderModal();
+
+    await subscribeUrl(container, known.feedUrl);
+
+    expect(serviceMocks.fetchRssFeed.mock.calls.map(([url]) => url)).toEqual([known.feedUrl, known.bidclubFeedUrl]);
+    expect(serviceMocks.matchBidclubItems).toHaveBeenCalledWith(parsedFeed.items, helperItems);
+    expect(onAddFeed.mock.calls[0][0]).toMatchObject({
+      feedUrl: known.feedUrl,
+      bidclubFeedUrl: known.bidclubFeedUrl,
+      bidclubShowSlug: known.bidclubShowSlug,
+    });
+    expect(onShowToast).toHaveBeenCalledTimes(1);
+    expect(onShowToast).toHaveBeenCalledWith("已识别为推荐节目，可直接使用已提供的摘要、章节或逐字稿。");
+    await act(async () => root.unmount());
+  });
+
+  it("uses the manually entered enhancement URL before the known mapping", async () => {
+    vi.stubEnv("VITE_ENABLE_ENRICHMENT_SOURCE_EDITOR", "true");
+    const known = CURATED_FEEDS.find((feed) => feed.bidclubFeedUrl)!;
+    const manualUrl = "https://bidclub.ai/feeds/manual.xml";
+    serviceMocks.fetchRssFeed.mockResolvedValue(parsedFeed);
+    serviceMocks.matchBidclubItems.mockReturnValue({ items: parsedFeed.items, diagnostics: {} });
+    const { container, root, onAddFeed } = await renderModal();
+
+    await subscribeUrl(container, known.feedUrl, manualUrl);
+
+    expect(serviceMocks.fetchRssFeed.mock.calls.map(([url]) => url)).toEqual([known.feedUrl, manualUrl]);
+    expect(onAddFeed.mock.calls[0][0]).toMatchObject({ feedUrl: known.feedUrl, bidclubFeedUrl: manualUrl });
+    expect(onAddFeed.mock.calls[0][0].bidclubShowSlug).toBeUndefined();
+    await act(async () => root.unmount());
+    vi.unstubAllEnvs();
+  });
+
+  it("adds the primary RSS when the automatically mapped helper fails", async () => {
+    const known = CURATED_FEEDS.find((feed) => feed.bidclubFeedUrl)!;
+    serviceMocks.fetchRssFeed.mockResolvedValueOnce(parsedFeed).mockRejectedValueOnce(new Error("helper failed"));
+    const { container, root, onAddFeed } = await renderModal();
+
+    await subscribeUrl(container, known.feedUrl);
+
+    expect(onAddFeed).toHaveBeenCalledTimes(1);
+    expect(onAddFeed.mock.calls[0][0].bidclubFeedUrl).toBe(known.bidclubFeedUrl);
+    expect(onAddFeed.mock.calls[0][1]).toHaveLength(parsedFeed.items.length);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    await act(async () => root.unmount());
+  });
+
+  it("does not show the recommendation notice when saving the subscription fails", async () => {
+    const known = CURATED_FEEDS.find((feed) => feed.bidclubFeedUrl)!;
+    serviceMocks.fetchRssFeed.mockResolvedValueOnce(parsedFeed).mockRejectedValueOnce(new Error("helper failed"));
+    const onAddFeed = vi.fn().mockResolvedValue(false);
+    const { container, root, onShowToast } = await renderModal(onAddFeed);
+
+    await subscribeUrl(container, known.feedUrl);
+
+    expect(onAddFeed).toHaveBeenCalledTimes(1);
+    expect(onShowToast).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
+
+  it("does not show a recommendation notice for an unknown RSS with a known program title", async () => {
+    serviceMocks.fetchRssFeed.mockResolvedValueOnce({ ...parsedFeed, title: CURATED_FEEDS[0].title });
+    const { container, root, onAddFeed, onShowToast } = await renderModal();
+
+    await subscribeUrl(container, "https://unknown.example/rss.xml");
+
+    expect(serviceMocks.fetchRssFeed).toHaveBeenCalledTimes(1);
+    expect(onAddFeed.mock.calls[0][0].bidclubFeedUrl).toBeUndefined();
+    expect(onShowToast).not.toHaveBeenCalled();
     await act(async () => root.unmount());
   });
 });

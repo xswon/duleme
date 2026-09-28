@@ -9,7 +9,8 @@ import {
   removeFeedFromOrder,
   renameFolderInOrder,
 } from "../services/feedSorting";
-import { mergeDefaultFeedFields, saveStoredArticles } from "../services/rssService";
+import { saveStoredArticles } from "../services/rssService";
+import { resolveKnownEnrichmentSource } from "../data/defaultFeeds";
 import { deleteFeedAndArticlesFromDB, updateFeedAndDeleteArticlesFromDB } from "../services/dbService";
 
 interface UseFeedManagementOptions {
@@ -48,7 +49,7 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
       } catch (error) {
         console.warn("Failed to save articles for a new feed:", error);
         showToast("订阅内容保存失败，未添加订阅源，请重试");
-        return;
+        return false;
       }
     }
     setFeeds((current) => [newFeed, ...current.filter((feed) => feed.id !== newFeed.id)]);
@@ -60,6 +61,7 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
       return [...newArticles.filter((article) => !existingIds.has(article.id)), ...current];
     });
     if (!isSettingsOpen) navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: newFeed.id, selectedCategory: null, articleId: null, detailTab: undefined });
+    return true;
   }, [isSettingsOpen, navigateToRoute, setArticles, setCategories, setFeedOrderByFolder, setFeeds, showToast]);
 
   const deleteFeed = useCallback(async (feedId: string) => {
@@ -164,7 +166,7 @@ export function useFeedManagement(options: UseFeedManagementOptions) {
         showToast(`OPML 导入：新增 0，重复 0，无效 ${invalidCount || allOutlines.length}`);
         return false;
       }
-      const normalized = mergeDefaultFeedFields(importedFeeds);
+      const normalized = importedFeeds.map((feed) => ({ ...feed, ...resolveKnownEnrichmentSource(feed.feedUrl) }));
       const existingUrls = new Set(feedsRef.current.map((feed) => feed.feedUrl.trim().toLowerCase()));
       const seenUrls = new Set<string>();
       const newFeeds = normalized.filter((feed) => {

@@ -8,7 +8,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { CuratedFeedOption, Feed } from "../types";
-import { CURATED_FEEDS } from "../data/defaultFeeds";
+import { CURATED_FEEDS, resolveKnownEnrichmentSource } from "../data/defaultFeeds";
 import { fetchRssFeed, matchBidclubItems } from "../services/rssService";
 import { isEnrichmentSourceEditorEnabled } from "../config/features";
 
@@ -17,8 +17,9 @@ interface AddFeedModalProps {
   onClose: () => void;
   existingFeeds: Feed[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Feed parser article payload predates a dedicated type at this callback boundary.
-  onAddFeed: (feed: Feed, newArticles?: any[]) => void;
+  onAddFeed: (feed: Feed, newArticles?: any[]) => Promise<boolean | void> | boolean | void;
   onImportOpmlFile: (file: File) => void;
+  onShowToast?: (message: string) => void;
 }
 
 export const AddFeedModal: React.FC<AddFeedModalProps> = ({
@@ -27,6 +28,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
   existingFeeds,
   onAddFeed,
   onImportOpmlFile,
+  onShowToast,
 }) => {
   const [feedUrlInput, setFeedUrlInput] = useState("");
   const [bidclubFeedUrlInput, setBidclubFeedUrlInput] = useState("");
@@ -67,9 +69,13 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
     const targetCategory = categoryInput === "NEW" ? newCategoryName || "未分类" : categoryInput;
 
     try {
-      const parsedData = await fetchRssFeed(feedUrlInput.trim());
-      const bidclubData = enrichmentSourceEditorEnabled && bidclubFeedUrlInput.trim()
-        ? await fetchRssFeed(bidclubFeedUrlInput.trim()).catch(() => null)
+      const feedUrl = feedUrlInput.trim();
+      const parsedData = await fetchRssFeed(feedUrl);
+      const knownSource = resolveKnownEnrichmentSource(feedUrl);
+      const manualBidclubFeedUrl = enrichmentSourceEditorEnabled ? bidclubFeedUrlInput.trim() : "";
+      const bidclubFeedUrl = manualBidclubFeedUrl || knownSource.bidclubFeedUrl;
+      const bidclubData = bidclubFeedUrl
+        ? await fetchRssFeed(bidclubFeedUrl).catch(() => null)
         : null;
       const matchResult = bidclubData
         ? matchBidclubItems(parsedData.items, bidclubData.items)
@@ -80,14 +86,15 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
       const newFeed: Feed = {
         id: `feed-${Date.now()}`,
         title: parsedData.title || "未命名订阅源",
-        feedUrl: feedUrlInput.trim(),
-        siteUrl: parsedData.link || feedUrlInput.trim(),
+        feedUrl,
+        siteUrl: parsedData.link || feedUrl,
         favicon: parsedData.feedImage || parsedData.favicon,
         category: targetCategory,
         description: parsedData.description,
         unreadCount: parsedData.items ? parsedData.items.length : 0,
         lastUpdated: new Date().toISOString(),
-        bidclubFeedUrl: enrichmentSourceEditorEnabled ? bidclubFeedUrlInput.trim() || undefined : undefined,
+        bidclubFeedUrl,
+        bidclubShowSlug: manualBidclubFeedUrl ? undefined : knownSource.bidclubShowSlug,
       };
 
       const newArticles = (matchedItems || []).map((item) => ({
@@ -99,7 +106,9 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
         starred: false,
       }));
 
-      onAddFeed(newFeed, newArticles);
+      const added = await onAddFeed(newFeed, newArticles);
+      if (added === false) return;
+      if (knownSource.bidclubFeedUrl) onShowToast?.("已识别为推荐节目，可直接使用已提供的摘要、章节或逐字稿。");
       setFeedUrlInput("");
       setBidclubFeedUrlInput("");
       onClose();
@@ -152,7 +161,8 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
         starred: false,
       }));
 
-      onAddFeed(newFeed, newArticles);
+      const added = await onAddFeed(newFeed, newArticles);
+      if (added === false) return;
       setNotice(`已订阅「${curated.title}」`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing feed-service rejections have no typed error contract.
     } catch (err: any) {

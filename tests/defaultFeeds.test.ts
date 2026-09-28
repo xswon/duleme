@@ -4,6 +4,7 @@ import {
   FEATURED_CURATED_FEEDS,
   FEATURED_CURATED_FEED_IDS,
   LEGACY_DEFAULT_FEEDS,
+  resolveKnownEnrichmentSource,
 } from "../src/data/defaultFeeds";
 
 describe("curated feed catalog", () => {
@@ -46,5 +47,26 @@ describe("curated feed catalog", () => {
     FEATURED_CURATED_FEEDS.forEach((feed) => {
       expect(CURATED_FEEDS.some((candidate) => candidate.id === feed.id)).toBe(true);
     });
+  });
+});
+
+describe("known enrichment source resolver", () => {
+  it("resolves configured primary RSS URLs with safe URL normalization", () => {
+    const known = LEGACY_DEFAULT_FEEDS.find((feed) => feed.id === "feed-crossing")!;
+    expect(resolveKnownEnrichmentSource(`  HTTPS://FEED.XYZFM.SPACE/68fyjknth9hj  `)).toEqual({
+      bidclubFeedUrl: known.bidclubFeedUrl,
+      bidclubShowSlug: known.bidclubShowSlug,
+    });
+    CURATED_FEEDS.filter((feed) => feed.bidclubFeedUrl).forEach((feed) => {
+      expect(resolveKnownEnrichmentSource(feed.feedUrl)).toEqual({
+        bidclubFeedUrl: feed.bidclubFeedUrl,
+        bidclubShowSlug: feed.bidclubShowSlug,
+      });
+    });
+  });
+
+  it("does not infer an enrichment source from an unknown URL or a matching title", () => {
+    expect(resolveKnownEnrichmentSource("https://unknown.example/rss.xml")).toEqual({});
+    expect(resolveKnownEnrichmentSource("十字路口Crossing")).toEqual({});
   });
 });
