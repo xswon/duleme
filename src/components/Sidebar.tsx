@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Podcast } from "lucide-react";
 import { ActiveTab, Feed, FilterType } from "../types";
 import type { ReaderRoute } from "../services/router";
 import type { SortMode } from "../services/feedSorting";
@@ -299,10 +300,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </section>
           <section aria-label="快捷入口" className="wreader-primary-tools shrink-0 space-y-0.5">
-            <button id="nav-tab-playlist" aria-label="音频" onClick={() => selectUtilityTab("playlist")} className={itemClass(activeTab === "playlist")}>
+            <button id="nav-tab-playlist" aria-label="播客" onClick={() => selectUtilityTab("playlist")} className={itemClass(activeTab === "playlist")}>
               <div className="flex min-w-0 items-center gap-2">
-                <span className="wreader-nav-leading"><PrototypeIcon><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3" /></PrototypeIcon></span>
-                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">音频</span>
+                <span className="wreader-nav-leading"><Podcast aria-hidden="true" /></span>
+                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">播客</span>
               </div>
               {playlistCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500">{playlistCount}</span>}
             </button>
