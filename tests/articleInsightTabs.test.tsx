@@ -42,17 +42,17 @@ function parseMarkup(html: string) {
 }
 
 describe("ArticleInsightTabs", () => {
-  it("uses the unified transcript card when transcription is not configured", () => {
+  it("uses the same empty-state layout when transcription is not configured", () => {
     const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
       tab: "transcript",
       transcriptState: "needs_config",
       onConfigureTranscription: vi.fn(),
     });
-    expect(html).toContain("生成逐字稿");
-    expect(html).toContain("逐字稿");
-    expect(html).toContain("逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。");
-    expect(html).toContain("配置");
+    expect(html).toContain('class="reader-feature-empty"');
+    expect(html).toContain("尚无逐字稿");
+    expect(html).toContain("配置转录服务后，即可将音频转换为可搜索的文本。");
+    expect(html).toContain("配置转录服务");
     expect(html).not.toContain("API Key");
   });
 
@@ -90,8 +90,8 @@ describe("ArticleInsightTabs", () => {
       transcriptionMode: "local",
       onStartTranscription: vi.fn(),
     });
-    expect(html).toContain("生成逐字稿");
-    expect(html).toContain("将音频内容转写为可阅读文本，便于搜索和回看。");
+    expect(html).toContain("尚无逐字稿");
+    expect(html).toContain("将音频转成可阅读文本，方便搜索与回听。");
     expect(html).toContain("转录方式：本地");
     expect(html).toContain("开始转录");
     expect(html).not.toContain("重新转录");
@@ -188,13 +188,14 @@ describe("ArticleInsightTabs", () => {
       onConfigureAi: vi.fn(),
     });
     const document = parseMarkup(html);
-    expect(html).toContain("生成 AI 摘要");
+    expect(html).toContain('class="reader-feature-empty"');
+    expect(html).toContain("尚无 AI 摘要");
     expect(html).toContain("逐字稿");
     expect(html).toContain("AI 摘要");
-    expect(html).toContain("配置以下服务后即可生成");
+    expect(html).toContain("先配置转录服务和 AI 模型，生成时会自动创建逐字稿。");
     expect(document.querySelectorAll("button")).toHaveLength(2);
     expect(Array.from(document.querySelectorAll("button")).map((button) => button.textContent?.trim()))
-      .toEqual(["配置", "配置"]);
+      .toEqual(["配置转录服务", "配置 AI 模型"]);
     expect(html).not.toContain("开启 AI 摘要");
     expect(html).not.toContain("未配置");
   });
@@ -208,9 +209,9 @@ describe("ArticleInsightTabs", () => {
       overviewState: "needs_transcription_config",
       onConfigureTranscription: vi.fn(),
     });
-    expect(needsTranscription).toContain("生成 AI 摘要");
+    expect(needsTranscription).toContain("尚无 AI 摘要");
     expect(needsTranscription).toContain("逐字稿");
-    expect(needsTranscription).toContain("配置");
+    expect(needsTranscription).toContain("配置转录服务");
     expect(needsTranscription).not.toContain("AI 模型");
 
     const needsAi = renderModel({
@@ -219,9 +220,9 @@ describe("ArticleInsightTabs", () => {
       overviewState: "needs_ai_config",
       onConfigureAi: vi.fn(),
     });
-    expect(needsAi).toContain("生成 AI 摘要");
+    expect(needsAi).toContain("尚无 AI 摘要");
     expect(needsAi).toContain("AI 摘要");
-    expect(needsAi).toContain("配置");
+    expect(needsAi).toContain("配置 AI 模型");
     expect(needsAi).not.toContain("逐字稿");
   });
 
@@ -233,8 +234,8 @@ describe("ArticleInsightTabs", () => {
       transcriptState: "can_generate",
       onSummarize: vi.fn(),
     });
-    expect(html).toContain("生成 AI 摘要");
-    expect(html).toContain("文章将基于正文提炼要点，播客将基于逐字稿提炼要点。");
+    expect(html).toContain("尚无 AI 摘要");
+    expect(html).toContain("从逐字稿提炼本期要点，方便快速回顾。");
     expect(html).toContain("立即生成");
     expect(html).not.toContain("✨ 生成 AI 摘要");
   });

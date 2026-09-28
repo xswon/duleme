@@ -166,21 +166,22 @@ function FeatureEmptyStateContainer({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="px-4 py-8 sm:py-10">
-      <div className="mx-auto max-w-[540px] rounded-[28px] border border-slate-200/80 bg-white px-6 py-10 text-center shadow-[0_18px_45px_rgba(15,23,42,0.06)] sm:px-10 sm:py-12">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px] bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100">
-          {icon}
-        </div>
-        <h3 className="mt-6 text-xl font-semibold leading-8 tracking-tight text-slate-900">{title}</h3>
-        <p className="mx-auto mt-3 max-w-[460px] text-sm leading-6 text-slate-500 sm:text-[15px]">
-          {description}
-        </p>
-        {meta && (
-          <div className="mt-4 inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-xs font-medium text-slate-600">
-            {meta}
+    <div className="reader-feature-empty">
+      <div className="reader-feature-empty-preview" aria-hidden="true">
+        <div className="reader-feature-empty-sheet">
+          <div className="reader-feature-empty-sheet-heading">
+            <span className="reader-feature-empty-icon">{icon}</span>
+            <span className="reader-feature-empty-sheet-lines"><i /><i /></span>
           </div>
-        )}
+          <span className="reader-feature-empty-sheet-line" />
+          <span className="reader-feature-empty-sheet-line" />
+        </div>
+      </div>
+      <div className="reader-feature-empty-content">
+        <h3>{title}</h3>
+        <p>{description}</p>
         {children}
+        {meta && <div className="reader-feature-empty-meta">{meta}</div>}
       </div>
     </div>
   );
@@ -210,7 +211,7 @@ function PrimaryActionButton({
   );
 }
 
-function ConfigRequirementRow({
+function ConfigRequirementAction({
   icon,
   label,
   onConfigure,
@@ -220,26 +221,15 @@ function ConfigRequirementRow({
   onConfigure?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5 text-left">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-          {icon}
-        </span>
-        <span className="text-sm font-semibold leading-5 text-slate-700">{label}</span>
-      </div>
-      <button
-        type="button"
-        onClick={onConfigure}
-        className="inline-flex items-center gap-1 text-sm font-medium leading-5 text-blue-600 hover:text-blue-700"
-      >
-        配置
-        <ArrowRight className="h-4 w-4" aria-hidden="true" />
-      </button>
-    </div>
+    <button type="button" onClick={onConfigure} className="reader-feature-config-action">
+      {icon}
+      <span>{label}</span>
+      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+    </button>
   );
 }
 
-function ConfigRequirementCard({
+function ConfigEmptyState({
   icon,
   title,
   description,
@@ -255,24 +245,18 @@ function ConfigRequirementCard({
   }>;
 }) {
   return (
-    <EmptyStateContainer
-      icon={icon}
-      title={title}
-      description={description}
-      tone="slate"
-    >
-      <div className="mt-5 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200/80 bg-white text-left shadow-sm">
+    <FeatureEmptyStateContainer icon={icon} title={title} description={description}>
+      <div className="reader-feature-config-actions">
         {requirements.map((requirement) => (
-          <React.Fragment key={requirement.label}>
-            <ConfigRequirementRow
-              icon={requirement.icon}
-              label={requirement.label}
-              onConfigure={requirement.onConfigure}
-            />
-          </React.Fragment>
+          <ConfigRequirementAction
+            key={requirement.label}
+            icon={requirement.icon}
+            label={requirement.label}
+            onConfigure={requirement.onConfigure}
+          />
         ))}
       </div>
-    </EmptyStateContainer>
+    </FeatureEmptyStateContainer>
   );
 }
 
@@ -543,19 +527,19 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         return <LoadingContent />;
       case "needs_all_config":
         return (
-          <ConfigRequirementCard
+          <ConfigEmptyState
             icon={<AiSummaryIcon className="h-5 w-5" />}
-            title="生成 AI 摘要"
-            description="这是可选增强功能。配置以下服务后即可生成，不影响正常 RSS 阅读。"
+            title="尚无 AI 摘要"
+            description="先配置转录服务和 AI 模型，生成时会自动创建逐字稿。"
             requirements={[
               {
                 icon: <TranscriptWaveIcon className="h-4 w-4" />,
-                label: "逐字稿",
+                label: "配置转录服务",
                 onConfigure: p.onConfigureTranscription,
               },
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
-                label: "AI 摘要",
+                label: "配置 AI 模型",
                 onConfigure: p.onConfigureAi,
               },
             ]}
@@ -563,14 +547,14 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         );
       case "needs_transcription_config":
         return (
-          <ConfigRequirementCard
+          <ConfigEmptyState
             icon={<AiSummaryIcon className="h-5 w-5" />}
-            title="生成 AI 摘要"
-            description="配置以下服务后即可生成"
+            title="尚无 AI 摘要"
+            description="先配置转录服务，生成时会自动创建逐字稿。"
             requirements={[
               {
                 icon: <TranscriptWaveIcon className="h-4 w-4" />,
-                label: "逐字稿",
+                label: "配置转录服务",
                 onConfigure: p.onConfigureTranscription,
               },
             ]}
@@ -578,14 +562,14 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         );
       case "needs_ai_config":
         return (
-          <ConfigRequirementCard
+          <ConfigEmptyState
             icon={<AiSummaryIcon className="h-5 w-5" />}
-            title="生成 AI 摘要"
-            description="AI 摘要是可选功能。配置模型后即可生成，不影响正常 RSS 阅读。"
+            title="尚无 AI 摘要"
+            description="配置 AI 模型后，即可提炼内容要点。"
             requirements={[
               {
                 icon: <Bot className="h-4 w-4" aria-hidden="true" />,
-                label: "AI 摘要",
+                label: "配置 AI 模型",
                 onConfigure: p.onConfigureAi,
               },
             ]}
@@ -595,14 +579,15 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
         return (
           <FeatureEmptyStateContainer
             icon={<AiSummaryIcon className="h-8 w-8" />}
-            title="生成 AI 摘要"
-            description="文章将基于正文提炼要点，播客将基于逐字稿提炼要点。"
+            title="尚无 AI 摘要"
+            description={p.article.audioUrl
+              ? "从逐字稿提炼本期要点，方便快速回顾。"
+              : "从正文提炼关键信息，方便快速掌握内容。"}
           >
             {p.summaryError && <p className="mt-4 text-xs text-rose-600" role="alert">{p.summaryError}</p>}
             <PrimaryActionButton
               onClick={p.onSummarize}
               disabled={p.summarizing}
-              className="min-w-[180px]"
             >
               {p.pipelineError ? "重试生成" : p.summarizing ? "正在生成…" : "立即生成"}
             </PrimaryActionButton>
@@ -758,8 +743,8 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
       return (
         <FeatureEmptyStateContainer
           icon={<TranscriptWaveIcon className="h-8 w-8" />}
-          title="生成逐字稿"
-          description="将音频内容转写为可阅读文本，便于搜索和回看。"
+          title="尚无逐字稿"
+          description="将音频转成可阅读文本，方便搜索与回听。"
           meta={p.transcriptionMode
             ? <>转录方式：{p.transcriptionMode === "local" ? "本地" : "云端（阿里云百炼）"}</>
             : undefined}
@@ -769,7 +754,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           )}
           <PrimaryActionButton
             onClick={transcriptionFailed ? p.onRetryTranscription : p.onStartTranscription}
-            className="min-w-[180px]"
           >
             {transcriptionFailed ? "重试生成" : "开始转录"}
           </PrimaryActionButton>
@@ -778,14 +762,14 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     case "needs_config":
     default:
       return (
-        <ConfigRequirementCard
+        <ConfigEmptyState
           icon={<TranscriptWaveIcon className="h-5 w-5" />}
-          title="生成逐字稿"
-          description="逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。"
+          title="尚无逐字稿"
+          description="配置转录服务后，即可将音频转换为可搜索的文本。"
           requirements={[
             {
               icon: <TranscriptWaveIcon className="h-4 w-4" />,
-              label: "逐字稿",
+              label: "配置转录服务",
               onConfigure: p.onConfigureTranscription,
             },
           ]}

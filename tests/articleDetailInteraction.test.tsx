@@ -335,11 +335,11 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("生成 AI 摘要");
+    expect(container.textContent).toContain("尚无 AI 摘要");
     expect(container.textContent).toContain("逐字稿");
     expect(container.textContent).toContain("AI 摘要");
     const configureButtons = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .filter((button) => button.textContent?.trim() === "配置");
+      .filter((button) => ["配置转录服务", "配置 AI 模型"].includes(button.textContent?.trim() || ""));
     expect(configureButtons).toHaveLength(2);
 
     await act(async () => configureButtons[0].click());
@@ -380,7 +380,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
       });
     };
 
-    await selectText("这是可选增强功能。配置以下服务后即可生成，不影响正常 RSS 阅读。");
+    await selectText("先配置转录服务和 AI 模型，生成时会自动创建逐字稿。");
     expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
 
     await act(async () => {
@@ -388,7 +388,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
         .find((tab) => tab.textContent === "逐字稿")
         ?.click();
     });
-    await selectText("逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。");
+    await selectText("配置转录服务后，即可将音频转换为可搜索的文本。");
     expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
 
     await act(async () => root.unmount());
@@ -520,9 +520,9 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     const aiTab = tabs.find((tab) => tab.textContent === "AI 摘要");
     await act(async () => aiTab?.click());
 
-    expect(container.textContent).toContain("AI 摘要是可选功能。配置模型后即可生成，不影响正常 RSS 阅读。");
+    expect(container.textContent).toContain("配置 AI 模型后，即可提炼内容要点。");
     const configureButton = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent === "配置");
+      .find((button) => button.textContent === "配置 AI 模型");
     expect(configureButton).toBeTruthy();
 
     await act(async () => configureButton?.click());
