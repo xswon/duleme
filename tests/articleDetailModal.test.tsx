@@ -107,10 +107,9 @@ describe("ArticleDetailModal", () => {
       />
     );
 
-    expect(html).not.toContain("lucide-sparkles");
     expect(html).toContain("lucide-file-text");
-    expect(html).toContain("lucide-sparkle");
-    expect(html).toContain("lucide-audio-lines");
+    expect(html).toContain('data-insight-icon="ai-summary"');
+    expect(html).toContain('data-insight-icon="transcript"');
     expect(html.indexOf("author@example.com")).toBeGreaterThan(html.indexOf("Example"));
     // The relative-time formatter switches to a localized calendar date after
     // 30 days; retain the metadata ordering assertion without coupling to it.
