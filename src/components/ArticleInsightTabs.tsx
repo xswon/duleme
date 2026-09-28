@@ -146,7 +146,7 @@ function PrimaryActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="mt-5 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold leading-5 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+      className="mt-5 wreader-btn wreader-btn-lg wreader-btn-primary"
     >
       {children}
     </button>
@@ -296,7 +296,7 @@ function PipelineProgressCard({
       </div>
       {error && <p className="mt-4 text-xs text-rose-600" role="alert">{error}</p>}
       {autoContinue && transcribing && onCancel && (
-        <button type="button" onClick={onCancel} className="mt-4 text-xs font-medium text-slate-500 hover:text-slate-700">
+        <button type="button" onClick={onCancel} className="mt-4 wreader-btn-link">
           取消
         </button>
       )}
@@ -327,12 +327,12 @@ function SummaryActions({
   };
   return (
     <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-xs">
-      <button type="button" onClick={copySummary} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700">
+      <button type="button" onClick={copySummary} className="wreader-btn-link">
         <Copy className="h-3.5 w-3.5" aria-hidden="true" />
         {copied ? "已复制" : "复制"}
       </button>
       {onRegenerate && (
-        <button type="button" onClick={onRegenerate} className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-700">
+        <button type="button" onClick={onRegenerate} className="wreader-btn-link">
           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
           重新生成
         </button>
@@ -344,7 +344,7 @@ function SummaryActions({
         </a>
       )}
       {onOpenTranscript && (
-        <button type="button" onClick={onOpenTranscript} className="ml-auto inline-flex items-center gap-1 text-blue-600 hover:text-blue-700">
+        <button type="button" onClick={onOpenTranscript} className="ml-auto wreader-btn-link">
           查看完整逐字稿
           <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
