@@ -222,10 +222,12 @@ describe("navigation chrome", () => {
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain('aria-label="关闭设置"');
     expect(html).toContain("内容");
-    expect(html).toContain("AI 设置");
+    expect(html).toContain("可选增强");
+    expect(html).toContain("转录");
+    expect(html).toContain("AI 摘要");
     expect(html).toContain("数据与备份");
     expect(html).toContain("快捷键");
-    expect(html).toContain("逐字稿");
+    expect(html).toContain("转录");
     expect(html).toContain("AI 摘要");
     expect(html).toContain('role="tablist"');
     expect(html).toContain('aria-labelledby="settings-tab-feeds"');

@@ -48,7 +48,7 @@ describe("ArticleInsightTabs", () => {
     });
     expect(html).toContain("生成逐字稿");
     expect(html).toContain("逐字稿");
-    expect(html).toContain("配置以下服务后可将音频转成逐字稿");
+    expect(html).toContain("逐字稿是可选功能。配置转录服务后可生成，不影响播客播放。");
     expect(html).toContain("配置");
     expect(html).not.toContain("API Key");
   });
@@ -84,10 +84,13 @@ describe("ArticleInsightTabs", () => {
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
       tab: "transcript",
       transcriptState: "can_generate",
+      transcriptionMode: "local",
       onStartTranscription: vi.fn(),
     });
     expect(html).toContain("生成逐字稿");
     expect(html).toContain("点击开始生成完整逐字稿");
+    expect(html).toContain("转录方式：本地");
+    expect(html).not.toContain("NextEcho");
   });
 
   it("keeps retry and error context in the transcript card", () => {
@@ -238,6 +241,8 @@ describe("ArticleInsightTabs", () => {
     expect(buttons.map((button) => button.textContent)).toEqual(["12:00", "108:00"]);
     expect(html).toContain('data-transcript-start-ms="754000"');
     expect(html).toContain('data-transcript-start-ms="6523000"');
+    expect(html).toContain("转录服务：本地");
+    expect(html).not.toContain("NextEcho");
     expect(html).not.toContain("00:12:34,000");
     expect(html).not.toContain("01:48:43,000");
   });

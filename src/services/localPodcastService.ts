@@ -35,7 +35,7 @@ export const localPodcastApi = {
   getSettings: () => request<LocalAiSettings>("/api/local-podcast/settings"),
   saveSettings: (settings: Partial<LocalAiSettings> & { api_key?: string; clear_api_key?: boolean }) => request<LocalAiSettings>("/api/local-podcast/settings", { method: "POST", body: JSON.stringify(settings) }),
   testSettings: () => request<{ ok: boolean; error?: string }>("/api/local-podcast/settings/test", { method: "POST", body: "{}" }),
-  preflight: () => request<Record<string, unknown>>("/api/local-podcast/preflight"),
+  preflight: () => request<{ ok?: boolean }>("/api/local-podcast/preflight"),
 };
 
 export interface LocalAiSettings {
