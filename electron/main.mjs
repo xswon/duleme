@@ -80,28 +80,34 @@ async function createMainWindow() {
   await win.loadURL(appUrl);
 }
 
-app.whenReady().then(async () => {
-  if (process.argv.includes("--smoke-test")) {
-    const appUrl = await ensureLocalServer();
-    const response = await fetch(`${appUrl}/api/health`);
-    if (!response.ok) throw new Error(`Desktop smoke test failed: HTTP ${response.status}`);
-    console.log("Duleme desktop smoke test passed");
-    localServer?.close();
-    localServer = undefined;
-    localAppUrl = undefined;
-    app.exit(0);
-    return;
-  }
+async function runSmokeTest() {
+  console.log("Starting packaged Duleme smoke test");
+  const appUrl = await ensureLocalServer();
+  const response = await fetch(`${appUrl}/api/health`);
+  if (!response.ok) throw new Error(`Desktop smoke test failed: HTTP ${response.status}`);
+  console.log("Duleme desktop smoke test passed");
+  localServer?.close();
+}
 
-  await createMainWindow();
+if (process.argv.includes("--smoke-test")) {
+  runSmokeTest()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error("Duleme desktop smoke test failed", error);
+      process.exit(1);
+    });
+} else {
+  app.whenReady().then(async () => {
+    await createMainWindow();
 
-  app.on("activate", async () => {
-    if (BrowserWindow.getAllWindows().length === 0) await createMainWindow();
+    app.on("activate", async () => {
+      if (BrowserWindow.getAllWindows().length === 0) await createMainWindow();
+    });
+  }).catch((error) => {
+    console.error("Unable to start Duleme desktop", error);
+    app.quit();
   });
-}).catch((error) => {
-  console.error("Unable to start Duleme desktop", error);
-  app.quit();
-});
+}
 
 app.on("before-quit", () => {
   localServer?.close();
