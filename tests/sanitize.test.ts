@@ -19,7 +19,7 @@ describe("sanitizeHtml", () => {
   it("allows reader URLs while rejecting active and HTML data URLs", () => {
     const html = sanitizeHtml('<a href="https://example.com/article" target="_blank">article</a><a href="/relative">relative</a><a href="javascript:alert(1)">bad-js</a><a href="data:text/html,bad">bad-data</a><img src="https://cdn.example.com/image.jpg" srcset="https://cdn.example.com/a.jpg 1x"><img src="data:image/png;base64,iVBORw0KGgo="><img src="data:text/html,bad">');
     expect(html).toContain('href="https://example.com/article"');
-    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).not.toContain('target="_blank"');
     expect(html).toContain('href="/relative"');
     expect(html).not.toContain("javascript:");
     expect(html).not.toContain("data:text/html");
