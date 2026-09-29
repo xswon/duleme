@@ -45,4 +45,24 @@ file "$executable" | grep -q "$machine_pattern" || { file "$executable"; exit 1;
 echo "Mounted and copied $(basename "$dmg")"
 echo "Bundle: $bundle_id · version $version · architecture $arch"
 
-"$executable" --smoke-test
+smoke_log="$install_dir/desktop-smoke.log"
+"$executable" --smoke-test >"$smoke_log" 2>&1 &
+smoke_pid=$!
+
+for _ in {1..30}; do
+  if ! kill -0 "$smoke_pid" 2>/dev/null; then
+    set +e
+    wait "$smoke_pid"
+    smoke_status=$?
+    set -e
+    cat "$smoke_log"
+    exit "$smoke_status"
+  fi
+  sleep 1
+done
+
+echo "Packaged app did not finish its smoke test within 30 seconds" >&2
+cat "$smoke_log" >&2
+kill "$smoke_pid" 2>/dev/null || true
+wait "$smoke_pid" 2>/dev/null || true
+exit 1
