@@ -2,7 +2,7 @@ import DOMPurify from "dompurify";
 
 const BLOCKED_TAGS = [
   "base", "button", "embed", "form", "iframe", "input", "link", "math", "meta",
-  "object", "option", "script", "select", "style", "svg", "textarea",
+  "noembed", "noframes", "noscript", "object", "option", "script", "select", "style", "svg", "textarea", "xmp",
 ];
 
 const BLOCKED_ATTRIBUTES = [
