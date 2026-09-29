@@ -65,10 +65,15 @@ function fetchAiEndpoint(config: Pick<AiRequestConfig, "baseURL">, endpoint: str
     : fetchPublicHttp(endpoint, init);
 }
 
+function allowEnvironmentAiDefaults(): boolean {
+  return process.env.PUBLIC_DEPLOYMENT !== "true" || process.env.ALLOW_SHARED_AI_DEFAULTS === "true";
+}
+
 function normalizeEndpointConfig(input?: Partial<AiRequestConfig>): Pick<AiRequestConfig, "baseURL" | "apiKey"> {
   const hasExplicitConfig = input !== undefined;
-  const baseURL = (hasExplicitConfig ? input.baseURL || "" : process.env.AI_BASE_URL || "").trim();
-  const apiKey = (hasExplicitConfig ? input.apiKey || "" : process.env.AI_API_KEY || "").trim();
+  const useEnvironmentDefaults = !hasExplicitConfig && allowEnvironmentAiDefaults();
+  const baseURL = (hasExplicitConfig ? input.baseURL || "" : useEnvironmentDefaults ? process.env.AI_BASE_URL || "" : "").trim();
+  const apiKey = (hasExplicitConfig ? input.apiKey || "" : useEnvironmentDefaults ? process.env.AI_API_KEY || "" : "").trim();
 
   if (!baseURL) {
     throw new AiServiceError("not_configured", "AI service is not configured.");
@@ -107,7 +112,8 @@ function normalizeEndpointConfig(input?: Partial<AiRequestConfig>): Pick<AiReque
 function normalizeConfig(input?: Partial<AiRequestConfig>): AiRequestConfig {
   const endpoint = normalizeEndpointConfig(input);
   const hasExplicitConfig = input !== undefined;
-  const model = (hasExplicitConfig ? input.model || "" : process.env.AI_MODEL || "").trim();
+  const useEnvironmentDefaults = !hasExplicitConfig && allowEnvironmentAiDefaults();
+  const model = (hasExplicitConfig ? input.model || "" : useEnvironmentDefaults ? process.env.AI_MODEL || "" : "").trim();
 
   if (!model) {
     throw new AiServiceError("not_configured", "AI service is not configured.");
