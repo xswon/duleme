@@ -73,4 +73,11 @@ jobs:
           test -n "$app_path"
           executable="$(find "$app_path/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit)"
           test -n "$executable"
-          "$executable" --smoke-test
+          python3 - "$executable" <<'PY'
+          import subprocess
+          import sys
+          result = subprocess.run([sys.argv[1], "--smoke-test"], timeout=30, text=True, capture_output=True)
+          print(result.stdout, end="")
+          print(result.stderr, end="", file=sys.stderr)
+          raise SystemExit(result.returncode)
+          PY

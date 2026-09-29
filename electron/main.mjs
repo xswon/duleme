@@ -89,7 +89,7 @@ app.whenReady().then(async () => {
     localServer?.close();
     localServer = undefined;
     localAppUrl = undefined;
-    app.quit();
+    app.exit(0);
     return;
   }
 
