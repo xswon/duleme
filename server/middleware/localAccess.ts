@@ -20,6 +20,30 @@ function isLoopbackHost(host?: string): boolean {
   }
 }
 
+function firstForwardedValue(value?: string): string {
+  return (value || "").split(",")[0]?.trim() || "";
+}
+
+function requestOrigin(req: Request): string | null {
+  const host = firstForwardedValue(req.get("x-forwarded-host")) || req.get("host") || "";
+  if (!host) return null;
+  const protocol = firstForwardedValue(req.get("x-forwarded-proto")) || req.protocol || "https";
+  try {
+    return new URL(`${protocol}://${host}`).origin;
+  } catch {
+    return null;
+  }
+}
+
+function sameOriginHeader(value: string | undefined, expectedOrigin: string): boolean {
+  if (!value || !value.includes("://")) return false;
+  try {
+    return new URL(value).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
+
 function hasTrustedBrowserOrigin(req: Request): boolean {
   if (req.get("sec-fetch-site") === "cross-site") return false;
   const origin = req.get("origin");
@@ -32,6 +56,28 @@ function hasTrustedBrowserOrigin(req: Request): boolean {
   } catch {
     return false;
   }
+}
+
+function hasTrustedPublicOrigin(req: Request): boolean {
+  const expectedOrigin = requestOrigin(req);
+  if (!expectedOrigin) return false;
+
+  const fetchSite = req.get("sec-fetch-site");
+  if (fetchSite === "cross-site") return false;
+
+  const origin = req.get("origin");
+  if (origin) return sameOriginHeader(origin, expectedOrigin);
+
+  const referer = req.get("referer");
+  if (referer) return sameOriginHeader(referer, expectedOrigin);
+
+  // Same-origin browser fetches can omit Origin for GET requests. Sec-Fetch-Site
+  // provides a browser-enforced fallback while rejecting headerless non-browser clients.
+  return fetchSite === "same-origin" || fetchSite === "same-site";
+}
+
+export function isPublicDeployment(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.PUBLIC_DEPLOYMENT === "true";
 }
 
 export function requireLocalAccess(req: Request, res: Response, next: NextFunction) {
@@ -49,6 +95,21 @@ export function requireLocalAccess(req: Request, res: Response, next: NextFuncti
   next();
 }
 
+export function requireAppAccess(req: Request, res: Response, next: NextFunction) {
+  if (!isPublicDeployment()) {
+    requireLocalAccess(req, res, next);
+    return;
+  }
+  if (!hasTrustedPublicOrigin(req)) {
+    res.status(403).json({
+      error: "此公开部署仅接受来自当前站点的同源浏览器请求。",
+      code: "untrusted_origin",
+    });
+    return;
+  }
+  next();
+}
+
 export function resolveListenHost(env: NodeJS.ProcessEnv = process.env): string {
-  return env.DOCKER === "true" ? "0.0.0.0" : "127.0.0.1";
+  return env.DOCKER === "true" || isPublicDeployment(env) ? "0.0.0.0" : "127.0.0.1";
 }
