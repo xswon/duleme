@@ -62,6 +62,23 @@ The public-origin middleware is an application boundary, not user authentication
 
 ## Sites import
 
-ChatGPT Sites can import compatible existing projects, but runtime support depends on the Sites capabilities available to the account. This branch deliberately avoids assuming a Sites-specific server adapter. During the actual Sites import/deploy step, let Codex inspect the supported runtime and adapt the Node/Express entrypoint if required.
+Open the local `sites-prep` checkout in the current ChatGPT desktop app and start the Sites workflow from Codex. The official existing-project prompt is:
+
+```text
+Deploy this project with Sites. Check whether it is compatible, make any required changes, and give me the deployment URL.
+```
+
+Ask Sites to **save a version first**, review the preview, and only then deploy it. Every deployment URL is a production deployment.
+
+Sites stores the hosted-project linkage and optional D1/R2 binding names in `.openai/hosting.json`. Do not invent a `project_id` in advance; let Sites create/update this file when it provisions the hosted project.
+
+Configure hosted environment values from the Site settings rather than committing secrets. For this first public version set:
+
+```env
+PUBLIC_DEPLOYMENT=true
+ALLOW_SHARED_AI_DEFAULTS=false
+```
+
+HTTP/HTTPS/WebSockets are supported by the Sites runtime, but private networks and some background/hosting patterns are not. This branch therefore deliberately keeps NextEcho local-only and leaves any final Node/Express runtime adaptation to the actual Sites compatibility step.
 
 The existing Docker files remain for local development and are not the intended production hosting mechanism.
