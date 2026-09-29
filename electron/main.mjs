@@ -4,6 +4,7 @@ import { startServer } from "../server.ts";
 
 let localServer;
 let localAppUrl;
+const smokeTest = process.argv.includes("--smoke-test");
 
 function isHttpUrl(value) {
   try {
@@ -36,6 +37,25 @@ async function ensureLocalServer() {
   return localAppUrl;
 }
 
+async function runSmokeTest() {
+  const appUrl = await ensureLocalServer();
+  const [health, index] = await Promise.all([
+    fetch(`${appUrl}/api/health`),
+    fetch(appUrl),
+  ]);
+  if (!health.ok) throw new Error(`Health check failed: ${health.status}`);
+  if (!index.ok) throw new Error(`Frontend check failed: ${index.status}`);
+  const csp = index.headers.get("content-security-policy") || "";
+  const html = await index.text();
+  if (!csp.includes("script-src 'self'")) throw new Error("Production CSP missing from packaged app");
+  if (!html.includes('id="root"')) throw new Error("Packaged frontend is missing the React root");
+  console.log("Duleme desktop smoke test passed");
+  await new Promise((resolve) => localServer.close(resolve));
+  localServer = undefined;
+  localAppUrl = undefined;
+  app.exit(0);
+}
+
 async function createMainWindow() {
   const appUrl = await ensureLocalServer();
   const appOrigin = new URL(appUrl).origin;
@@ -51,8 +71,12 @@ async function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      webviewTag: false,
     },
   });
+
+  win.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
@@ -79,14 +103,18 @@ async function createMainWindow() {
 }
 
 app.whenReady().then(async () => {
-  await createMainWindow();
+  if (smokeTest) {
+    await runSmokeTest();
+    return;
+  }
 
+  await createMainWindow();
   app.on("activate", async () => {
     if (BrowserWindow.getAllWindows().length === 0) await createMainWindow();
   });
 }).catch((error) => {
   console.error("Unable to start Duleme desktop", error);
-  app.quit();
+  app.exit(1);
 });
 
 app.on("before-quit", () => {
@@ -96,5 +124,5 @@ app.on("before-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (!smokeTest && process.platform !== "darwin") app.quit();
 });
