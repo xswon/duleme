@@ -88,3 +88,25 @@ The Pages site should remain intentionally minimal:
 - version/platform note.
 
 No separate website framework or marketing site is required for V1.
+
+
+## Clean-machine beta acceptance
+
+Before publishing a new beta, validate both Apple Silicon and Intel builds on Macs that do not have the source checkout or development dependencies installed.
+
+Automated CI mounts the native DMG on a fresh GitHub-hosted macOS runner and launches the packaged app with `--smoke-test`. The smoke test starts the packaged loopback server, loads `/api/health`, and exits successfully. CI also builds both arm64 and x64 DMGs so packaging regressions fail before merge.
+
+The final human acceptance pass should cover each architecture at least once:
+
+1. Download the DMG from the release artifact or public prerelease and verify its SHA-256 checksum.
+2. Mount the DMG, drag 读了么 into Applications, and launch it without a source checkout.
+3. Complete the unsigned-build **Privacy & Security → Open Anyway** flow.
+4. Add one normal RSS feed and one podcast feed; refresh both and open article bodies.
+5. Restart the app and confirm subscriptions, read/starred state, notes, and audio progress persist.
+6. Configure an AI endpoint, test the connection, generate one article summary, and confirm failure states do not reveal the API key.
+7. Configure transcription when credentials are available and generate one podcast transcript/summary.
+8. Create a backup, remove or change local data, restore the backup, and confirm AI secrets are not imported from the backup.
+9. Open external article links and confirm they leave the Electron window for the system browser.
+10. Exercise a deliberately hostile RSS fixture and confirm scripts, iframes, forms, active URL schemes, inline styles, and SVG/MathML payloads do not execute or survive sanitization.
+
+Record the tested DMG filename, checksum, Mac architecture, macOS version, and result in the release notes or release checklist.

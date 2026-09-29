@@ -81,6 +81,18 @@ async function createMainWindow() {
 }
 
 app.whenReady().then(async () => {
+  if (process.argv.includes("--smoke-test")) {
+    const appUrl = await ensureLocalServer();
+    const response = await fetch(`${appUrl}/api/health`);
+    if (!response.ok) throw new Error(`Desktop smoke test failed: HTTP ${response.status}`);
+    console.log("Duleme desktop smoke test passed");
+    localServer?.close();
+    localServer = undefined;
+    localAppUrl = undefined;
+    app.quit();
+    return;
+  }
+
   await createMainWindow();
 
   app.on("activate", async () => {
