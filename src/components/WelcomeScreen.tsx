@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, Podcast, Upload } from "lucide-react";
 import type { CuratedFeedOption } from "../types";
+import { backendRequest } from "../services/readerBackend";
 
 interface WelcomeScreenProps {
   featuredFeeds: CuratedFeedOption[];
@@ -38,7 +39,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     if (view !== "featured") return;
     let active = true;
     featuredFeeds.filter((feed) => feed.contentType === "podcast").forEach((feed) => {
-      void fetch(`/api/rss/parse?url=${encodeURIComponent(feed.feedUrl)}`)
+      void backendRequest(`/api/rss/parse?url=${encodeURIComponent(feed.feedUrl)}`)
         .then((response) => response.ok ? response.json() : null)
         .then((data: { feedImage?: string } | null) => {
           const image = data?.feedImage;
