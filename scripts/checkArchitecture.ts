@@ -67,6 +67,33 @@ function getInternalDependencies(filePath: string, compilerOptions: ts.CompilerO
   });
 }
 
+function findDirectApplicationApiFetches(filePath: string): number[] {
+  const sourceText = ts.sys.readFile(filePath);
+  if (sourceText === undefined) return [];
+
+  const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true);
+  const lines: number[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node)
+      && ts.isIdentifier(node.expression)
+      && node.expression.text === "fetch"
+      && node.arguments.length > 0
+    ) {
+      const argument = node.arguments[0];
+      const targetsApplicationApi =
+        (ts.isStringLiteralLike(argument) && argument.text.startsWith("/api/"))
+        || (ts.isTemplateExpression(argument) && argument.head.text.startsWith("/api/"));
+      if (targetsApplicationApi) {
+        lines.push(sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return lines;
+}
+
 function buildModuleGraph(projectRoot: string): ModuleGraph {
   const files = collectProductionFiles(projectRoot);
   const productionFiles = new Set(files);
@@ -121,12 +148,19 @@ export function checkArchitecture(options: ArchitectureOptions = {}): string[] {
   const componentsDirectory = path.join(projectRoot, "src/components");
   const serverDirectory = path.join(projectRoot, "server");
   const appPath = path.join(projectRoot, "src/App.tsx");
+  const readerBackendPath = path.join(projectRoot, "src/services/readerBackend.ts");
 
   for (const sourceFile of graph.files) {
     const dependencies = graph.dependencies.get(sourceFile) ?? [];
     const sourceIsService = isInside(sourceFile, servicesDirectory);
     const sourceIsHook = isInside(sourceFile, hooksDirectory);
     const sourceIsServer = isInside(sourceFile, serverDirectory) || sourceFile === path.join(projectRoot, "server.ts");
+
+    if (!sourceIsServer && sourceFile !== readerBackendPath) {
+      for (const line of findDirectApplicationApiFetches(sourceFile)) {
+        errors.push(`${path.relative(projectRoot, sourceFile)}:${line} must use ReaderBackend for /api requests.`);
+      }
+    }
 
     for (const dependency of dependencies) {
       const importsUi = isInside(dependency, componentsDirectory) || dependency === appPath;
