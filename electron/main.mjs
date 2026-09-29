@@ -1,4 +1,5 @@
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import { app, BrowserWindow, shell } from "electron";
 import { startServer } from "../server.ts";
 
@@ -53,7 +54,6 @@ async function runSmokeTest() {
   if (!html.includes('id="root"')) throw new Error("Packaged frontend is missing the React root");
   console.log("Duleme desktop smoke test passed");
   if (smokeResultFile) {
-    const { writeFile } = await import("node:fs/promises");
     await writeFile(smokeResultFile, "ok\n", "utf8");
   }
   const server = localServer;
@@ -123,8 +123,7 @@ app.whenReady().then(async () => {
 }).catch((error) => {
   console.error("Unable to start Duleme desktop", error);
   if (smokeResultFile) {
-    const { writeFile } = await import("node:fs/promises");
-    await writeFile(smokeResultFile, `error: ${error instanceof Error ? error.stack || error.message : String(error)}\n`, "utf8").catch(() => undefined);
+    void writeFile(smokeResultFile, `error: ${error instanceof Error ? error.stack || error.message : String(error)}\n`, "utf8").catch(() => undefined);
   }
   process.exit(1);
 });
