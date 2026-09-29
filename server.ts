@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import path from "path";
 import fs from "fs";
+import type { Server } from "node:http";
 import { createServer as createViteServer } from "vite";
 import { createRssRouter } from "./server/routes/rss";
 import { createProxyRouter } from "./server/routes/proxy";
@@ -13,6 +14,12 @@ import { requireLocalAccess, resolveListenHost } from "./server/middleware/local
 
 export function createApp() {
   const app = express();
+  app.use((_req, res, next) => {
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; media-src 'self' blob: http: https:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*; font-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    next();
+  });
   app.use(express.json({ limit: "5mb" }));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
   app.use("/api", requireLocalAccess);
@@ -30,23 +37,36 @@ export function createApp() {
   return app;
 }
 
-async function startServer() {
-  const app = createApp();
-  const port = Number(process.env.PORT) || 4387;
-  const hmrPort = Number(process.env.HMR_PORT) || 4388;
-  const distPath = path.join(process.cwd(), "dist");
-  if (process.env.NODE_ENV === "production" && fs.existsSync(distPath)) {
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
-  } else {
-    const vite = await createViteServer({ server: { middlewareMode: true, hmr: { port: hmrPort } }, appType: "spa" });
-    app.use(vite.middlewares);
-  }
-  const host = resolveListenHost();
-  app.listen(port, host, () => console.log(`Inoreader server running on http://${host}:${port}`));
+export interface StartServerOptions {
+  port?: number;
+  host?: string;
+  hmrPort?: number;
+  staticDir?: string;
+  production?: boolean;
 }
 
-void startServer().catch((error: unknown) => {
-  console.error("Unable to start server", error);
-  process.exitCode = 1;
-});
+export async function startServer(options: StartServerOptions = {}): Promise<Server> {
+  const expressApp = createApp();
+  const port = options.port ?? (Number(process.env.PORT) || 4387);
+  const host = options.host ?? resolveListenHost();
+  const hmrPort = options.hmrPort ?? (Number(process.env.HMR_PORT) || 4388);
+  const distPath = options.staticDir ?? path.join(process.cwd(), "dist");
+  const production = options.production ?? process.env.NODE_ENV === "production";
+
+  if (production) {
+    if (!fs.existsSync(distPath)) throw new Error(`Frontend build not found: ${distPath}`);
+    expressApp.use(express.static(distPath));
+    expressApp.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
+  } else {
+    const vite = await createViteServer({
+      server: { middlewareMode: true, hmr: { port: hmrPort } },
+      appType: "spa",
+    });
+    expressApp.use(vite.middlewares);
+  }
+
+  return new Promise<Server>((resolve, reject) => {
+    const server = expressApp.listen(port, host, () => resolve(server));
+    server.once("error", reject);
+  });
+}
