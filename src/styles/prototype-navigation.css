@@ -146,15 +146,7 @@
   .wreader-toast { width: 100%; }
   .wreader-refresh-failure-panel { width: 100%; }
 }
-.wreader-empty-detail { height: calc(100% - 58px); margin-top: 58px; padding: 0 30px; color: #8a96a2; }
-.wreader-empty-detail > .wreader-empty-detail-icon { width: 35px; height: 35px; border: 0; border-radius: 0; background: none; color: #a6b0ba; }
-.wreader-empty-detail h2 { margin: 13px 0 7px; color: #5a6774; font-size: 18px; font-weight: 700; letter-spacing: -.02em; line-height: 1.18; }
-.wreader-empty-detail p { margin: 0 0 20px; color: #8a96a2; font-size: 12px; }
-.wreader-empty-shortcuts { color: #a1aab3; font-size: 11px; }
-.wreader-playlist-empty-detail { justify-content: center; min-height: 220px; height: 220px; margin-top: 67px; gap: 10px; padding: 24px 40px; color: #647286; }
-.wreader-playlist-empty-detail .wreader-playlist-detail-empty-icon { width: 30px; height: 30px; color: #91a0b1; }
-.wreader-playlist-empty-detail h2 { margin: 0; color: #4f6072; font-size: 15px; letter-spacing: normal; }
-.wreader-playlist-empty-detail p { margin: 0; color: #738196; font-size: 13px; }
+.wreader-empty-detail { display: grid; width: 100%; height: 100%; place-items: center; padding: 24px; }
 
 /* v20: the subscription heading owns refresh; adding belongs to the tree end and opens upward. */
 .wreader-tree-add-row { position: relative; margin-top: 8px; }

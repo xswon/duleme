@@ -768,51 +768,6 @@ body,
   height: 28px;
 }
 
-.wreader-empty-detail-icon {
-  position: relative;
-  width: 35px;
-  height: 35px;
-  margin-bottom: 13px;
-  border: 2px solid #a6b0ba;
-  border-radius: 50%;
-}
-
-.wreader-empty-detail-icon::before,
-.wreader-empty-detail-icon::after {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 18px;
-  height: 2px;
-  border-radius: 999px;
-  background: #a6b0ba;
-  content: "";
-  transform: translate(-50%, -50%);
-}
-
-.wreader-empty-detail-icon::after {
-  transform: translate(-50%, -50%) rotate(90deg);
-}
-
-.wreader-empty-detail h2 {
-  margin: 0 0 7px;
-  color: #5a6774;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -.02em;
-}
-
-.wreader-empty-detail p {
-  margin: 0 0 20px;
-  color: #8a96a2;
-  font-size: 12px;
-}
-
-.wreader-empty-shortcuts {
-  color: #a1aab3;
-  font-size: 11px;
-}
-
 .wreader-empty-shortcuts kbd {
   margin: 0 2px;
   padding: 2px 5px;
@@ -1193,13 +1148,6 @@ body,
 
 .wreader-playlist-loading svg {
   animation: spin .8s linear infinite;
-}
-
-.wreader-playlist-detail-empty-icon {
-  width: 30px;
-  height: 30px;
-  margin-bottom: 10px;
-  color: #91a0b1;
 }
 
 .wreader-notes-view {
