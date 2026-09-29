@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Podcast } from "lucide-react";
-import type { Article, ArticleNote, Feed } from "./types";
+import type { Article, ArticleNote, DetailTab, Feed } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { ArticleList } from "./components/ArticleList";
@@ -28,6 +28,7 @@ import { useFeedManagement } from "./hooks/useFeedManagement";
 import { useArticleNotes } from "./hooks/useArticleNotes";
 import { useArticleMutations } from "./hooks/useArticleMutations";
 import { useLatestRef } from "./hooks/useLatestRef";
+import { useArticleGenerationTasks, type ArticleGenerationTask } from "./hooks/useArticleGenerationTasks";
 import { FEATURED_CURATED_FEEDS } from "./data/defaultFeeds";
 
 type SettingsTab = "feeds" | "folders" | "transcript" | "insight" | "data" | "shortcuts";
@@ -84,6 +85,30 @@ export default function App() {
   const visibleArticlesRef = useLatestRef(visibleArticles);
   const visibleIndexByIdRef = useLatestRef(visibleIndexById);
   const mutations = useArticleMutations({ articlesRef, setArticles, visibleArticlesRef, showToast, showToastWithAction });
+  const selectedArticleIdRef = useLatestRef(selectedArticleId);
+  const activeDetailTabRef = useLatestRef(activeDetailTab);
+  const openGenerationResult = useCallback((articleId: string, tab: DetailTab) => {
+    navigateToRoute({ articleId, detailTab: tab });
+  }, [navigateToRoute]);
+  const generation = useArticleGenerationTasks({
+    articles,
+    articlesRef,
+    patchArticle: mutations.patchArticle,
+    isResultVisible: useCallback((articleId: string, tab: DetailTab) => (
+      document.visibilityState === "visible"
+        && selectedArticleIdRef.current === articleId
+        && activeDetailTabRef.current === tab
+    ), [activeDetailTabRef, selectedArticleIdRef]),
+    onCompleted: useCallback((message: string, articleId: string, tab: DetailTab) => {
+      showToastWithAction(message, { label: "查看", run: () => openGenerationResult(articleId, tab) });
+    }, [openGenerationResult, showToastWithAction]),
+  });
+  const generationFeedbackTask = useMemo(() => {
+    const task = generation.feedbackTask;
+    if (!task || document.visibilityState !== "visible" || selectedArticleId !== task.articleId) return task;
+    const visibleTab = task.kind === "pipeline" || task.stage === "summarizing" ? "overview" : "transcript";
+    return activeDetailTab === visibleTab ? null : task;
+  }, [activeDetailTab, generation.feedbackTask, selectedArticleId]);
 
   const [invalidArticleId, setInvalidArticleId] = useState<string | null>(null);
   const [isImmersive, setIsImmersive] = useState(false);
@@ -337,7 +362,7 @@ export default function App() {
     onReadingProgressChange={updateReadingProgress} initialOpenTarget={detailOpenIntent} initialDetailTab={activeDetailTab}
     onDetailTabChange={(tab) => navigateToRoute({ detailTab: tab })} isImmersive={isImmersive}
     onToggleImmersive={() => setIsImmersive((immersive) => !immersive)} onOpenAiSettings={() => openSettings("insight")}
-    onOpenTranscriptionSettings={() => openSettings("transcript")} />
+    onOpenTranscriptionSettings={() => openSettings("transcript")} generation={generation} />
     : invalidArticleId ? <div className="flex h-full items-center justify-center px-6 text-center"><div className="max-w-sm"><h2 className="text-base font-semibold text-slate-700">这篇文章暂时不可用</h2><p className="mt-2 text-sm leading-6 text-slate-500">文章可能已被删除或所属订阅源已取消。</p><button type="button" onClick={closeArticle} className="mt-4 wreader-btn wreader-btn-primary">返回列表</button></div></div>
       : activeTab === "playlist" ? <div className="wreader-empty-detail wreader-playlist-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><Podcast className="wreader-playlist-detail-empty-icon" aria-hidden="true" /><h2>选择一个节目查看详情</h2><p>从中栏播放列表选择标题或封面，详情会显示在这里。</p></div>
         : <div className="wreader-empty-detail flex h-full flex-col items-center justify-center px-8 text-center text-slate-400"><svg className="wreader-empty-detail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22.5z" /><path d="M4 4.5v18M8 7h8M8 11h7" /></svg><h2>选择一篇文章开始阅读</h2><p>从左侧时间线选择文章，正文、概要和音频会显示在这里。</p><div className="wreader-empty-shortcuts">快捷键 <kbd>J</kbd> <kbd>K</kbd> 切换文章 · <kbd>⌘K</kbd> 搜索</div></div>;
@@ -403,6 +428,9 @@ export default function App() {
     <ReaderFeedbackLayer toast={toast} refreshFeedback={refreshFeedback.refreshFeedback} refreshState={refreshState}
       failureDetailsOpen={refreshFeedback.isRefreshFailureDetailsOpen} onFailureDetailsOpenChange={refreshFeedback.setIsRefreshFailureDetailsOpen}
       onDismissRefresh={() => { refreshFeedback.setRefreshFeedback(null); refreshFeedback.setIsRefreshFailureDetailsOpen(false); }}
-      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id)); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }} />
+      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id)); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
+      generationTask={generationFeedbackTask} generationCount={generation.processingCount}
+      onViewGeneration={(task: ArticleGenerationTask) => openGenerationResult(task.articleId, task.kind === "pipeline" || task.stage === "summarizing" ? "overview" : "transcript")}
+      onDismissGeneration={generation.dismissTask} />
   </div>;
 }

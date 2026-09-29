@@ -122,6 +122,7 @@
 #article-reader .reader-tab-icon { width: 16px; height: 16px; color: currentColor; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 #article-reader .reader-tab.is-active { color: #3175c6; font-weight: 600; }
 #article-reader .reader-tab.is-active::after { position: absolute; right: 8px; bottom: 0; left: 8px; height: 2px; border-radius: 999px; background: #3175c6; content: ""; }
+#article-reader .reader-tab-unread { width: 6px; height: 6px; margin-left: -3px; align-self: flex-start; margin-top: 8px; border-radius: 50%; background: #3175c6; }
 #article-reader .reader-tab em { min-width: 20px; margin-left: 3px; padding: 1px 5px; border-radius: 8px; background: #eef2f6; color: #637286; font-size: 11px; font-style: normal; text-align: center; }
 
 #article-reader .reader-feature-empty { display: flex; min-height: 300px; align-items: center; justify-content: center; flex-direction: column; padding: 34px 16px 44px; text-align: center; }

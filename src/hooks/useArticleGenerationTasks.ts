@@ -34,6 +34,7 @@ interface StartSummaryOptions {
 }
 
 interface UseArticleGenerationTasksOptions {
+  articles: Article[];
   articlesRef: MutableRefObject<Article[]>;
   patchArticle: (articleId: string, patch: Partial<Article>) => void;
   isResultVisible: (articleId: string, tab: DetailTab) => boolean;
@@ -61,6 +62,7 @@ function formatTranscript(segments?: TranscriptSegment[]): string {
 }
 
 export function useArticleGenerationTasks({
+  articles,
   articlesRef,
   patchArticle,
   isResultVisible,
@@ -310,6 +312,28 @@ export function useArticleGenerationTasks({
       return { started: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : "逐字稿生成失败，请重试。";
+      const failedAt = new Date().toISOString();
+      if (options.preferLocal) {
+        callbacksRef.current.patchArticle(article.id, {
+          localPodcast: {
+            sourceAudioUrl: article.audioUrl,
+            transcriptionStatus: "failed",
+            insightStatus: "not_started",
+            updatedAt: failedAt,
+            error: message,
+          },
+        });
+      } else {
+        callbacksRef.current.patchArticle(article.id, {
+          transcription: {
+            provider: "aliyun",
+            sourceAudioUrl: article.audioUrl,
+            status: "failed",
+            updatedAt: failedAt,
+            error: message,
+          },
+        });
+      }
       failTask(article.id, message);
       return { started: false, error: message };
     }
@@ -340,7 +364,7 @@ export function useArticleGenerationTasks({
 
   useEffect(() => {
     const restore: Record<string, ArticleGenerationTask> = {};
-    articlesRef.current.forEach((article) => {
+    articles.forEach((article) => {
       if (tasksRef.current[article.id]) return;
       if (article.localPodcast?.transcriptionStatus === "processing" || article.transcription?.status === "processing") {
         restore[article.id] = {
@@ -354,7 +378,7 @@ export function useArticleGenerationTasks({
       }
     });
     if (Object.keys(restore).length > 0) setTasks((current) => ({ ...restore, ...current }));
-  });
+  }, [articles]);
 
   useEffect(() => {
     const poll = () => {
