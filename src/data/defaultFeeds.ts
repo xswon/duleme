@@ -508,7 +508,10 @@ export function resolveKnownEnrichmentSource(feedUrl: string): Pick<Feed, "bidcl
   return normalized ? knownEnrichmentSources.get(normalized) || {} : {};
 }
 
-export const FEATURED_CURATED_FEEDS = CURATED_FEEDS.filter((feed) => feed.featured);
+export const FEATURED_CURATED_FEEDS = CURATED_FEEDS.filter((feed) => feed.featured).map((feed) => ({
+  ...feed,
+  contentType: feed.id === "feed-aihot" ? "article" as const : "podcast" as const,
+}));
 
 // BidClub Coverage subscriptions with original RSS sources. Shows without
 // original RSS are excluded because BidClub feeds do not carry audio enclosures.

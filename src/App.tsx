@@ -193,7 +193,7 @@ export default function App() {
     queueRefresh, invalidateRefresh, showToast,
   });
 
-  const startWithFeaturedFeeds = useCallback((feedIds: string[]) => {
+  const startWithFeaturedFeeds = useCallback((feedIds: string[], artworkById: Record<string, string>) => {
     const selectedIds = new Set(feedIds);
     const selectedFeeds: Feed[] = FEATURED_CURATED_FEEDS
       .filter((feed) => selectedIds.has(feed.id))
@@ -202,7 +202,7 @@ export default function App() {
         title: feed.title,
         feedUrl: feed.feedUrl,
         siteUrl: feed.siteUrl || feed.feedUrl,
-        favicon: feed.favicon || undefined,
+        favicon: artworkById[feed.id] || (feed.contentType === "article" ? feed.favicon : undefined),
         category: feed.category,
         description: feed.description,
         unreadCount: 0,

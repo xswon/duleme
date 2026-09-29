@@ -15,6 +15,7 @@ const feeds: CuratedFeedOption[] = [
     description: "A",
     favicon: "https://a.example/favicon.ico",
     featured: true,
+    contentType: "podcast",
   },
   {
     id: "feed-b",
@@ -24,10 +25,12 @@ const feeds: CuratedFeedOption[] = [
     description: "B",
     favicon: "https://b.example/favicon.ico",
     featured: true,
+    contentType: "article",
   },
 ];
 
 async function renderWelcome(overrides: Partial<React.ComponentProps<typeof WelcomeScreen>> = {}) {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -50,6 +53,7 @@ function click(container: HTMLElement, text: string) {
 
 afterEach(() => {
   document.body.innerHTML = "";
+  vi.unstubAllGlobals();
 });
 
 describe("WelcomeScreen", () => {
@@ -63,7 +67,46 @@ describe("WelcomeScreen", () => {
     expect(container.textContent).toContain("已选择 1 个订阅");
 
     await act(async () => click(container, "开始使用"));
-    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-b"]);
+    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-b"], {});
+
+    await act(async () => root.unmount());
+  });
+
+  it("keeps the welcome actions separated and shows selectable two-column feed cards", async () => {
+    const { container, root } = await renderWelcome();
+    const actions = container.querySelector(".mt-8") as HTMLElement;
+    expect(actions.className).toContain("gap-3");
+
+    await act(async () => click(container, "使用精选订阅开始"));
+    const cards = Array.from(container.querySelectorAll('button[aria-pressed]'));
+    expect(cards).toHaveLength(2);
+    expect(cards.every((card) => card.getAttribute("aria-pressed") === "true")).toBe(true);
+    expect(cards[0].textContent).toContain("播客");
+    expect(cards[1].textContent).toContain("文章");
+    expect(cards[0].parentElement?.className).toContain("sm:grid-cols-2");
+    expect(cards[0].querySelector("img")).toBeNull();
+
+    await act(async () => root.unmount());
+  });
+
+  it("uses original RSS artwork for selected podcast feeds", async () => {
+    const { container, root, props } = await renderWelcome();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ feedImage: "https://a.example/show-cover.jpg" }),
+    }));
+
+    await act(async () => {
+      click(container, "使用精选订阅开始");
+      await Promise.resolve();
+    });
+
+    const podcastCard = container.querySelector('button[aria-pressed]') as HTMLButtonElement;
+    expect(podcastCard.querySelector("img")?.src).toBe("https://a.example/show-cover.jpg");
+    await act(async () => click(container, "开始使用"));
+    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-a", "feed-b"], {
+      "feed-a": "https://a.example/show-cover.jpg",
+    });
 
     await act(async () => root.unmount());
   });

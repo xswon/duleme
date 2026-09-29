@@ -247,6 +247,7 @@ export interface CuratedFeedOption {
   description: string;
   favicon: string;
   featured?: boolean;
+  contentType?: ContentType;
   bidclubFeedUrl?: string;
   bidclubShowSlug?: string;
 }

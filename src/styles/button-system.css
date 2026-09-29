@@ -44,7 +44,6 @@
 /* Native reset + interaction contract shared by every button in the product. */
 button {
   appearance: none;
-  margin: 0;
   border: 0;
   padding: 0;
   background: transparent;

@@ -1,16 +1,25 @@
-import React, { useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, Check, Upload } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, BookOpen, Check, Podcast, Upload } from "lucide-react";
 import type { CuratedFeedOption } from "../types";
 
 interface WelcomeScreenProps {
   featuredFeeds: CuratedFeedOption[];
-  onUseFeatured: (feedIds: string[]) => void;
+  onUseFeatured: (feedIds: string[], artworkById: Record<string, string>) => void;
   onImportOpml: (file: File) => Promise<boolean>;
   onStartEmpty: () => void;
 }
 
 function categoryLabel(category: string): string {
   return category.replace(/\s*\|\s*/g, " · ");
+}
+
+function FeedArtwork({ src, isPodcast }: { src?: string; isPodcast: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    const Icon = isPodcast ? Podcast : BookOpen;
+    return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Icon className="h-5 w-5" /></span>;
+  }
+  return <img src={src} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" onError={() => setFailed(true)} />;
 }
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
@@ -22,7 +31,25 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const [view, setView] = useState<"welcome" | "featured">("welcome");
   const [selectedIds, setSelectedIds] = useState(() => new Set(featuredFeeds.map((feed) => feed.id)));
   const [isImporting, setIsImporting] = useState(false);
+  const [artworkById, setArtworkById] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (view !== "featured") return;
+    let active = true;
+    featuredFeeds.filter((feed) => feed.contentType === "podcast").forEach((feed) => {
+      void fetch(`/api/rss/parse?url=${encodeURIComponent(feed.feedUrl)}`)
+        .then((response) => response.ok ? response.json() : null)
+        .then((data: { feedImage?: string } | null) => {
+          const image = data?.feedImage;
+          if (active && image && !image.includes("google.com/s2/favicons")) {
+            setArtworkById((current) => ({ ...current, [feed.id]: image }));
+          }
+        })
+        .catch(() => { /* Keep the podcast placeholder when artwork is unavailable. */ });
+    });
+    return () => { active = false; };
+  }, [view, featuredFeeds]);
 
   const toggleFeed = (feedId: string) => {
     setSelectedIds((current) => {
@@ -47,7 +74,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   if (view === "featured") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-8 text-slate-900">
-        <section className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+        <section className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
           <button
             type="button"
             onClick={() => setView("welcome")}
@@ -63,7 +90,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </p>
           </div>
 
-          <div className="max-h-[54vh] space-y-2 overflow-y-auto pr-1">
+          <div className="grid max-h-[54vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
             {featuredFeeds.map((feed) => {
               const selected = selectedIds.has(feed.id);
               return (
@@ -72,22 +99,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   type="button"
                   onClick={() => toggleFeed(feed.id)}
                   aria-pressed={selected}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 px-3.5 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
+                  className={`flex w-full min-w-0 items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition hover:border-blue-300 hover:bg-blue-50/50 ${selected ? "border-blue-200 bg-blue-50/30" : "border-slate-200 bg-white"}`}
                 >
                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                     selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-transparent"
                   }`}>
                     <Check className="h-3.5 w-3.5" />
                   </span>
-                  <img
-                    src={feed.favicon}
-                    alt=""
-                    className="h-7 w-7 shrink-0 rounded-md object-contain"
-                    onError={(event) => { (event.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+                  <FeedArtwork
+                    key={artworkById[feed.id] || feed.favicon}
+                    src={feed.contentType === "article" ? feed.favicon : artworkById[feed.id]}
+                    isPodcast={feed.contentType === "podcast"}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{feed.title}</span>
                     <span className="block truncate text-xs text-slate-500">{categoryLabel(feed.category)}</span>
+                  </span>
+                  <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-1 text-[10px] font-semibold text-slate-600">
+                    {feed.contentType === "podcast" ? "播客" : "文章"}
                   </span>
                 </button>
               );
@@ -99,7 +128,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <button
               type="button"
               disabled={selectedIds.size === 0}
-              onClick={() => onUseFeatured(featuredFeeds.filter((feed) => selectedIds.has(feed.id)).map((feed) => feed.id))}
+              onClick={() => onUseFeatured(featuredFeeds.filter((feed) => selectedIds.has(feed.id)).map((feed) => feed.id), artworkById)}
               className="wreader-btn wreader-btn-lg wreader-btn-primary"
             >
               开始使用
@@ -122,7 +151,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           把你真正想看的内容，放在一个安静的地方。
         </p>
 
-        <div className="mt-8 space-y-3">
+        <div className="mt-8 flex flex-col gap-3">
           <button
             type="button"
             onClick={() => setView("featured")}

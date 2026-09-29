@@ -47,6 +47,7 @@ describe("curated feed catalog", () => {
     );
     FEATURED_CURATED_FEEDS.forEach((feed) => {
       expect(CURATED_FEEDS.some((candidate) => candidate.id === feed.id)).toBe(true);
+      expect(feed.contentType).toBe(feed.id === "feed-aihot" ? "article" : "podcast");
     });
   });
 });
