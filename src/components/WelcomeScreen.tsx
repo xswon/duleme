@@ -90,7 +90,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </p>
           </div>
 
-          <div className="grid max-h-[54vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
+          <div className="grid max-h-[54vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-x-6">
             {featuredFeeds.map((feed) => {
               const selected = selectedIds.has(feed.id);
               return (
@@ -99,7 +99,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   type="button"
                   onClick={() => toggleFeed(feed.id)}
                   aria-pressed={selected}
-                  className={`flex w-full min-w-0 items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition hover:border-blue-300 hover:bg-blue-50/50 ${selected ? "border-blue-200 bg-blue-50/30" : "border-slate-200 bg-white"}`}
+                  className="wreader-featured-feed-card flex w-full min-w-0 items-center gap-3 rounded-xl text-left transition"
                 >
                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
                     selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-transparent"

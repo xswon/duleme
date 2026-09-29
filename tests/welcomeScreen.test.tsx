@@ -84,6 +84,8 @@ describe("WelcomeScreen", () => {
     expect(cards[0].textContent).toContain("播客");
     expect(cards[1].textContent).toContain("文章");
     expect(cards[0].parentElement?.className).toContain("sm:grid-cols-2");
+    expect(cards[0].parentElement?.className).toContain("sm:gap-x-6");
+    expect(cards[0].className).toContain("wreader-featured-feed-card");
     expect(cards[0].querySelector("img")).toBeNull();
 
     await act(async () => root.unmount());
