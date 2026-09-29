@@ -1138,7 +1138,7 @@ export async function summarizeArticleWithAI(
   onProgress?: (progress: number) => void,
 ): Promise<string> {
   const config = await getAiRequestConfig();
-  const response = await fetch(`/api/ai/summarize${onProgress ? "?stream=1" : ""}`, {
+  const response = await backendRequest(`/api/ai/summarize${onProgress ? "?stream=1" : ""}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title, content, snippet, source, ...(config ? { config } : {}) }),
