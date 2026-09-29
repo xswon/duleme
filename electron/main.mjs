@@ -4,7 +4,8 @@ import { startServer } from "../server.ts";
 
 let localServer;
 let localAppUrl;
-const smokeTest = process.argv.includes("--smoke-test");
+const smokeTest = process.env.DULEME_SMOKE_TEST === "1" || process.argv.includes("--smoke-test");
+const smokeResultFile = process.env.DULEME_SMOKE_RESULT_FILE || "";
 
 function isHttpUrl(value) {
   try {
@@ -51,12 +52,16 @@ async function runSmokeTest() {
   if (!csp.includes("script-src 'self'")) throw new Error("Production CSP missing from packaged app");
   if (!html.includes('id="root"')) throw new Error("Packaged frontend is missing the React root");
   console.log("Duleme desktop smoke test passed");
+  if (smokeResultFile) {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(smokeResultFile, "ok\n", "utf8");
+  }
   const server = localServer;
   localServer = undefined;
   localAppUrl = undefined;
   server.closeAllConnections?.();
   await new Promise((resolve) => server.close(resolve));
-  app.exit(0);
+  process.exit(0);
 }
 
 async function createMainWindow() {
@@ -117,7 +122,11 @@ app.whenReady().then(async () => {
   });
 }).catch((error) => {
   console.error("Unable to start Duleme desktop", error);
-  app.exit(1);
+  if (smokeResultFile) {
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(smokeResultFile, `error: ${error instanceof Error ? error.stack || error.message : String(error)}\n`, "utf8").catch(() => undefined);
+  }
+  process.exit(1);
 });
 
 app.on("before-quit", () => {
