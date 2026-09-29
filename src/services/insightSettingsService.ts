@@ -7,6 +7,7 @@ import {
   saveAiSecret,
   testAiConnection,
 } from "./aiSettingsService";
+import { backendRequest } from "./readerBackend";
 
 export type InsightProviderId = "openai" | "deepseek" | "qwen" | "kimi" | "ollama" | "custom";
 export type InsightSettingsSource = "browser" | "server" | "none";
@@ -104,7 +105,7 @@ export async function listInsightModels(
     };
   }
 
-  const response = await fetch("/api/ai/models", {
+  const response = await backendRequest("/api/ai/models", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(config ? { config } : {}),
