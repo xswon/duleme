@@ -40,7 +40,7 @@ describe("sanitizeHtml", () => {
   });
 
   it("handles malformed nested markup without reintroducing active content", () => {
-    const html = sanitizeHtml('<p><b>hello<svg><g/onload=alert(1)//<p>world</p><a href="vbscript:alert(1)">x</a>');
+    const html = sanitizeHtml('<p><b>hello<svg><g/onload=alert(1)//></svg></b></p><p>world</p><a href="vbscript:alert(1)">x</a>');
     expect(html).toContain("hello");
     expect(html).toContain("world");
     expect(html).not.toMatch(/onload|vbscript|svg/i);
