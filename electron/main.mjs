@@ -51,6 +51,8 @@ async function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
     },
   });
 
