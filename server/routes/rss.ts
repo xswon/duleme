@@ -2,6 +2,8 @@ import { Router } from "express";
 import { fetchSafeExternal, isSafeExternalUrl, MAX_PROXY_BYTES, readResponseBodyLimited } from "../services/proxyService";
 import { parseFeedXml } from "../services/rssParser";
 
+const RSS_FETCH_TIMEOUT_MS = 45_000;
+
 export function createRssRouter() {
   const router = Router();
   router.get("/parse", async (req, res) => {
@@ -9,7 +11,10 @@ export function createRssRouter() {
     if (!url) return res.status(400).json({ error: "Missing feed URL parameter" });
     if (!isSafeExternalUrl(url)) return res.status(400).json({ error: "Feed URL must be a public http/https URL" });
     try {
-      const response = await fetchSafeExternal(url, { headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" } });
+      const response = await fetchSafeExternal(url, {
+        headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" },
+        signal: AbortSignal.timeout(RSS_FETCH_TIMEOUT_MS),
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       const feed = parseFeedXml((await readResponseBodyLimited(response, MAX_PROXY_BYTES)).toString("utf8"), url);
       let favicon = "";

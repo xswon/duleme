@@ -12,6 +12,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       NEXTECHO_URL: ${NEXTECHO_URL:-http://host.docker.internal:8765}
       ALLOW_PROXY_SYNTHETIC_DNS: ${ALLOW_PROXY_SYNTHETIC_DNS:-false}
+      OUTBOUND_PROXY_URL: ${OUTBOUND_PROXY_URL:-}
     ports:
       - "127.0.0.1:4387:4387"
       - "127.0.0.1:4388:4388"

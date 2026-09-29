@@ -1,6 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
-import { Agent, fetch as undiciFetch, type Dispatcher } from "undici";
+import { Agent, ProxyAgent, fetch as undiciFetch, type Dispatcher } from "undici";
 
 export const DEFAULT_OUTBOUND_MAX_BYTES = 15 * 1024 * 1024;
 export const DEFAULT_OUTBOUND_TIMEOUT_MS = 15_000;
@@ -13,6 +13,7 @@ type AddressPolicy =
 type LookupRecord = { address: string; family: number };
 
 const agents = new Map<string, Agent>();
+const proxyAgents = new Map<string, ProxyAgent>();
 
 /** A narrow seam for unit tests; production always uses Undici with our Agent. */
 export const outboundTransport = { fetch: undiciFetch };
@@ -243,6 +244,31 @@ function agentFor(policy: AddressPolicy, maxBytes: number): Agent {
   return agent;
 }
 
+function configuredOutboundProxy(): string | null {
+  const raw = process.env.OUTBOUND_PROXY_URL?.trim();
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Invalid OUTBOUND_PROXY_URL");
+  }
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("OUTBOUND_PROXY_URL must be an http/https proxy origin");
+  }
+  return url.toString();
+}
+
+function proxyAgentFor(proxyUrl: string, maxBytes: number): ProxyAgent {
+  const key = `${proxyUrl}:${maxBytes}`;
+  let agent = proxyAgents.get(key);
+  if (!agent) {
+    agent = new ProxyAgent({ uri: proxyUrl, maxResponseSize: maxBytes });
+    proxyAgents.set(key, agent);
+  }
+  return agent;
+}
+
 function redirectedInit(init: RequestInit, from: URL, to: URL, status: number): RequestInit {
   const headers = new Headers(init.headers);
   if (from.origin !== to.origin) {
@@ -269,12 +295,16 @@ async function fetchWithPolicy(
   maxBytes: number,
 ): Promise<Response> {
   const url = validateUrl(rawUrl, policy);
+  const proxyUrl = policy.kind === "public" ? configuredOutboundProxy() : null;
+  // A proxy resolves the destination itself, so retain the local public-address
+  // preflight before handing the validated URL to the trusted configured proxy.
+  if (proxyUrl) await resolveAllowedAddresses(url.hostname, policy);
   const signal = init.signal || AbortSignal.timeout(DEFAULT_OUTBOUND_TIMEOUT_MS);
   const requestInit = {
     ...init,
     signal,
     redirect: "manual" as const,
-    dispatcher: agentFor(policy, maxBytes) as Dispatcher,
+    dispatcher: (proxyUrl ? proxyAgentFor(proxyUrl, maxBytes) : agentFor(policy, maxBytes)) as Dispatcher,
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Undici and DOM RequestInit types differ at this transport boundary.
   const response = await outboundTransport.fetch(url.toString(), requestInit as any) as unknown as Response;

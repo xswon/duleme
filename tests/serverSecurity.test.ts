@@ -17,6 +17,7 @@ import {
 } from "../server/services/proxyService";
 
 const originalSyntheticDnsSetting = process.env.ALLOW_PROXY_SYNTHETIC_DNS;
+const originalOutboundProxy = process.env.OUTBOUND_PROXY_URL;
 
 function errorCauseCodes(error: unknown): Array<string | undefined> {
   const codes: Array<string | undefined> = [];
@@ -31,6 +32,8 @@ afterEach(() => {
   lookupMock.mockReset();
   if (originalSyntheticDnsSetting === undefined) delete process.env.ALLOW_PROXY_SYNTHETIC_DNS;
   else process.env.ALLOW_PROXY_SYNTHETIC_DNS = originalSyntheticDnsSetting;
+  if (originalOutboundProxy === undefined) delete process.env.OUTBOUND_PROXY_URL;
+  else process.env.OUTBOUND_PROXY_URL = originalOutboundProxy;
 });
 
 describe("server local-only boundary", () => {
@@ -60,6 +63,23 @@ describe("server local-only boundary", () => {
 });
 
 describe("outbound proxy safety", () => {
+  it("uses an explicitly configured proxy after validating the destination address", async () => {
+    process.env.OUTBOUND_PROXY_URL = "http://127.0.0.1:7897";
+    lookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const fetchMock = vi.spyOn(outboundTransport, "fetch").mockResolvedValue(new Response("ok") as never);
+
+    await fetchSafeExternal("https://example.com/feed.xml");
+
+    expect(lookupMock).toHaveBeenCalledWith("example.com", { all: true, verbatim: true });
+    expect(fetchMock.mock.calls[0]![1]!.dispatcher?.constructor.name).toBe("ProxyAgent");
+  });
+
+  it("rejects an invalid explicit outbound proxy URL", async () => {
+    process.env.OUTBOUND_PROXY_URL = "socks5://127.0.0.1:7897";
+    await expect(fetchSafeExternal("https://example.com/feed.xml"))
+      .rejects.toThrow("OUTBOUND_PROXY_URL must be an http/https proxy origin");
+  });
+
   it("allows only public http/https URL targets", () => {
     expect(isSafeExternalUrl("https://example.com/feed.xml")).toBe(true);
     expect(isSafeExternalUrl("file:///etc/passwd")).toBe(false);
