@@ -103,6 +103,13 @@ describe("server local-only boundary", () => {
     expect(response.status).toHaveBeenCalledWith(403);
     expect(crossSite).not.toHaveBeenCalled();
 
+    const sameSiteOnly = vi.fn();
+    requireAppAccess(request({
+      host: "reader.example",
+      "sec-fetch-site": "same-site",
+    }) as never, response as never, sameSiteOnly);
+    expect(sameSiteOnly).not.toHaveBeenCalled();
+
     const headerless = vi.fn();
     requireAppAccess(request({ host: "reader.example" }) as never, response as never, headerless);
     expect(headerless).not.toHaveBeenCalled();
