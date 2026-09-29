@@ -16,9 +16,10 @@ With this switch:
 - normal `/api` routes accept same-origin browser requests instead of requiring a loopback socket;
 - cross-site browser requests and headerless non-browser API calls are rejected;
 - `/api/local-podcast` remains protected by its own loopback-only middleware, so NextEcho stays a local-only feature;
-- environment-level AI defaults are ignored unless `ALLOW_SHARED_AI_DEFAULTS=true`.
+- environment-level AI defaults are ignored unless `ALLOW_SHARED_AI_DEFAULTS=true`;
+- the large audio proxy is disabled unless `ALLOW_PUBLIC_AUDIO_PROXY=true`.
 
-The last point is intentional. A public Site should use visitor-provided AI credentials (the existing BYOK flow) unless the site owner explicitly decides to sponsor AI usage.
+These defaults are intentional. A public Site should use visitor-provided AI credentials (the existing BYOK flow) unless the site owner explicitly decides to sponsor AI usage. The audio proxy can stream very large podcast files, so the first public version keeps it off; the existing player can fall back to linking the original audio source.
 
 ## Recommended first public version
 
@@ -41,6 +42,7 @@ For a public deployment:
 ```env
 PUBLIC_DEPLOYMENT=true
 ALLOW_SHARED_AI_DEFAULTS=false
+ALLOW_PUBLIC_AUDIO_PROXY=false
 ```
 
 Do not set `AI_API_KEY` for a public deployment unless you intentionally want every visitor to consume the site's shared AI quota and you have added appropriate authentication, quotas, and abuse controls.
@@ -58,7 +60,7 @@ That means visitors to a shared Site get independent browser-local data. Cross-d
 
 The existing outbound network layer continues to reject private, loopback, link-local, and unsafe redirect targets before RSS/media/AI proxy requests are made.
 
-The public-origin middleware is an application boundary, not user authentication. Before broad public distribution, add platform-level abuse controls for high-bandwidth endpoints (especially audio proxying) and any site-owner-funded APIs.
+The public-origin middleware is an application boundary, not user authentication. The high-bandwidth audio proxy is therefore disabled by default in public mode. If it is explicitly enabled, the default public cap is 128 MiB per proxied response and can be lowered with `PUBLIC_AUDIO_PROXY_MAX_BYTES` (or raised up to the local 512 MiB ceiling). Before broad public distribution, add platform-level abuse controls for any expensive anonymous endpoints and any site-owner-funded APIs.
 
 ## Sites import
 
