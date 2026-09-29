@@ -24,8 +24,8 @@ token. No cross-repository personal access token is required. Only the publish j
 3. Run the Desktop Release workflow manually once to verify the unsigned macOS build.
 4. Test the generated arm64/x64 DMG artifact on a clean Mac.
 5. Create and push a version tag, for example `v0.1.0-beta.2`.
-6. The Desktop Release workflow builds both unsigned DMGs and publishes them to
-   `xswon/duleme-releases`.
+6. The Desktop Release workflow builds both unsigned DMGs and publishes them to the
+   same public `xswon/duleme` repository.
 
 ## Unsigned macOS behavior
 
