@@ -73,7 +73,7 @@ function hasTrustedPublicOrigin(req: Request): boolean {
 
   // Same-origin browser fetches can omit Origin for GET requests. Sec-Fetch-Site
   // provides a browser-enforced fallback while rejecting headerless non-browser clients.
-  return fetchSite === "same-origin" || fetchSite === "same-site";
+  return fetchSite === "same-origin";
 }
 
 export function isPublicDeployment(env: NodeJS.ProcessEnv = process.env): boolean {
