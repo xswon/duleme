@@ -5,9 +5,13 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["coverage", "dist", "docs", "node_modules"],
+    ignores: ["coverage", "dist", "dist-electron", "release", "docs", "node_modules"],
   },
   js.configs.recommended,
+  {
+    files: ["electron/**/*.mjs"],
+    languageOptions: { globals: { ...globals.node } },
+  },
   ...tseslint.configs.recommended.map((config) => ({
     ...config,
     files: ["**/*.{ts,tsx}"],

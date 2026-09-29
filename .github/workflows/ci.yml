@@ -32,6 +32,8 @@ jobs:
         run: npm run test:coverage
       - name: Build
         run: npm run build
+      - name: Build desktop main process
+        run: npm run build:desktop-main
       - name: Bundle budget
         run: npm run check:bundle
       - name: Architecture boundaries
