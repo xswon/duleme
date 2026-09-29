@@ -45,14 +45,17 @@ async function runSmokeTest() {
   ]);
   if (!health.ok) throw new Error(`Health check failed: ${health.status}`);
   if (!index.ok) throw new Error(`Frontend check failed: ${index.status}`);
+  await health.text();
   const csp = index.headers.get("content-security-policy") || "";
   const html = await index.text();
   if (!csp.includes("script-src 'self'")) throw new Error("Production CSP missing from packaged app");
   if (!html.includes('id="root"')) throw new Error("Packaged frontend is missing the React root");
   console.log("Duleme desktop smoke test passed");
-  await new Promise((resolve) => localServer.close(resolve));
+  const server = localServer;
   localServer = undefined;
   localAppUrl = undefined;
+  server.closeAllConnections?.();
+  await new Promise((resolve) => server.close(resolve));
   app.exit(0);
 }
 
