@@ -5,6 +5,7 @@ vi.mock("node:dns/promises", () => ({
   default: { lookup: lookupMock },
   lookup: lookupMock,
 }));
+import { createApp, PRODUCTION_CSP } from "../server";
 import { requireLocalAccess, resolveListenHost } from "../server/middleware/localAccess";
 import { createChatCompletion } from "../server/services/aiService";
 import { outboundTransport } from "../server/services/outboundNetwork";
@@ -59,6 +60,27 @@ describe("server local-only boundary", () => {
 
     requireLocalAccess(request("::1", { origin: "http://127.0.0.1:4387" }) as never, response as never, next);
     expect(next).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("production response hardening", () => {
+  it("serves a strict CSP and baseline browser security headers", async () => {
+    const app = createApp({ production: true });
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Unable to resolve test server port");
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/health`);
+      expect(response.headers.get("content-security-policy")).toBe(PRODUCTION_CSP);
+      expect(PRODUCTION_CSP).toContain("script-src 'self'");
+      expect(PRODUCTION_CSP).toContain("object-src 'none'");
+      expect(PRODUCTION_CSP).toContain("frame-ancestors 'none'");
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
   });
 });
 
