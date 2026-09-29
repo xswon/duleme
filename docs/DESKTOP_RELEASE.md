@@ -7,34 +7,15 @@
 - Desktop runtime: Electron 44.4.3
 - Primary target: macOS DMG (arm64 + x64)
 - Data: local IndexedDB
-- Source repository: private `xswon/duleme`
-- Binary distribution repository: public `xswon/duleme-releases`
+- Source repository: public `xswon/duleme`
+- Binary distribution: GitHub Releases in `xswon/duleme`
 - Apple signing/notarization: deferred
 
-## One required GitHub Actions secret
+## Release permissions
 
-Create a fine-grained GitHub personal access token that can write releases to the public
-`xswon/duleme-releases` repository, then save it in the private source repository as:
-
-- `RELEASE_REPO_TOKEN`
-
-The token should be scoped only to `xswon/duleme-releases` and needs repository
-`Contents: Read and write` permission. Do not grant access to the private source repository
-unless it is otherwise required.
-
-## Public release repository
-
-Create `xswon/duleme-releases` as a **public** repository and initialize it with a README.
-It is intentionally separate from the private source repository.
-
-Its purpose is to expose:
-
-- macOS DMGs;
-- SHA-256 checksums;
-- release notes;
-- a minimal GitHub Pages download entry.
-
-Source code remains in the private `xswon/duleme` repository.
+The public repository publishes tagged Desktop releases with the workflow-scoped GitHub
+token. No cross-repository personal access token is required. Only the publish job receives
+`contents: write`; build and CI jobs remain read-only.
 
 ## Release flow
 
@@ -74,20 +55,11 @@ The existing storage test suite is the V1 compatibility gate. It covers:
 
 Do not bump the backup format for Desktop V1 unless the stored schema actually changes.
 
-## GitHub Pages
+## Release downloads
 
-GitHub Pages should be hosted from the public `xswon/duleme-releases` repository rather
-than the private source repository. This keeps the source private and also allows Pages to
-work on GitHub Free.
-
-The Pages site should remain intentionally minimal:
-
-- product name and one-sentence description;
-- latest macOS public-beta download link;
-- unsigned-build first-launch instructions;
-- version/platform note.
-
-No separate website framework or marketing site is required for V1.
+Tagged releases are published directly from the public source repository. This keeps source,
+CI, issues, and versioned binaries in one place and removes the need for a cross-repository
+release token.
 
 
 ## Clean-machine beta acceptance

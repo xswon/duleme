@@ -349,7 +349,7 @@ const CURRENT_CURATED_FEED_ADDITIONS: CuratedFeedOption[] = [
   {
     id: "feed-aihot",
     title: "AIHOT — 精选",
-    feedUrl: "https://aihot.virxact.com/feed.xml?aihot_actor=42463a82-20ed-4073-8681-05680b2172b1",
+    feedUrl: "https://aihot.virxact.com/feed.xml",
     siteUrl: "https://aihot.virxact.com/",
     category: "新闻｜公众号",
     description: "",

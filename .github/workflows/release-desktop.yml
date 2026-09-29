@@ -2,8 +2,6 @@ name: Desktop Release
 
 on:
   push:
-    branches:
-      - desktop-v1
     tags:
       - "v*"
   workflow_dispatch:
@@ -12,37 +10,32 @@ permissions:
   contents: read
 
 jobs:
-  mac:
+  build-mac:
     runs-on: macos-latest
     timeout-minutes: 45
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+        with:
+          persist-credentials: false
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Verify
         run: npm run verify
-
       - name: Build unsigned DMGs
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-        run: npx --yes electron-builder@26.16.1 --config electron-builder.yml --mac --publish never
-
+        run: npm run desktop:dist
       - name: Create checksums
         shell: bash
         run: |
           cd release
           shasum -a 256 *.dmg > SHA256SUMS.txt
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -52,27 +45,19 @@ jobs:
             release/SHA256SUMS.txt
           if-no-files-found: error
 
-      - name: Resolve release tag
-        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
-        shell: bash
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "RELEASE_TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
-            echo "RELEASE_PRERELEASE=false" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_TAG=v0.1.0-beta.1" >> "$GITHUB_ENV"
-            echo "RELEASE_PRERELEASE=true" >> "$GITHUB_ENV"
-          fi
-
-      - name: Check public release token
-        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
-        shell: bash
-        env:
-          RELEASE_REPO_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
-        run: test -n "$RELEASE_REPO_TOKEN"
-
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-mac
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: duleme-macos-${{ github.ref_name }}
+          path: release
       - name: Prepare release notes
-        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
         shell: bash
         run: |
           cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
@@ -89,23 +74,15 @@ jobs:
           - Intel Mac：下载 `x64` DMG
           - 可使用 `SHA256SUMS.txt` 校验下载文件
           EOF
-
-      - name: Publish public GitHub Release
-        if: startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[publish-beta]')
+      - name: Publish GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          args=(
-            "$RELEASE_TAG"
-            release/*.dmg
-            release/SHA256SUMS.txt
-            --repo xswon/duleme-releases
-            --target main
-            --title "读了么 $RELEASE_TAG"
-            --notes-file "$RUNNER_TEMP/release-notes.md"
-          )
-          if [[ "$RELEASE_PRERELEASE" == "true" ]]; then
-            args+=(--prerelease)
+          set -euo pipefail
+          tag="$GITHUB_REF_NAME"
+          extra=()
+          if [[ "$tag" == *-* ]]; then
+            extra+=(--prerelease)
           fi
-          gh release create "${args[@]}"
+          gh release create "$tag"             release/*.dmg             release/SHA256SUMS.txt             --repo "$GITHUB_REPOSITORY"             --title "读了么 $tag"             --notes-file "$RUNNER_TEMP/release-notes.md"             "${extra[@]}"
