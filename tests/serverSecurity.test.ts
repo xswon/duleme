@@ -11,6 +11,8 @@ import { outboundTransport } from "../server/services/outboundNetwork";
 import {
   assertSafeExternalUrl,
   fetchSafeExternal,
+  getAudioProxyMaxBytes,
+  isAudioProxyEnabled,
   isPublicIpAddress,
   isSafeExternalUrl,
   readResponseBodyLimited,
@@ -23,6 +25,8 @@ const originalSharedAiDefaults = process.env.ALLOW_SHARED_AI_DEFAULTS;
 const originalAiBaseUrl = process.env.AI_BASE_URL;
 const originalAiApiKey = process.env.AI_API_KEY;
 const originalAiModel = process.env.AI_MODEL;
+const originalPublicAudioProxy = process.env.ALLOW_PUBLIC_AUDIO_PROXY;
+const originalPublicAudioProxyMaxBytes = process.env.PUBLIC_AUDIO_PROXY_MAX_BYTES;
 
 function errorCauseCodes(error: unknown): Array<string | undefined> {
   const codes: Array<string | undefined> = [];
@@ -49,6 +53,10 @@ afterEach(() => {
   else process.env.AI_API_KEY = originalAiApiKey;
   if (originalAiModel === undefined) delete process.env.AI_MODEL;
   else process.env.AI_MODEL = originalAiModel;
+  if (originalPublicAudioProxy === undefined) delete process.env.ALLOW_PUBLIC_AUDIO_PROXY;
+  else process.env.ALLOW_PUBLIC_AUDIO_PROXY = originalPublicAudioProxy;
+  if (originalPublicAudioProxyMaxBytes === undefined) delete process.env.PUBLIC_AUDIO_PROXY_MAX_BYTES;
+  else process.env.PUBLIC_AUDIO_PROXY_MAX_BYTES = originalPublicAudioProxyMaxBytes;
 });
 
 describe("server local-only boundary", () => {
@@ -140,6 +148,30 @@ describe("server local-only boundary", () => {
       apiKey: "user-secret",
       model: "user-model",
     });
+  });
+});
+
+describe("public audio proxy policy", () => {
+  it("keeps local audio proxy behavior and requires explicit public opt-in", () => {
+    expect(isAudioProxyEnabled({} as NodeJS.ProcessEnv)).toBe(true);
+    expect(isAudioProxyEnabled({ PUBLIC_DEPLOYMENT: "true" } as NodeJS.ProcessEnv)).toBe(false);
+    expect(isAudioProxyEnabled({
+      PUBLIC_DEPLOYMENT: "true",
+      ALLOW_PUBLIC_AUDIO_PROXY: "true",
+    } as NodeJS.ProcessEnv)).toBe(true);
+  });
+
+  it("uses a smaller bounded byte cap for an explicitly enabled public proxy", () => {
+    expect(getAudioProxyMaxBytes({} as NodeJS.ProcessEnv)).toBe(512 * 1024 * 1024);
+    expect(getAudioProxyMaxBytes({ PUBLIC_DEPLOYMENT: "true" } as NodeJS.ProcessEnv)).toBe(128 * 1024 * 1024);
+    expect(getAudioProxyMaxBytes({
+      PUBLIC_DEPLOYMENT: "true",
+      PUBLIC_AUDIO_PROXY_MAX_BYTES: String(64 * 1024 * 1024),
+    } as NodeJS.ProcessEnv)).toBe(64 * 1024 * 1024);
+    expect(getAudioProxyMaxBytes({
+      PUBLIC_DEPLOYMENT: "true",
+      PUBLIC_AUDIO_PROXY_MAX_BYTES: String(1024 * 1024 * 1024),
+    } as NodeJS.ProcessEnv)).toBe(128 * 1024 * 1024);
   });
 });
 
