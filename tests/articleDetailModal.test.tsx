@@ -60,7 +60,7 @@ describe("ArticleDetailModal", () => {
     expect(html).toContain("Readable body");
     expect(html).toContain('title="打开原文"');
     expect(html).toContain('aria-label="打开原文"');
-    expect(html).not.toContain('title="更多操作"');
+    expect(html).toContain('title="更多操作"');
     expect(html).not.toContain(">原文</span>");
     expect(html).not.toContain(">更多</span>");
     expect(html).not.toContain("复制原文链接");
@@ -114,6 +114,7 @@ describe("ArticleDetailModal", () => {
     // The relative-time formatter switches to a localized calendar date after
     // 30 days; retain the metadata ordering assertion without coupling to it.
     expect(html).toMatch(/author@example\.com<\/span><span>·<\/span><span>/);
+    expect(html.indexOf("author@example.com")).toBeLessThan(html.indexOf("<h1"));
     expect(html).not.toContain("已整理");
 
   });
@@ -151,9 +152,10 @@ describe("ArticleDetailModal", () => {
     expect(html).toContain("正文</button>");
     expect(html).toContain("AI 摘要</button>");
     expect(html).toContain("Readable body");
-    // The summary lives behind its own tab now, so the body tab stays uncluttered.
-    expect(html).not.toContain('aria-label="AI 摘要"');
-    expect(html).not.toContain("A concise summary");
+    // The body keeps its own tab while surfacing a compact first-screen summary preview.
+    expect(html).toContain('aria-label="AI 摘要"');
+    expect(html).toContain("A concise summary");
+    expect(html).toContain("查看完整摘要");
     expect(html).not.toContain('aria-expanded="true"');
     expect(html).not.toContain("收起");
     expect(html).not.toContain(">概要<");
@@ -180,7 +182,7 @@ describe("ArticleDetailModal", () => {
     expect(html).not.toContain("lucide-bookmark");
     expect((html.match(/aria-label="标记为已读"/g) || []).length).toBe(1);
     expect((html.match(/aria-label="打开原文"/g) || []).length).toBe(1);
-    expect(html).not.toContain('aria-label="更多操作"');
+    expect(html).toContain('aria-label="更多操作"');
     expect(html).toContain('aria-label="阅读工具栏"');
     expect(html).toContain('class="wreader-reader-actions reader-actions flex shrink-0 items-center gap-1"');
     expect(html).not.toContain('style="grid-column:2;justify-self:center"');
