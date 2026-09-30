@@ -155,6 +155,33 @@ function SourceAvatar({
   );
 }
 
+export function resolveTimelineSummary(article: Article): string {
+  const normalize = (value: string) => value
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const snippet = normalize(article.snippet || "");
+  const body = normalize(article.content || "");
+  if (!body) return snippet;
+  if (!snippet) return body.slice(0, 420);
+
+  const looksTruncated = /(?:…|\.\.\.)$/.test(snippet);
+  const lacksContext = snippet.length < 90 && body.length > snippet.length + 50;
+  if ((looksTruncated || lacksContext) && body.length > snippet.length) {
+    return body.slice(0, 420);
+  }
+  return snippet;
+}
+
 export function formatArticleRelativeTime(pubDate: string) {
   const date = new Date(pubDate);
   if (Number.isNaN(date.getTime())) return "";
@@ -232,7 +259,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
       )}
       <VirtualWindow
         count={articles.length}
-        estimateSize={108}
+        estimateSize={124}
         gap={6}
         overscan={10}
         className="wreader-article-virtual-window"
@@ -244,6 +271,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           const audioDurationLabel = presentation.capabilities.hasAudio
             ? formatDurationMinutes(article.duration)
             : undefined;
+          const timelineSummary = resolveTimelineSummary(article);
 
           return (
             <article
@@ -255,14 +283,13 @@ export const ArticleList: React.FC<ArticleListProps> = ({
                 article.read ? "is-read" : "is-unread"
               }`}
             >
-              <span className="wreader-story-status-slot" aria-hidden={article.read ? "true" : undefined}>
-                {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
-              </span>
-
               <div className="wreader-story-copy">
                 <div className="wreader-story-source-meta">
                   <SourceAvatar src={article.feedFavicon} title={article.feedTitle} />
                   <div className="wreader-story-meta-primary">
+                    <span className="wreader-story-unread-slot">
+                      {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
+                    </span>
                     <span className="wreader-story-feed" title={article.feedTitle}>{article.feedTitle}</span>
                     {audioDurationLabel && (
                       <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
@@ -273,11 +300,14 @@ export const ArticleList: React.FC<ArticleListProps> = ({
                   </div>
                 </div>
 
-                <h2 className="line-clamp-2">{article.title}</h2>
-
-                <div className="wreader-story-footer">
-                  {article.snippet ? <p className="line-clamp-2">{article.snippet}</p> : <span />}
-                  {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
+                <div className="wreader-story-body">
+                  <h2 className="line-clamp-2">{article.title}</h2>
+                  {timelineSummary && <p className="line-clamp-2">{timelineSummary}</p>}
+                  {timeAgoStr && (
+                    <div className="wreader-story-time-row">
+                      <time className="wreader-story-time">{timeAgoStr}</time>
+                    </div>
+                  )}
                 </div>
               </div>
             </article>

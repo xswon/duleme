@@ -107,17 +107,19 @@ describe("ArticleList content capabilities", () => {
     expect(html).not.toContain("文章概要");
   });
 
-  it("keeps unread state separate from the source avatar", () => {
-    const html = renderList(article({ read: false, feedFavicon: "https://example.com/favicon.png" }));
-    const statusIndex = html.indexOf("wreader-story-status-slot");
+  it("places unread state immediately before the source name", () => {
+    const html = renderList(article({ read: false, feedFavicon: "https://example.com/favicon.png", feedTitle: "Source" }));
     const avatarIndex = html.indexOf("wreader-source-avatar-shell");
+    const unreadIndex = html.indexOf("wreader-unread-dot");
+    const sourceIndex = html.indexOf(">Source<");
 
-    expect(statusIndex).toBeGreaterThanOrEqual(0);
-    expect(statusIndex).toBeLessThan(avatarIndex);
+    expect(avatarIndex).toBeGreaterThanOrEqual(0);
+    expect(unreadIndex).toBeGreaterThan(avatarIndex);
+    expect(sourceIndex).toBeGreaterThan(unreadIndex);
     expect(html).toContain('aria-label="未读"');
   });
 
-  it("keeps relative time out of the metadata row and beside the summary footer", () => {
+  it("keeps relative time below the summary and out of the metadata row", () => {
     const html = renderList(article({
       pubDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       snippet: "A useful two-line summary that helps decide whether this is worth opening.",
@@ -125,14 +127,26 @@ describe("ArticleList content capabilities", () => {
       duration: "00:33:00",
     }));
     const metaStart = html.indexOf("wreader-story-source-meta");
-    const footerStart = html.indexOf("wreader-story-footer");
-    const timeIndex = html.indexOf("wreader-story-time");
+    const bodyStart = html.indexOf("wreader-story-body");
+    const timeRowIndex = html.indexOf("wreader-story-time-row");
+    const timeIndex = html.indexOf('<time class="wreader-story-time"');
 
     expect(metaStart).toBeGreaterThanOrEqual(0);
-    expect(footerStart).toBeGreaterThan(metaStart);
-    expect(timeIndex).toBeGreaterThan(footerStart);
-    expect(html.slice(metaStart, footerStart)).not.toContain("wreader-story-time");
+    expect(bodyStart).toBeGreaterThan(metaStart);
+    expect(timeRowIndex).toBeGreaterThan(bodyStart);
+    expect(timeIndex).toBeGreaterThan(timeRowIndex);
+    expect(html.slice(metaStart, bodyStart)).not.toContain("wreader-story-time");
     expect(html).toContain("wreader-story-duration");
+  });
+
+  it("uses article body text when a feed snippet is visibly truncated", () => {
+    const html = renderList(article({
+      snippet: "A very short feed summary…",
+      content: "<p>A fuller article introduction with enough context to make the timeline summary useful before opening the item.</p>",
+    }));
+
+    expect(html).toContain("A fuller article introduction with enough context");
+    expect(html).not.toContain("A very short feed summary…");
   });
 
   it("uses one compact source avatar instead of article thumbnails", () => {
