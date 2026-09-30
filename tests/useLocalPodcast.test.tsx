@@ -1,11 +1,13 @@
 import React, { act, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article } from "../src/types";
 
 const api = vi.hoisted(() => ({ start: vi.fn(), status: vi.fn(), createInsight: vi.fn() }));
 vi.mock("../src/services/localPodcastService", () => ({ localPodcastApi: api }));
 import { useLocalPodcast } from "../src/hooks/useLocalPodcast";
+import { resetReaderBackend, setReaderBackend } from "../src/services/readerBackend";
+import { sitesReaderBackend } from "../src/sites/sitesReaderBackend";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -13,6 +15,38 @@ const baseArticle: Article = { id: "a", feedId: "f", feedTitle: "Feed", title: "
 
 describe("useLocalPodcast", () => {
   beforeEach(() => { api.start.mockReset(); api.status.mockReset(); api.createInsight.mockReset(); });
+  afterEach(() => resetReaderBackend());
+
+  it("does not call machine-local podcast APIs in the Sites runtime", async () => {
+    setReaderBackend(sitesReaderBackend);
+    let start: (() => Promise<{ started: boolean; error?: string }>) | undefined;
+    function Harness() {
+      const local = useLocalPodcast({
+        ...baseArticle,
+        localPodcast: {
+          sessionId: "s1",
+          jobId: "j1",
+          sourceAudioUrl: baseArticle.audioUrl!,
+          transcriptionStatus: "processing",
+          insightStatus: "not_started",
+          updatedAt: "before",
+        },
+      });
+      start = local.startTranscription;
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    await act(async () => { root.render(<Harness />); await Promise.resolve(); });
+    expect(api.status).not.toHaveBeenCalled();
+
+    let result: { started: boolean; error?: string } | undefined;
+    await act(async () => { result = await start!(); });
+    expect(result).toMatchObject({ started: false });
+    expect(result?.error).toContain("云转录");
+    expect(api.start).not.toHaveBeenCalled();
+    expect(api.createInsight).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
 
   it("deduplicates rapid transcription starts", async () => {
     api.start.mockResolvedValue({ session_id: "s1", job_id: "j1" });
