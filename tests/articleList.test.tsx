@@ -107,6 +107,34 @@ describe("ArticleList content capabilities", () => {
     expect(html).not.toContain("文章概要");
   });
 
+  it("keeps unread state separate from the source avatar", () => {
+    const html = renderList(article({ read: false, feedFavicon: "https://example.com/favicon.png" }));
+    const statusIndex = html.indexOf("wreader-story-status-slot");
+    const avatarIndex = html.indexOf("wreader-source-avatar-shell");
+
+    expect(statusIndex).toBeGreaterThanOrEqual(0);
+    expect(statusIndex).toBeLessThan(avatarIndex);
+    expect(html).toContain('aria-label="未读"');
+  });
+
+  it("keeps relative time out of the metadata row and beside the summary footer", () => {
+    const html = renderList(article({
+      pubDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      snippet: "A useful two-line summary that helps decide whether this is worth opening.",
+      audioUrl: "https://cdn.example.com/episode.mp3",
+      duration: "00:33:00",
+    }));
+    const metaStart = html.indexOf("wreader-story-source-meta");
+    const footerStart = html.indexOf("wreader-story-footer");
+    const timeIndex = html.indexOf("wreader-story-time");
+
+    expect(metaStart).toBeGreaterThanOrEqual(0);
+    expect(footerStart).toBeGreaterThan(metaStart);
+    expect(timeIndex).toBeGreaterThan(footerStart);
+    expect(html.slice(metaStart, footerStart)).not.toContain("wreader-story-time");
+    expect(html).toContain("wreader-story-duration");
+  });
+
   it("uses one compact source avatar instead of article thumbnails", () => {
     const html = renderList(article({
       feedFavicon: "https://example.com/favicon.png",

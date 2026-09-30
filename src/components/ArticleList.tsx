@@ -130,11 +130,9 @@ export const ArticleThumbnail: React.FC<ArticleThumbnailProps> = ({
 function SourceAvatar({
   src,
   title,
-  unread,
 }: {
   src?: string;
   title: string;
-  unread: boolean;
 }) {
   const [failed, setFailed] = React.useState(false);
   const imageSrc = resolveImageUrl(src);
@@ -153,7 +151,6 @@ function SourceAvatar({
       ) : (
         <span className="wreader-source-avatar wreader-source-avatar-fallback" aria-hidden="true">{fallback}</span>
       )}
-      {unread && <span className="wreader-unread-dot" aria-label="未读" />}
     </span>
   );
 }
@@ -235,8 +232,8 @@ export const ArticleList: React.FC<ArticleListProps> = ({
       )}
       <VirtualWindow
         count={articles.length}
-        estimateSize={90}
-        gap={5}
+        estimateSize={108}
+        gap={6}
         overscan={10}
         className="wreader-article-virtual-window"
         getItemKey={(index) => articles[index].id}
@@ -258,27 +255,30 @@ export const ArticleList: React.FC<ArticleListProps> = ({
                 article.read ? "is-read" : "is-unread"
               }`}
             >
+              <span className="wreader-story-status-slot" aria-hidden={article.read ? "true" : undefined}>
+                {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
+              </span>
+
               <div className="wreader-story-copy">
                 <div className="wreader-story-source-meta">
-                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} unread={!article.read} />
+                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} />
                   <div className="wreader-story-meta-primary">
-                    <span className="wreader-story-feed">{article.feedTitle}</span>
+                    <span className="wreader-story-feed" title={article.feedTitle}>{article.feedTitle}</span>
                     {audioDurationLabel && (
-                      <>
-                        <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
-                        <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
-                          <TimelineIcon type="headphones" />
-                          <span>{audioDurationLabel}</span>
-                        </span>
-                      </>
+                      <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
+                        <TimelineIcon type="headphones" />
+                        <span>{audioDurationLabel}</span>
+                      </span>
                     )}
                   </div>
-                  {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
                 </div>
 
                 <h2 className="line-clamp-2">{article.title}</h2>
 
-                {article.snippet && <p className="line-clamp-1">{article.snippet}</p>}
+                <div className="wreader-story-footer">
+                  {article.snippet ? <p className="line-clamp-2">{article.snippet}</p> : <span />}
+                  {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
+                </div>
               </div>
             </article>
           );
