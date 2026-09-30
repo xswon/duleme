@@ -37,3 +37,5 @@ jobs:
         run: npm run check:bundle
       - name: Architecture boundaries
         run: npm run check:architecture
+      - name: Build ChatGPT Site
+        run: npm run build:site
