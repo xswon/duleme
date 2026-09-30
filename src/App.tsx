@@ -283,6 +283,14 @@ export default function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (activeTab === "feeds" && filterType !== "starred") {
+          const timelineSearch = document.getElementById("timeline-search-input") as HTMLInputElement | null;
+          if (timelineSearch) {
+            timelineSearch.focus();
+            timelineSearch.select();
+            return;
+          }
+        }
         navigateToRoute({ activeTab: "search", selectedFeedId: null, selectedCategory: null, articleId: null });
         return;
       }
@@ -312,7 +320,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   // mutations is intentionally a stable controller object; depending on its method avoids unrelated controller changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- See the controller dependency contract above.
-  }, [handleSelectArticle, handleToggleRead, mutations.toggleStar, navigateToRoute, refreshAll, selectedArticle, visibleArticlesRef, visibleIndexByIdRef]);
+  }, [activeTab, filterType, handleSelectArticle, handleToggleRead, mutations.toggleStar, navigateToRoute, refreshAll, selectedArticle, visibleArticlesRef, visibleIndexByIdRef]);
 
   const totalUnread = articleMetrics.totalRecentUnread;
   const totalSaved = articleMetrics.totalSaved;
@@ -399,10 +407,12 @@ export default function App() {
             onRefresh={refreshAll} onMarkAllRead={activeTab === "playlist" ? clearPlaylist : activeTab === "notes" ? notes.clearNotes : activeTab === "feeds" && filterType === "starred" ? mutations.clearFavorites : mutations.markAllRead}
             notesEmpty={visibleArticleNotes.length === 0} playlistEmpty={playlistIds.length === 0} favoritesEmpty={totalSaved === 0}
             isRefreshing={isRefreshing} onToggleMobileMenu={() => { if (window.matchMedia("(min-width: 1280px)").matches) setIsSidebarCollapsed(false); else setIsMobileMenuOpen((open) => !open); }}
-            sidebarCollapsed={isSidebarCollapsed} onNavigateSearch={() => navigateToRoute({ activeTab: "search", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })}
+            sidebarCollapsed={isSidebarCollapsed}
             unreadCount={visibleUnreadCount} showTimelineFilters={showTimelineFilters} contentType={effectiveContentType}
+            searchQuery={searchQuery} onSearchQueryChange={(query) => navigateToRoute({ activeTab: "feeds", searchQuery: query, articleId: null }, true)}
             onContentTypeChange={(nextContentType) => navigateToRoute({ activeTab: "feeds", contentType: nextContentType, articleId: null })}
-            historyWindowDays={historyWindowDays} refreshProgress={{ completed: refreshState.completed, total: refreshState.total, successful: refreshState.successful, failed: refreshState.failed.length, newArticles: refreshState.newArticles }}
+            historyWindowDays={historyWindowDays} onHistoryWindowDaysChange={(days) => navigateToRoute({ activeTab: "feeds", historyWindowDays: days, articleId: null })}
+            refreshProgress={{ completed: refreshState.completed, total: refreshState.total, successful: refreshState.successful, failed: refreshState.failed.length, newArticles: refreshState.newArticles }}
             lastSyncAt={refreshState.finishedAt} timelineSortOrder={activeTab === "playlist" ? playlistSortOrder : timelineSortOrder}
             onToggleTimelineSort={activeTab === "playlist" ? togglePlaylistSort : () => setTimelineSortOrder((order) => order === "newest" ? "oldest" : "newest")} />
           <main ref={mainScrollRef} className="wreader-master-scroll min-h-0 flex-1 overflow-y-auto scrollbar-thin">{masterView}</main>
