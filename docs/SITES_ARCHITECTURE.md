@@ -40,7 +40,7 @@ Express /api             same-origin Site Worker
 | Unsupported media cases | Unsupported | Private/LAN/localhost, authenticated or cookie-gated media, non-HTTP(S), multipart Range, origins that ignore Range | Yes where legacy policy permits |
 | BidClub enrichment | Native for public BidClub episodes | `/api/bidclub/episode` accepts only a BidClub slug/page URL, fetches the fixed public episode API, and maps through the shared `BidclubEpisode` model | Keep for runtime-specific edge cases |
 | AI endpoints | Native for browser BYOK + public HTTPS providers | Same-origin `/api/ai/*` Worker adapter for status/models/test/summarize; no Site-owned default credential | Keep for local loopback and environment-default use |
-| Cloud transcription | Unavailable | Explicit 501 | Yes |
+| Cloud transcription | Native for Alibaba Cloud BYOK | Same-origin `/api/transcription/*` Worker adapter for test/submit/poll/result download | Keep for local Web and future provider variants |
 | Local podcast processing | Unavailable | Explicit 501 | Yes |
 
 ## Sites-native RSS behavior
@@ -118,6 +118,30 @@ Security and runtime constraints:
 
 Local Web retains its broader runtime support, including loopback Ollama-compatible endpoints and optional `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` environment defaults.
 
+## Sites transcription behavior
+
+Sites preserves the existing browser-owned Alibaba Cloud transcription settings and the existing `/api/transcription/*` contract:
+
+- `POST /api/transcription/settings/test` validates the browser-provided API Key;
+- `POST /api/transcription/tasks` submits the existing `qwen-audio-3.0-asr-flash-filetrans` asynchronous file-transcription request;
+- `POST /api/transcription/tasks/:id/poll` polls task state and, after success, downloads the provider's signed transcript JSON and maps sentences into the existing `TranscriptSegment` model.
+
+The current product continues to use `https://dashscope.aliyuncs.com/api/v1`, matching the local Express implementation. Alibaba Cloud currently keeps this endpoint functional while recommending workspace-specific domains for newer deployments; region/workspace endpoint selection is intentionally a separate product change rather than part of the Sites migration.
+
+Security and runtime constraints:
+
+- the API Key remains browser-owned and is sent only to the same-origin Site Worker for an explicit transcription request;
+- the Worker sends bearer credentials only to the fixed DashScope API origin and does not forward them to the signed transcript-result URL;
+- audio input must be a public HTTP(S) URL without URL credentials and cannot target localhost/private/reserved literals or common local metadata hostnames;
+- task IDs are syntactically constrained before they are inserted into provider paths;
+- provider API responses, request bodies, and downloaded transcript JSON are size-bounded;
+- provider API redirects must remain on the fixed DashScope API origin;
+- transcript-result redirects are allowed only through the existing public HTTP(S) outbound policy and carry no provider Authorization header;
+- all app-facing transcription responses use `Cache-Control: no-store`;
+- provider errors are mapped to stable product codes without returning the API Key or raw provider error body.
+
+As with RSS/media in the Worker runtime, hostname validation cannot reproduce Node's DNS address pinning. The fixed provider origin plus Cloudflare's outbound network boundary limits the sensitive authenticated path; public audio/result URL handling remains deliberately constrained.
+
 ## Architecture rules
 
 1. Product components and services must not call application `/api` endpoints with `fetch` directly; use `ReaderBackend`.
@@ -132,5 +156,5 @@ Local Web retains its broader runtime support, including loopback Ollama-compati
 1. Deploy and smoke-test the completed RSS/media/BidClub stack in the private ChatGPT Site when deployment quota is available.
 2. Verify a real BidClub episode end-to-end: TL;DR, digest chapters, transcript, source attribution, cover image, and episode audio.
 3. Deploy and smoke-test remote BYOK AI: model discovery, connection test, article summary, and one long transcript summary.
-4. Migrate transcription orchestration.
+4. Deploy and smoke-test cloud transcription: key test, one task submission, processing poll, completed transcript, and speaker labels.
 5. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
