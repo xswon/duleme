@@ -214,7 +214,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
     );
   }
 
-  // MAGAZINE VIEW (单一视图)
+  // Text-first timeline: keep the list focused on source, title, and summary.
   return (
     <div className="wreader-article-list px-2 py-2">
       {isExpandedHistory && onHideOlder && (
@@ -226,58 +226,60 @@ export const ArticleList: React.FC<ArticleListProps> = ({
       )}
       <VirtualWindow
         count={articles.length}
-        estimateSize={88}
+        estimateSize={104}
         overscan={10}
         className="wreader-article-virtual-window"
         getItemKey={(index) => articles[index].id}
         renderItem={(index) => {
-        const article = articles[index];
-        const timeAgoStr = formatArticleRelativeTime(article.pubDate);
-        const presentation = resolveArticlePresentation(article);
-        const audioDurationLabel = presentation.capabilities.hasAudio
-          ? formatDurationMinutes(article.duration)
-          : undefined;
+          const article = articles[index];
+          const timeAgoStr = formatArticleRelativeTime(article.pubDate);
+          const presentation = resolveArticlePresentation(article);
+          const audioDurationLabel = presentation.capabilities.hasAudio
+            ? formatDurationMinutes(article.duration)
+            : undefined;
 
-        return (
-          <article
-            data-article-id={article.id}
-            onClick={() => onSelectArticle(article)}
-            className={`wreader-story-row group flex cursor-pointer flex-row gap-2 rounded-lg p-2 transition-colors hover:bg-slate-100/70 ${
-              selectedArticleId === article.id ? "is-selected bg-blue-50" : ""
-            } ${
-              article.read ? "is-read" : "bg-transparent"
-            }`}
-          >
-            {/* Left Square Thumbnail */}
-            <ArticleThumbnail
-              src={article.thumbnail}
-              feedTitle={article.feedTitle}
-              title={article.title}
-            />
+          return (
+            <article
+              data-article-id={article.id}
+              onClick={() => onSelectArticle(article)}
+              className={`wreader-story-row group cursor-pointer ${
+                selectedArticleId === article.id ? "is-selected" : ""
+              } ${
+                article.read ? "is-read" : "is-unread"
+              }`}
+            >
+              <div className="wreader-story-copy">
+                <div className="wreader-story-source-meta">
+                  {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
+                  <span className="wreader-story-feed">{article.feedTitle}</span>
+                  {timeAgoStr && (
+                    <>
+                      <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
+                      <time>{timeAgoStr}</time>
+                    </>
+                  )}
+                  {audioDurationLabel && (
+                    <>
+                      <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
+                      <span>{audioDurationLabel}</span>
+                    </>
+                  )}
+                </div>
 
-            {/* Right Content */}
-            <div className="flex min-w-0 flex-1 flex-col justify-between">
-              <div>
-                <div className="wreader-story-source-meta">{!article.read && <span className="wreader-unread-dot" aria-label="未读" />}<span>{article.feedTitle}</span></div>
-                {/* Title */}
-                <h2 className="line-clamp-2 text-[14px] font-bold leading-[1.3] text-slate-900">
-                  <span>{article.title}</span>
+                <h2 className="line-clamp-2">
+                  {article.title}
                 </h2>
 
-                {/* Snippet */}
-                <p className="mt-1 line-clamp-2 text-[12px] leading-[1.35] text-slate-500">
-                  {article.snippet}
-                </p>
+                {article.snippet && (
+                  <p className="line-clamp-2">
+                    {article.snippet}
+                  </p>
+                )}
               </div>
-
-              <div className="wreader-story-time mt-1 flex min-h-4 items-center justify-between text-[11px] text-slate-400">
-                {audioDurationLabel ? <span className="story-audio-meta"><TimelineIcon type="headphones" />{audioDurationLabel}</span> : <span />}
-                <time>{timeAgoStr}</time>
-              </div>
-            </div>
-          </article>
-        );
-      }} />
+            </article>
+          );
+        }}
+      />
       {hasOlderArticles && onShowOlder && (
         <HistoryWindowControl
           label="继续加载 30 天"
