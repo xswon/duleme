@@ -2,7 +2,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ArticleList, formatDurationMinutes } from "../src/components/ArticleList";
+import { ArticleList, formatDurationMinutes, resolveTimelineSummary } from "../src/components/ArticleList";
 import type { Article } from "../src/types";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -91,7 +91,7 @@ describe("ArticleList content capabilities", () => {
     expect(html).not.toContain("加入播放列表");
   });
 
-  it("keeps podcast status in metadata instead of overlaying the thumbnail or title", () => {
+  it("keeps podcast duration below the body copy instead of in metadata or the title", () => {
     const title = "A very long podcast title that can wrap across multiple lines without moving the icon";
     const html = renderList(
       article({ title, audioUrl: "https://cdn.example.com/episode.mp3", duration: "01:02:03", thumbnail: "https://cdn.example.com/cover.jpg" }),
@@ -99,11 +99,72 @@ describe("ArticleList content capabilities", () => {
     const heading = html.slice(html.indexOf("<h2"), html.indexOf("</h2>") + 5);
 
     expect(heading).not.toContain("播客");
-    expect(html).not.toContain('aria-label="播客"');
+    expect(html).toContain('class="wreader-story-duration"');
+    expect(html).toContain('aria-label="播客时长 62 分钟"');
     expect(html).toContain("62 分钟");
     expect(html).not.toContain("加入待播列表");
     expect(html).not.toContain("lucide-list-plus");
     expect(html).not.toContain("文章概要");
+  });
+
+  it("places unread state immediately before the source name", () => {
+    const html = renderList(article({ read: false, feedFavicon: "https://example.com/favicon.png", feedTitle: "Source" }));
+    const avatarIndex = html.indexOf("wreader-source-avatar-shell");
+    const unreadIndex = html.indexOf("wreader-unread-dot");
+    const sourceIndex = html.indexOf(">Source<");
+
+    expect(avatarIndex).toBeGreaterThanOrEqual(0);
+    expect(unreadIndex).toBeGreaterThan(avatarIndex);
+    expect(sourceIndex).toBeGreaterThan(unreadIndex);
+    expect(html).toContain('aria-label="未读"');
+  });
+
+  it("keeps relative time in the metadata row and moves podcast duration below the summary", () => {
+    const html = renderList(article({
+      pubDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      content: "<p>A useful body summary with enough context to fill the timeline preview before the episode duration is shown.</p>",
+      audioUrl: "https://cdn.example.com/episode.mp3",
+      duration: "00:33:00",
+    }));
+    const metaStart = html.indexOf("wreader-story-source-meta");
+    const bodyStart = html.indexOf("wreader-story-body");
+    const timeIndex = html.indexOf('<time class="wreader-story-time"');
+    const summaryIndex = html.indexOf("<p");
+    const durationRowIndex = html.indexOf("wreader-story-duration-row");
+
+    expect(metaStart).toBeGreaterThanOrEqual(0);
+    expect(timeIndex).toBeGreaterThan(metaStart);
+    expect(timeIndex).toBeLessThan(bodyStart);
+    expect(summaryIndex).toBeGreaterThan(bodyStart);
+    expect(durationRowIndex).toBeGreaterThan(summaryIndex);
+    expect(html.slice(metaStart, bodyStart)).not.toContain("wreader-story-duration");
+  });
+
+  it("derives the timeline summary from body content rather than the feed snippet", () => {
+    const item = article({
+      title: "A repeated headline",
+      snippet: "Feed teaser that should not be used.",
+      content: "<h1>A repeated headline</h1><p>Read more</p><p>The first useful body sentence explains the actual subject with enough detail for the timeline.</p><p>A second sentence adds context so the preview is informative rather than a one-line teaser.</p>",
+    });
+
+    const summary = resolveTimelineSummary(item);
+    expect(summary).toContain("The first useful body sentence");
+    expect(summary).toContain("A second sentence adds context");
+    expect(summary).not.toContain("Feed teaser");
+    expect(summary).not.toContain("A repeated headline");
+    expect(summary).not.toContain("Read more");
+  });
+
+  it("uses one compact source avatar instead of article thumbnails", () => {
+    const html = renderList(article({
+      feedFavicon: "https://example.com/favicon.png",
+      thumbnail: "https://example.com/article-cover.jpg",
+      feedTitle: "Source",
+    }));
+
+    expect(html).toContain("wreader-source-avatar");
+    expect(html).not.toContain("wreader-story-thumbnail h-12 w-12");
+    expect(html.indexOf("wreader-source-avatar")).toBeLessThan(html.indexOf("<h2"));
   });
 
   it("keeps playlist controls out of timeline rows regardless of queue state", () => {

@@ -418,7 +418,7 @@ describe("ArticleInsightTabs", () => {
       onRegenerateTranscript: vi.fn(),
     });
     expect(html).toContain("BidClub transcript");
-    expect(html).toContain("转录服务：读了么官方转录");
+    expect(html).not.toContain("转录服务：读了么官方转录");
     expect(html).not.toContain("重新转录");
   });
 
@@ -429,7 +429,7 @@ describe("ArticleInsightTabs", () => {
       onRegenerateSummary: vi.fn(),
     });
 
-    expect(official).toContain("摘要服务：读了么官方整理");
+    expect(official).not.toContain("摘要服务：读了么官方整理");
     expect(official).not.toContain("摘要依据");
     expect(official).not.toContain("重新生成");
   });

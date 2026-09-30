@@ -20,6 +20,7 @@ function Harness() {
   >
     <button type="button" onClick={() => navigation.navigateToRoute({ activeTab: "feeds", selectedFeedId: "feed/two", selectedCategory: null, articleId: null, detailTab: undefined })}>push-feed</button>
     <button type="button" onClick={() => navigation.navigateToRoute({ activeTab: "search", searchQuery: "local first" }, true)}>replace-search</button>
+    <button type="button" onClick={() => navigation.navigateToRoute({ activeTab: "feeds", searchQuery: "agent" }, true)}>replace-timeline-search</button>
   </div>;
 }
 
@@ -58,6 +59,11 @@ describe("useReaderNavigation", () => {
     await act(async () => click(container, "replace-search"));
     expect(replaceSpy).toHaveBeenCalled();
     expect(window.location.pathname + window.location.search).toBe("/search?q=local+first");
+
+    await act(async () => click(container, "replace-timeline-search"));
+    expect(window.location.pathname + window.location.search).toBe("/feed/feed%2Ftwo?q=agent");
+    expect(route.getAttribute("data-tab")).toBe("feeds");
+    expect(route.getAttribute("data-query")).toBe("agent");
     await act(async () => root.unmount());
   });
 

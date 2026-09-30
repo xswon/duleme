@@ -493,6 +493,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     await waitForNotesToLoad(container);
     expect(container.querySelectorAll('[aria-label="打开原文"]')).toHaveLength(1);
     expect(container.querySelector('[aria-label="更多操作"]')).toBeNull();
+    expect(container.querySelector('[aria-label="阅读设置"]')).toBeTruthy();
     expect(container.querySelector('[aria-label="复制原文链接"]')).toBeNull();
     await act(async () => root.unmount());
   });

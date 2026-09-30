@@ -1158,7 +1158,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           <div className="wreader-reader-nav flex shrink-0 items-center gap-1">
           <button
             type="button"
-            ref={readerSettingsTriggerRef}
             onClick={onClose}
             className="inline-flex h-9 w-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
             title="返回文章列表"
@@ -1214,26 +1213,27 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             >
               <ExternalLink className="h-4 w-4" />
             </a>
-          <button
-            type="button"
-            className="reader-action reader-settings-button"
-            onClick={() => setReaderSettingsOpen((open) => !open)}
-            title="阅读设置"
-            aria-label="阅读设置"
-            aria-expanded={readerSettingsOpen}
-          >Aa</button>
-          {onToggleImmersive && (
             <button
               type="button"
-              onClick={onToggleImmersive}
-              className="reader-action inline-flex h-9 w-9 min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
-              title={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
-              aria-label={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
-              aria-pressed={isImmersive}
-            >
-              {isImmersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
-          )}
+              ref={readerSettingsTriggerRef}
+              className="reader-action reader-settings-button"
+              onClick={() => setReaderSettingsOpen((open) => !open)}
+              title="阅读设置"
+              aria-label="阅读设置"
+              aria-expanded={readerSettingsOpen}
+            >Aa</button>
+            {onToggleImmersive && (
+              <button
+                type="button"
+                onClick={onToggleImmersive}
+                className="reader-action inline-flex h-9 w-9 min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
+                title={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
+                aria-label={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
+                aria-pressed={isImmersive}
+              >
+                {isImmersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            )}
           </div>
         </div>
         <div className="h-0.5 w-full bg-slate-100" aria-hidden="true">
@@ -1262,20 +1262,19 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           onScroll={handleContentScroll}
         >
           <div className="reader-column w-full max-w-[650px] mx-auto">
-            {/* Title & Subtitle */}
             <h1 className="text-xl font-bold leading-snug tracking-tight text-slate-900 sm:text-[28px] sm:leading-[1.3]">
               {article.title}
             </h1>
             <div className="reader-subtitle min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <strong>{article.feedTitle}</strong>
-                {showAuthor && (
-                  <>
-                    <span>·</span>
-                    <span>{article.author}</span>
-                  </>
-                )}
-                <span>·</span>
-                <span>{timeAgo}</span>
+              <strong>{article.feedTitle}</strong>
+              {showAuthor && (
+                <>
+                  <span>·</span>
+                  <span>{article.author}</span>
+                </>
+              )}
+              <span>·</span>
+              <span>{timeAgo}</span>
             </div>
 
             {/* Audio Card (仅真实播客音频) */}

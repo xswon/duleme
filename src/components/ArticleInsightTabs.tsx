@@ -668,7 +668,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <div className="reader-service-content">
-          <ContentServiceBar label="摘要服务：读了么官方整理" />
           {hasOverview && <section className="audio-highlight-body">
             <BidclubRichTextContent html={p.overviewHtml} emptyText="暂无短精华" className="bidclub-overview" />
           </section>}
@@ -687,7 +686,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
 
   if (p.transcriptHtml?.trim()) return (
     <div className="reader-service-content">
-      <ContentServiceBar label="转录服务：读了么官方转录" />
       <HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" />
       <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
     </div>

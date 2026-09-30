@@ -126,6 +126,112 @@ export const ArticleThumbnail: React.FC<ArticleThumbnailProps> = ({
   );
 };
 
+
+function SourceAvatar({
+  src,
+  title,
+  unread,
+}: {
+  src?: string;
+  title: string;
+  unread: boolean;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const imageSrc = resolveImageUrl(src);
+  const fallback = Array.from(title.trim())[0]?.toUpperCase() || "R";
+
+  return (
+    <span className="wreader-source-avatar-shell">
+      {imageSrc && !failed ? (
+        <img
+          src={imageSrc}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="wreader-source-avatar"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="wreader-source-avatar wreader-source-avatar-fallback" aria-hidden="true">{fallback}</span>
+      )}
+      {unread && <span className="wreader-unread-dot" aria-label="未读" />}
+    </span>
+  );
+}
+
+function decodeTimelineEntities(value: string): string {
+  return value
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
+}
+
+function normalizeTimelineText(value: string): string {
+  return decodeTimelineEntities(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<(?:br\s*\/?|\/p|\/div|\/li|\/h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/ *\n+ */g, "\n")
+    .trim();
+}
+
+function normalizeComparableText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[\s\p{P}\p{S}]+/gu, "");
+}
+
+function isUsefulTimelineSegment(segment: string, title: string): boolean {
+  const clean = segment.trim();
+  if (!clean) return false;
+  const comparable = normalizeComparableText(clean);
+  const titleComparable = normalizeComparableText(title);
+  if (!comparable) return false;
+  if (titleComparable && (comparable === titleComparable || titleComparable.startsWith(comparable) || comparable.startsWith(titleComparable))) {
+    return false;
+  }
+  if (/^(?:read more|continue reading|learn more|subscribe|sign up|view online|listen now|show notes)\b/i.test(clean)) {
+    return false;
+  }
+  return clean.length >= 18 || /[\u3400-\u9fff]/.test(clean) && clean.length >= 10;
+}
+
+export function resolveTimelineSummary(article: Article): string {
+  const body = normalizeTimelineText(article.content || "");
+  const snippet = normalizeTimelineText(article.snippet || "");
+  const source = body || snippet;
+  if (!source) return "";
+
+  const paragraphs = source
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .filter((part) => isUsefulTimelineSegment(part, article.title));
+
+  const sentencePool = (paragraphs.length ? paragraphs : [source])
+    .flatMap((paragraph) => paragraph.split(/(?<=[。！？!?])\s*|(?<=[.!?])\s+(?=[A-Z0-9“"'])/))
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => isUsefulTimelineSegment(sentence, article.title));
+
+  const pieces = sentencePool.length ? sentencePool : paragraphs.length ? paragraphs : [source];
+  let summary = "";
+  const preferredLength = /[\u3400-\u9fff]/.test(source) ? 90 : 180;
+  const maxLength = /[\u3400-\u9fff]/.test(source) ? 150 : 280;
+
+  for (const piece of pieces) {
+    const candidate = summary ? `${summary} ${piece}` : piece;
+    if (candidate.length > maxLength && summary.length >= preferredLength) break;
+    summary = candidate.slice(0, maxLength).trim();
+    if (summary.length >= preferredLength) break;
+  }
+
+  return summary || source.slice(0, maxLength).trim();
+}
+
 export function formatArticleRelativeTime(pubDate: string) {
   const date = new Date(pubDate);
   if (Number.isNaN(date.getTime())) return "";
@@ -203,7 +309,8 @@ export const ArticleList: React.FC<ArticleListProps> = ({
       )}
       <VirtualWindow
         count={articles.length}
-        estimateSize={104}
+        estimateSize={126}
+        gap={6}
         overscan={10}
         className="wreader-article-virtual-window"
         getItemKey={(index) => articles[index].id}
@@ -214,6 +321,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           const audioDurationLabel = presentation.capabilities.hasAudio
             ? formatDurationMinutes(article.duration)
             : undefined;
+          const timelineSummary = resolveTimelineSummary(article);
 
           return (
             <article
@@ -227,31 +335,25 @@ export const ArticleList: React.FC<ArticleListProps> = ({
             >
               <div className="wreader-story-copy">
                 <div className="wreader-story-source-meta">
-                  {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
-                  <span className="wreader-story-feed">{article.feedTitle}</span>
-                  {timeAgoStr && (
-                    <>
-                      <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
-                      <time>{timeAgoStr}</time>
-                    </>
-                  )}
-                  {audioDurationLabel && (
-                    <>
-                      <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
-                      <span>{audioDurationLabel}</span>
-                    </>
-                  )}
+                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} unread={!article.read} />
+                  <div className="wreader-story-meta-primary">
+                    <span className="wreader-story-feed" title={article.feedTitle}>{article.feedTitle}</span>
+                  </div>
+                  {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
                 </div>
 
-                <h2 className="line-clamp-2">
-                  {article.title}
-                </h2>
-
-                {article.snippet && (
-                  <p className="line-clamp-2">
-                    {article.snippet}
-                  </p>
-                )}
+                <div className="wreader-story-body">
+                  <h2 className="line-clamp-2">{article.title}</h2>
+                  {timelineSummary && <p className="line-clamp-2">{timelineSummary}</p>}
+                  {audioDurationLabel && (
+                    <div className="wreader-story-duration-row">
+                      <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
+                        <TimelineIcon type="headphones" />
+                        <span>{audioDurationLabel}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </article>
           );

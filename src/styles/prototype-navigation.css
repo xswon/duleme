@@ -113,9 +113,20 @@
 .wreader-article-list .wreader-story-row > div:last-child > .wreader-story-time { min-height: 14px; margin-top: 2px; gap: 6px; color: #8c98a5; font-size: 11px; }
 .wreader-article-list .wreader-story-row .story-audio-meta svg { width: 11.5px; height: 11.5px; flex: 0 0 11.5px; }
 .wreader-article-list .wreader-story-row .story-audio-meta { gap: 3.5px; }
+.wreader-story-source-meta { min-width: 0; }
+.wreader-story-meta-primary { min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.wreader-story-time { flex: none; margin-left: auto; text-align: right; font-size: 10.5px; font-weight: 400; }
+.wreader-source-avatar-shell .wreader-unread-dot { position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; min-width: 7px; min-height: 7px; border: 1.5px solid #fbfcfd; background: #2e75cb; box-shadow: 0 0 0 1px rgba(46,117,203,.12); }
+.wreader-article-list .wreader-story-row p { -webkit-line-clamp: 2; }
+.wreader-story-duration-row { min-height: 15px; margin-top: 4px; }
+.wreader-story-duration { color: #9aa5b0; font-size: 10.5px; line-height: 1.35; }
+.wreader-story-duration svg { width: 11px; height: 11px; }
 @media (max-width: 760px) {
-  .wreader-article-list .wreader-story-row > div:last-child > .wreader-story-time { min-height: 16px; gap: 8px; margin-top: 5px; color: #8f99a4; font-size: 12px; }
+.wreader-article-list .wreader-story-row > div:last-child > .wreader-story-time { min-height: 16px; gap: 8px; margin-top: 5px; color: #8f99a4; font-size: 12px; }
 }
+.wreader-article-list .wreader-story-row .wreader-story-time { font-size: 10.5px; }
+.wreader-article-list .wreader-story-row:hover { background: #eef2f6; }
+.wreader-article-list .wreader-story-row.is-selected:hover { background: #eaf0f6; }
 .wreader-toast-stack { position: fixed; z-index: 80; top: max(16px, env(safe-area-inset-top)); left: 50%; display: flex; width: min(560px, calc(100vw - 32px)); transform: translateX(-50%); flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
 .wreader-toast { position: relative; display: flex; width: fit-content; max-width: 100%; min-height: 40px; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid #dbe2e8; border-radius: 10px; background: rgba(255,255,255,.97); box-shadow: 0 8px 24px rgba(34,57,78,.14); color: #566574; font-size: 12px; line-height: 1.4; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); pointer-events: auto; animation: wreader-toast-in .16s ease-out; }
 .wreader-toast::before { width: 7px; height: 7px; flex: none; border-radius: 50%; background: #5a88b0; box-shadow: 0 0 0 3px rgba(90,136,176,.12); content: ""; }

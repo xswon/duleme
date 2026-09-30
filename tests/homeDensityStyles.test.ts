@@ -7,22 +7,47 @@ const navigationStyles = readFileSync(resolve(process.cwd(), "src/styles/prototy
 
 describe("home density styles", () => {
   it("uses the reviewed responsive layout thresholds", () => {
-    expect(styles).toContain("@media (min-width: 900px) and (max-width: 1279px)");
-    expect(styles).toContain("--wreader-list: 352px;");
+    expect(styles).toContain("@media (min-width: 1024px) and (max-width: 1279px)");
+    expect(styles).toContain("--wreader-list: clamp(320px, 30vw, 340px);");
     expect(styles).toContain("@media (min-width: 1280px)");
-    expect(styles).not.toContain("@media (min-width: 1040px)");
+    expect(styles).not.toContain("@media (min-width: 900px) and (max-width: 1279px)");
+    expect(styles).not.toContain("--wreader-list: 352px;");
   });
 
-  it("uses the text-first timeline hierarchy", () => {
+  it("keeps the timeline width stable when opening an article", () => {
+    expect(styles).toMatch(/\.wreader-workspace-grid \{[\s\S]*?grid-template-columns: var\(--wreader-list\) minmax\(0, 1fr\);/);
+    expect(styles).not.toMatch(/\.wreader-workspace-grid\[data-detail-open="false"\]\s*\{\s*grid-template-columns:/);
+  });
+
+  it("uses the lighter unified timeline hierarchy", () => {
     const titleRuleStart = styles.indexOf(".wreader-article-list .wreader-story-row h2 {");
     const titleRuleEnd = styles.indexOf(".wreader-article-list .wreader-story-row p {", titleRuleStart);
     const titleRules = styles.slice(titleRuleStart, titleRuleEnd);
 
-    expect(titleRules).toContain("font-weight: 700;");
-    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color: #3b82f6;[\s\S]*?background: #f5f8fc;/);
-    expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 6px;[\s\S]*?background: #2f7fd4;/);
+    expect(titleRules).toContain("font-weight: 600;");
+    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{\s*background: #f5f8fc;/);
+    expect(styles).not.toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color:/);
+    expect(styles).toMatch(/\.wreader-source-avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
+    expect(styles).toMatch(/\.wreader-story-source-meta \{[\s\S]*?grid-template-columns: 20px minmax\(0, 1fr\) auto;/);
+    expect(styles).toMatch(/\.wreader-story-duration-row \{[\s\S]*?justify-content: flex-start;/);
+    expect(styles).toMatch(/\.wreader-story-duration svg \{[\s\S]*?width: 12px;[\s\S]*?height: 12px;/);
+    expect(styles).toMatch(/\.wreader-story-unread-slot \{[\s\S]*?width: 7px;/);
+    expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 7px;[\s\S]*?background: #1f7ae0;/);
+    expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row h2 \{[\s\S]*?margin: 0 0 4px;/);
+    expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row p \{[\s\S]*?margin: 0;[\s\S]*?-webkit-line-clamp: 2;/);
+    expect(styles).toMatch(/\.wreader-story-time \{[\s\S]*?flex: none;[\s\S]*?white-space: nowrap;/);
+    expect(styles).not.toContain(".wreader-story-time-row {");
+    expect(styles).not.toContain(".wreader-story-footer {");
     expect(styles).toContain(".wreader-article-list .wreader-story-row.is-read h2 {");
     expect(styles).toContain("font-weight: 500;");
+  });
+
+  it("keeps timeline chrome to the simple three-way type switch", () => {
+    expect(styles).toMatch(/\.wreader-timeline-type-switch \{[\s\S]*?background: #edf1f5;/);
+    expect(styles).toMatch(/\.wreader-timeline-type-switch button\.is-active \{[\s\S]*?background: #fff;/);
+    expect(styles).not.toContain(".wreader-timeline-search {");
+    expect(styles).not.toContain(".wreader-timeline-source-filter {");
+    expect(styles).not.toContain(".wreader-timeline-more-filters {");
   });
 
   it("only bolds selected sidebar navigation items", () => {

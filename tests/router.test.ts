@@ -26,6 +26,16 @@ describe("reader URL routing", () => {
     expect(buildReaderUrl(route)).toBe("/search?q=local+first&article=a1");
   });
 
+  it("keeps search queries inside timeline routes", () => {
+    const route = parseReaderRoute({ pathname: "/today", search: "?q=agent&unread=1" });
+    expect(route).toMatchObject({ activeTab: "feeds", searchQuery: "agent", filterType: "unread" });
+    expect(buildReaderUrl(route)).toBe("/today?q=agent&unread=1");
+
+    const feedRoute = parseReaderRoute({ pathname: "/feed/feed-1", search: "?q=openai" });
+    expect(feedRoute.searchQuery).toBe("openai");
+    expect(buildReaderUrl(feedRoute)).toBe("/feed/feed-1?q=openai");
+  });
+
   it("migrates legacy unread URLs and keeps starred as a stable scope", () => {
     const legacyUnread = parseReaderRoute({ pathname: "/unread", search: "" });
     expect(legacyUnread.filterType).toBe("unread");

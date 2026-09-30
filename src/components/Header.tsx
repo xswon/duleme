@@ -25,7 +25,8 @@ interface HeaderProps {
   onMarkAllRead: () => void;
   isRefreshing: boolean;
   onToggleMobileMenu: () => void;
-  onNavigateSearch: () => void;
+  /** Legacy prop kept for callers that still render the old search entry point. */
+  onNavigateSearch?: () => void;
   unreadCount: number;
   refreshProgress?: { completed: number; total: number; successful: number; failed: number; newArticles: number };
   lastSyncAt?: number;
@@ -39,6 +40,11 @@ interface HeaderProps {
   contentType?: TimelineContentFilter;
   onContentTypeChange?: (contentType: TimelineContentFilter) => void;
   historyWindowDays?: number;
+  searchQuery?: string;
+  onSearchQueryChange?: (query: string) => void;
+  sourceOptions?: Array<{ id: string; title: string }>;
+  selectedSourceId?: string | null;
+  onSourceChange?: (sourceId: string | null) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,12 +52,10 @@ export const Header: React.FC<HeaderProps> = ({
   currentTitle,
   currentCountLabel: _currentCountLabel,
   filterType,
-  setFilterType,
   onRefresh,
   onMarkAllRead,
   isRefreshing,
   onToggleMobileMenu,
-  unreadCount,
   refreshProgress,
   timelineSortOrder = "newest",
   onToggleTimelineSort,
@@ -62,7 +66,6 @@ export const Header: React.FC<HeaderProps> = ({
   showTimelineFilters = false,
   contentType = "all",
   onContentTypeChange,
-  historyWindowDays: _historyWindowDays = 30,
 }) => (
   <header id="inoreader-header" className={`wreader-list-header relative z-30 shrink-0 bg-[#fbfcfd] text-slate-800 ${showTimelineFilters ? "has-timeline-filters" : ""}`}>
     <div className="wreader-list-header-main flex h-[58px] min-h-[58px] items-center justify-between">
@@ -72,33 +75,35 @@ export const Header: React.FC<HeaderProps> = ({
         {isRefreshing && <span className="truncate text-[11px] text-slate-500" aria-live="polite">同步中 {refreshProgress?.completed || 0}/{refreshProgress?.total || ""}</span>}
       </div>
       <div className="flex shrink-0 items-center gap-1">
-      {activeTab === "playlist" ? <>
-        <button type="button" onClick={onMarkAllRead} disabled={playlistEmpty} data-tip="清空播放列表" aria-label="清空播放列表" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
-        {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} aria-label={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
-      </> : activeTab === "notes" ? <>
-        <button type="button" onClick={onMarkAllRead} disabled={notesEmpty} data-tip="删除全部笔记" aria-label="删除全部笔记" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="trash" className="h-4 w-4" /></button>
-      </> : activeTab === "feeds" && filterType === "starred" ? <>
-        <button type="button" onClick={onMarkAllRead} disabled={favoritesEmpty} data-tip="清空收藏" aria-label="清空收藏" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
-        {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} aria-label={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
-      </> : activeTab !== "search" && <>
-        <button type="button" onClick={onMarkAllRead} data-tip="全部标为已读" aria-label="全部标为已读" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="mail" className="h-4 w-4" /></button>
-        {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} aria-label={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
-      </>}
-      {activeTab !== "playlist" && <button type="button" onClick={onRefresh} disabled={isRefreshing} title={isRefreshing ? "正在刷新" : "刷新订阅源"} aria-label={isRefreshing ? "正在刷新" : "刷新订阅源"} className="wreader-header-refresh wreader-icon-button"><PrototypeIcon type="refresh" className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} /></button>}
+        {activeTab === "playlist" ? <>
+          <button type="button" onClick={onMarkAllRead} disabled={playlistEmpty} data-tip="清空播放列表" aria-label="清空播放列表" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
+          {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} aria-label={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
+        </> : activeTab === "notes" ? <>
+          <button type="button" onClick={onMarkAllRead} disabled={notesEmpty} data-tip="删除全部笔记" aria-label="删除全部笔记" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="trash" className="h-4 w-4" /></button>
+        </> : activeTab === "feeds" && filterType === "starred" ? <>
+          <button type="button" onClick={onMarkAllRead} disabled={favoritesEmpty} data-tip="清空收藏" aria-label="清空收藏" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
+          {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} aria-label={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
+        </> : activeTab !== "search" && <>
+          <button type="button" onClick={onMarkAllRead} data-tip="全部标为已读" aria-label="全部标为已读" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="mail" className="h-4 w-4" /></button>
+          {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} aria-label={timelineSortOrder === "newest" ? "排序：从新至旧" : "排序：从旧至新"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
+        </>}
+        {activeTab !== "playlist" && <button type="button" onClick={onRefresh} disabled={isRefreshing} title={isRefreshing ? "正在刷新" : "刷新订阅源"} aria-label={isRefreshing ? "正在刷新" : "刷新订阅源"} className="wreader-header-refresh wreader-icon-button"><PrototypeIcon type="refresh" className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} /></button>}
       </div>
     </div>
+
     {showTimelineFilters && (
-      <div className="wreader-timeline-filter" aria-label="时间线筛选">
-        <div className="wreader-timeline-filter-segment" role="group" aria-label="内容类型">
-          {(["all", "article", "podcast"] as const).map((value) => (
-            <button key={value} type="button" className={contentType === value ? "is-active" : ""} aria-pressed={contentType === value} onClick={() => onContentTypeChange?.(value)}>
-              {value === "all" ? "全部" : value === "article" ? "文章" : "播客"}
-            </button>
-          ))}
-        </div>
-        <button type="button" className={`wreader-timeline-unread-filter ${filterType === "unread" ? "is-active" : ""}`} aria-pressed={filterType === "unread"} onClick={() => setFilterType(filterType === "unread" ? "all" : "unread")}>
-          仅看未读{unreadCount > 0 ? <b>{unreadCount > 99 ? "99+" : unreadCount}</b> : null}
-        </button>
+      <div className="wreader-timeline-type-switch" aria-label="内容类型">
+        {(["all", "article", "podcast"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            className={contentType === value ? "is-active" : ""}
+            aria-pressed={contentType === value}
+            onClick={() => onContentTypeChange?.(value)}
+          >
+            {value === "all" ? "全部" : value === "article" ? "文章" : "播客"}
+          </button>
+        ))}
       </div>
     )}
   </header>
