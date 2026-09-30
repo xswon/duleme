@@ -15,8 +15,9 @@
 - 播客音频 direct-first 加载及受限同源 streaming fallback
 - 单段 HTTP Range 转发与 206 / Content-Range 处理\n- BidClub 节目增强详情（TL;DR、Digest、Transcript 与来源元数据）
 - 远程 HTTPS OpenAI-compatible AI：模型列表、连接测试、文章/播客摘要（BYOK）
+- 阿里云百炼异步云转录：连接测试、任务提交、轮询与逐句结果（BYOK）
 
-云转录和本机播客处理仍保留在现有 Express 路径，尚未迁移到 Sites。Sites AI 只支持公网 HTTPS endpoint，不支持访问用户机器上的 Ollama/localhost。
+本机播客处理仍保留在现有 Express 路径，尚未迁移到 Sites。Sites AI 只支持公网 HTTPS endpoint，不支持访问用户机器上的 Ollama/localhost。
 
 ## 本地开发
 
@@ -47,7 +48,7 @@ GitHub Actions 会同时执行常规验证和 Sites 构建。
 
 - `src/`：React/TypeScript 产品 UI
 - `src/services/readerBackend.ts`：产品代码到运行时能力的统一边界
-- `src/sites/`：ChatGPT Sites Worker、RSS、媒体、BidClub 与远程 AI 运行时适配
+- `src/sites/`：ChatGPT Sites Worker、RSS、媒体、BidClub、远程 AI 与云转录运行时适配
 - `server/`、`server.ts`：本地 Web / Express API 实现
 - IndexedDB/localStorage：浏览器本地阅读数据与设置
 
