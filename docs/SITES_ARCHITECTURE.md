@@ -21,7 +21,7 @@ Express /api             same-origin Site Worker
                   shared parsers and episode mapper
 ```
 
-`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements RSS parsing, purpose-specific media routes, and the narrow `GET /api/bidclub/episode` adapter. AI, transcription, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
+`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements RSS parsing, purpose-specific media routes, BidClub enrichment, remote BYOK AI, and Alibaba Cloud transcription. Machine-local podcast processing remains deliberately unavailable in Sites.
 
 ## Capability matrix
 
@@ -41,7 +41,7 @@ Express /api             same-origin Site Worker
 | BidClub enrichment | Native for public BidClub episodes | `/api/bidclub/episode` accepts only a BidClub slug/page URL, fetches the fixed public episode API, and maps through the shared `BidclubEpisode` model | Keep for runtime-specific edge cases |
 | AI endpoints | Native for browser BYOK + public HTTPS providers | Same-origin `/api/ai/*` Worker adapter for status/models/test/summarize; no Site-owned default credential | Keep for local loopback and environment-default use |
 | Cloud transcription | Native for Alibaba Cloud BYOK | Same-origin `/api/transcription/*` Worker adapter for test/submit/poll/result download | Keep for local Web and future provider variants |
-| Local podcast processing | Unavailable | Explicit 501 | Yes |
+| Local podcast processing | Local Web only by design | Sites does not preflight, restore, poll, or start NextEcho sessions; cloud transcription + AI are the hosted path | Yes |
 
 ## Sites-native RSS behavior
 
@@ -142,6 +142,18 @@ Security and runtime constraints:
 
 As with RSS/media in the Worker runtime, hostname validation cannot reproduce Node's DNS address pinning. The fixed provider origin plus Cloudflare's outbound network boundary limits the sensitive authenticated path; public audio/result URL handling remains deliberately constrained.
 
+## Local podcast boundary
+
+NextEcho is a machine-local integration, not a hosted capability. Sites therefore treats `localPodcast` as unavailable rather than attempting to tunnel or emulate access to the user's machine.
+
+- `useLocalPodcast` checks the runtime capability before restoring, polling, starting, retrying, or requesting local insight work;
+- article detail skips the local preflight entirely when the runtime disables `localPodcast`;
+- hosted retranscription falls back to the migrated cloud-transcription path instead of calling a local endpoint;
+- previously persisted local task references remain in browser data but are not contacted from Sites;
+- local Web keeps the existing NextEcho behavior unchanged.
+
+This is the final architectural disposition for the current NextEcho integration. A future remote podcast-processing service would be a new product capability, not a transparent migration of the loopback service.
+
 ## Architecture rules
 
 1. Product components and services must not call application `/api` endpoints with `fetch` directly; use `ReaderBackend`.
@@ -157,4 +169,4 @@ As with RSS/media in the Worker runtime, hostname validation cannot reproduce No
 2. Verify a real BidClub episode end-to-end: TL;DR, digest chapters, transcript, source attribution, cover image, and episode audio.
 3. Deploy and smoke-test remote BYOK AI: model discovery, connection test, article summary, and one long transcript summary.
 4. Deploy and smoke-test cloud transcription: key test, one task submission, processing poll, completed transcript, and speaker labels.
-5. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
+5. Keep NextEcho/local podcast processing local-only; treat any future hosted podcast-processing service as a separate product capability.
