@@ -51,15 +51,15 @@ describe("ReaderBackend boundary", () => {
   it("returns an explicit stub response for unmigrated Sites APIs", async () => {
     setReaderBackend(sitesReaderBackend);
 
-    const response = await backendRequest("/api/transcription", { method: "POST" });
+    const response = await backendRequest("/api/local-podcast/status", { method: "GET" });
     const payload = await response.json();
 
     expect(response.status).toBe(501);
     expect(payload).toMatchObject({
       code: "sites_capability_unavailable",
-      capability: "transcription",
+      capability: "localPodcast",
     });
-    expect(hasReaderBackendCapability("transcription")).toBe(false);
+    expect(hasReaderBackendCapability("localPodcast")).toBe(false);
   });
 
   it("routes migrated RSS requests to the Sites same-origin worker", async () => {
@@ -74,6 +74,16 @@ describe("ReaderBackend boundary", () => {
       undefined,
     );
     expect(hasReaderBackendCapability("rss")).toBe(true);
+  });
+
+  it("routes migrated transcription requests to the Sites worker", async () => {
+    const response = new Response(JSON.stringify({ ok: true }), { status: 200 });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    setReaderBackend(sitesReaderBackend);
+
+    await expect(backendRequest("/api/transcription/settings/test", { method: "POST" })).resolves.toBe(response);
+    expect(fetchMock).toHaveBeenCalledWith("/api/transcription/settings/test", { method: "POST" });
+    expect(hasReaderBackendCapability("transcription")).toBe(true);
   });
 
   it("routes migrated AI requests to the Sites worker", async () => {
