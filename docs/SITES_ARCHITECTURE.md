@@ -16,9 +16,9 @@ ReaderBackend
 WebReaderBackend         SitesReaderBackend
 Express /api             same-origin Site Worker
                               |
-                         restricted RSS/media fetch
+                    restricted RSS/media/BidClub fetch
                               |
-                         shared rssParser
+                  shared parsers and episode mapper
 ```
 
 `npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements RSS parsing, purpose-specific media routes, and the narrow `GET /api/bidclub/episode` adapter. AI, transcription, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
@@ -79,6 +79,22 @@ Media remains behind `ReaderBackend`: product components ask for a primary URL a
 - The connection timeout covers URL resolution, redirects, and receipt of upstream headers. It is cleared before body streaming so a long podcast is not aborted merely because playback lasts longer than the connection timeout.
 
 The media routes are not general-purpose proxies: methods, request headers, response types, redirects, and target schemes are constrained. Localhost, common metadata names, private/reserved IP literals, URL credentials, and unsafe redirect targets are rejected. The Worker runtime does not expose the Node DNS pre-resolution/address-pinning path used by Express, so a public hostname that later resolves to a private address cannot be independently pinned by application code; Cloudflare's outbound network enforcement is still required. Keep the legacy Express proxy for publishers that block Cloudflare egress, require a source-specific cookie/header, omit usable MIME metadata, ignore Range, or otherwise need the mature Node transport.
+
+## Sites BidClub behavior
+
+The product keeps the existing `GET /api/bidclub/episode?url=...` contract through `ReaderBackend`. In Sites, the same request is handled by a narrow Worker adapter:
+
+- accepts only a canonical BidClub episode slug or a `bidclub.ai/e/<slug>` page URL;
+- contacts only `https://bidclub.ai/api/v1/episodes/<slug>`;
+- permits redirects only when they remain HTTPS on BidClub's episode API;
+- applies a 15 second timeout, a three-redirect limit, and a 5 MiB response limit;
+- preserves useful upstream statuses such as 404 and 429 and forwards `Retry-After`;
+- rejects invalid JSON and incomplete episode payloads;
+- maps the upstream response through the same `mapBidclubEpisodePayload` code used by the local Express adapter;
+- exposes only the existing `BidclubEpisode` product model rather than arbitrary upstream JSON;
+- leaves cover images and episode audio inside the existing Sites media boundary.
+
+No BidClub API key, cookie, custom outbound header, or user-supplied upstream origin is accepted by this adapter. If the public BidClub read API is unavailable from the Sites runtime, the existing local Express path remains the operational fallback.
 
 ## Architecture rules
 
