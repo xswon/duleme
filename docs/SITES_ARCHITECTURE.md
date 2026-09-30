@@ -39,7 +39,7 @@ Express /api             same-origin Site Worker
 | Legacy Express media proxy | Local Web only | Existing `/api/proxy-image` and `/api/proxy-audio`; local URL resolution is unchanged | Yes |
 | Unsupported media cases | Unsupported | Private/LAN/localhost, authenticated or cookie-gated media, non-HTTP(S), multipart Range, origins that ignore Range | Yes where legacy policy permits |
 | BidClub enrichment | Native for public BidClub episodes | `/api/bidclub/episode` accepts only a BidClub slug/page URL, fetches the fixed public episode API, and maps through the shared `BidclubEpisode` model | Keep for runtime-specific edge cases |
-| AI endpoints | Unavailable | Explicit 501 | Yes |
+| AI endpoints | Native for browser BYOK + public HTTPS providers | Same-origin `/api/ai/*` Worker adapter for status/models/test/summarize; no Site-owned default credential | Keep for local loopback and environment-default use |
 | Cloud transcription | Unavailable | Explicit 501 | Yes |
 | Local podcast processing | Unavailable | Explicit 501 | Yes |
 
@@ -96,6 +96,28 @@ The product keeps the existing `GET /api/bidclub/episode?url=...` contract throu
 
 No BidClub API key, cookie, custom outbound header, or user-supplied upstream origin is accepted by this adapter. If the public BidClub read API is unavailable from the Sites runtime, the existing local Express path remains the operational fallback.
 
+## Sites AI behavior
+
+Sites keeps the existing browser-owned AI settings model and the existing `/api/ai/*` contract. The Worker implements:
+
+- `GET /api/ai/status`: reports no Site-owned environment default in this phase;
+- `POST /api/ai/models`: loads the configured OpenAI-compatible model catalog;
+- `POST /api/ai/test`: performs the existing minimal chat-completion connectivity check;
+- `POST /api/ai/summarize`: supports both JSON and NDJSON progress responses and reuses the shared article/podcast summary orchestration.
+
+Security and runtime constraints:
+
+- only public HTTPS Base URLs are accepted in Sites;
+- localhost, loopback, private/reserved IP literals, URL credentials, query-bearing Base URLs, and plaintext HTTP are rejected;
+- non-local endpoints require a browser-provided API Key;
+- provider redirects are followed only when they stay on the configured HTTPS origin, preventing bearer credentials from crossing origins;
+- request and provider-response bodies are bounded;
+- AI responses use `Cache-Control: no-store`;
+- provider error details are classified into stable product error codes without echoing the API Key;
+- the Worker does not persist credentials and does not use repository/server environment credentials.
+
+Local Web retains its broader runtime support, including loopback Ollama-compatible endpoints and optional `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` environment defaults.
+
 ## Architecture rules
 
 1. Product components and services must not call application `/api` endpoints with `fetch` directly; use `ReaderBackend`.
@@ -109,6 +131,6 @@ No BidClub API key, cookie, custom outbound header, or user-supplied upstream or
 
 1. Deploy and smoke-test the completed RSS/media/BidClub stack in the private ChatGPT Site when deployment quota is available.
 2. Verify a real BidClub episode end-to-end: TL;DR, digest chapters, transcript, source attribution, cover image, and episode audio.
-3. Migrate AI status/model/test/summary endpoints as one credential-safe server capability.
+3. Deploy and smoke-test remote BYOK AI: model discovery, connection test, article summary, and one long transcript summary.
 4. Migrate transcription orchestration.
 5. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
