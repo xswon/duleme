@@ -1,6 +1,6 @@
 # ChatGPT Sites-first architecture
 
-## Phase 3 decision
+## Phase 4 decision
 
 Duleme keeps the existing React UI, browser-owned IndexedDB/localStorage data, and product data model. The local Web runtime remains fully supported and continues to use the existing Express `/api` implementation.
 
@@ -21,7 +21,7 @@ Express /api             same-origin Site Worker
                          shared rssParser
 ```
 
-`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements `GET /api/rss/parse` plus purpose-specific `GET`/`HEAD` media routes. AI, transcription, BidClub, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
+`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements RSS parsing, purpose-specific media routes, and the narrow `GET /api/bidclub/episode` adapter. AI, transcription, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
 
 ## Capability matrix
 
@@ -38,7 +38,7 @@ Express /api             same-origin Site Worker
 | Sites audio adapter | Native fallback | `/api/media/audio`, public HTTP(S) only, streamed GET/HEAD and single `bytes=` Range forwarding | Keep for publisher/runtime edge cases |
 | Legacy Express media proxy | Local Web only | Existing `/api/proxy-image` and `/api/proxy-audio`; local URL resolution is unchanged | Yes |
 | Unsupported media cases | Unsupported | Private/LAN/localhost, authenticated or cookie-gated media, non-HTTP(S), multipart Range, origins that ignore Range | Yes where legacy policy permits |
-| BidClub enrichment | Unavailable | Explicit 501 | Yes |
+| BidClub enrichment | Native for public BidClub episodes | `/api/bidclub/episode` accepts only a BidClub slug/page URL, fetches the fixed public episode API, and maps through the shared `BidclubEpisode` model | Keep for runtime-specific edge cases |
 | AI endpoints | Unavailable | Explicit 501 | Yes |
 | Cloud transcription | Unavailable | Explicit 501 | Yes |
 | Local podcast processing | Unavailable | Explicit 501 | Yes |
@@ -91,10 +91,8 @@ The media routes are not general-purpose proxies: methods, request headers, resp
 
 ## Recommended migration order
 
-1. Migrate `GET /api/bidclub/episode` as a narrow slug/episode adapter, reusing the existing `BidclubEpisode` model and sanitization/rendering path.
-2. Port the BidClub upstream fetch and error mapping without accepting arbitrary target URLs; validate that only the intended BidClub API/origin is contacted.
-3. Verify TL;DR, digest, transcript HTML, attribution URL, cover URL, and episode audio URL independently; the latter two must continue through the media boundary added in this phase.
-4. Add redirect, malformed payload, missing episode, upstream rate-limit, timeout, and cache tests before enabling the `bidclub` Sites capability.
-5. Migrate AI status/model/test/summary endpoints as one credential-safe server capability.
-6. Migrate transcription orchestration.
-7. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
+1. Deploy and smoke-test the completed RSS/media/BidClub stack in the private ChatGPT Site when deployment quota is available.
+2. Verify a real BidClub episode end-to-end: TL;DR, digest chapters, transcript, source attribution, cover image, and episode audio.
+3. Migrate AI status/model/test/summary endpoints as one credential-safe server capability.
+4. Migrate transcription orchestration.
+5. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
