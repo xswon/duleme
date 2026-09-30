@@ -233,10 +233,15 @@ function extractModelOptions(payload: unknown): AiModelOption[] {
   return models;
 }
 
-async function readTextLimited(stream: ReadableStream<Uint8Array> | null, declaredLength: string | null, maxBytes: number): Promise<string> {
+async function readTextLimited(
+  stream: ReadableStream<Uint8Array> | null,
+  declaredLength: string | null,
+  maxBytes: number,
+  tooLargeError: SitesAiError,
+): Promise<string> {
   const length = Number(declaredLength);
   if (declaredLength && Number.isFinite(length) && length > maxBytes) {
-    throw new SitesAiError("invalid_response", "AI service response is too large.");
+    throw tooLargeError;
   }
   if (!stream) return "";
 
@@ -251,7 +256,7 @@ async function readTextLimited(stream: ReadableStream<Uint8Array> | null, declar
       bytes += value.byteLength;
       if (bytes > maxBytes) {
         await reader.cancel("AI response is too large");
-        throw new SitesAiError("invalid_response", "AI service response is too large.");
+        throw tooLargeError;
       }
       result += decoder.decode(value, { stream: true });
     }
@@ -262,7 +267,12 @@ async function readTextLimited(stream: ReadableStream<Uint8Array> | null, declar
 }
 
 async function readJsonResponse(response: Response, maxBytes: number): Promise<unknown> {
-  const text = await readTextLimited(response.body, response.headers.get("Content-Length"), maxBytes);
+  const text = await readTextLimited(
+    response.body,
+    response.headers.get("Content-Length"),
+    maxBytes,
+    new SitesAiError("invalid_response", "AI service response is too large."),
+  );
   if (!text.trim()) return null;
   try {
     return JSON.parse(text);
@@ -276,7 +286,12 @@ async function readRequestJson(request: Request, maxBytes: number): Promise<Reco
   if (request.headers.has("Content-Length") && Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new SitesAiError("invalid_request", "AI request body is too large.");
   }
-  const text = await readTextLimited(request.body, request.headers.get("Content-Length"), maxBytes);
+  const text = await readTextLimited(
+    request.body,
+    request.headers.get("Content-Length"),
+    maxBytes,
+    new SitesAiError("invalid_request", "AI request body is too large."),
+  );
   if (!text.trim()) return {};
   try {
     const value = JSON.parse(text) as unknown;
