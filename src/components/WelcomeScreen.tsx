@@ -147,9 +147,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-8 text-slate-900">
       <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-xl shadow-slate-200/50 sm:p-9">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-          <BookOpen className="h-7 w-7" />
-        </div>
+        <img
+          src="/brand-icon-navy.svg"
+          alt=""
+          aria-hidden="true"
+          className="mx-auto h-14 w-14 rounded-2xl shadow-lg shadow-cyan-200/60"
+        />
         <h1 className="mt-5 text-3xl font-bold tracking-tight">读了么</h1>
         <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-slate-500">
           把你真正想看的内容，放在一个安静的地方。

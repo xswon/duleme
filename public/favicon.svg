@@ -1,5 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#2563eb"/>
-  <path d="M15 43c6-3 12-3 17 0 5-3 11-3 17 0" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
-  <path d="M20 35v-8m8 8V20m8 15V16m8 19V24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title description">
+  <title id="title">读了么图标</title>
+  <desc id="description">白色书页图形，置于清新的青绿色到阅读蓝渐变底色上。</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#62CBB1"/>
+      <stop offset="1" stop-color="#3175C6"/>
+    </linearGradient>
+  </defs>
+  <rect x="58" y="58" width="908" height="908" rx="224" fill="url(#background)"/>
+  <g fill="#F8FBFF">
+    <rect x="234" y="454" width="70" height="170" rx="35"/>
+    <rect x="363" y="340" width="70" height="284" rx="35"/>
+    <rect x="477" y="266" width="70" height="376" rx="35"/>
+    <rect x="591" y="340" width="70" height="284" rx="35"/>
+    <rect x="720" y="454" width="70" height="170" rx="35"/>
+  </g>
+  <path d="M190 711 C275 656 392 654 512 735 C632 654 749 656 834 711" fill="none" stroke="#F8FBFF" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

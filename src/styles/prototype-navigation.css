@@ -5,14 +5,25 @@
   line-height: normal;
   -webkit-font-smoothing: auto;
 }
-.wreader-brand { padding: 0 6px 0 16px; gap: 2px; }
-.wreader-brand-name { flex: 1; font-size: 13px; font-weight: 700; color: #2a3540; letter-spacing: normal; }
+.wreader-brand { padding: 0 6px 0 12px; gap: 6px; }
+.wreader-brand-name { min-width: 0; flex: 1; margin: 0; font-size: 13px; font-weight: 700; color: #33485a; letter-spacing: normal; }
+.wreader-brand-home { display: flex; width: 100%; min-width: 0; align-items: center; gap: 8px; padding: 0; color: inherit; text-align: left; }
+.wreader-brand-home img { width: 28px; height: 28px; flex: none; }
+.wreader-brand-home span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wreader-brand-home:focus-visible { outline: 2px solid #3175c6; outline-offset: 2px; border-radius: 4px; }
 .wreader-sidebar-search,
 .wreader-sidebar-collapse { margin-left: 0; color: #687789; }
 .wreader-sidebar-search { display: none; }
 .wreader-sidebar-search.is-selected { background: #e0eafa; color: #1f64ba; }
 @media (max-width: 1039px) {
   .wreader-sidebar-search { display: inline-grid; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .wreader-brand { justify-content: center; padding: 0; }
+  .wreader-brand-name { flex: none; }
+  .wreader-brand-home { width: 28px; }
+  .wreader-brand-home > span,
+  .wreader-sidebar-search { display: none; }
 }
 .wreader-sidebar-collapse svg { width: 16px; height: 16px; }
 .wreader-sidebar-search svg { width: 16px; height: 16px; }
@@ -64,9 +75,11 @@
   .wreader-menu-button, .wreader-header-refresh { display: none !important; }
   .wreader-app.is-sidebar-collapsed { --wreader-list: 360px; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar { display: flex; width: 52px !important; min-width: 52px; }
-  .wreader-app.is-sidebar-collapsed .wreader-brand { justify-content: center; padding: 0; }
-  .wreader-app.is-sidebar-collapsed .wreader-sidebar-collapse { margin: 0; }
-  .wreader-app.is-sidebar-collapsed .wreader-brand-name,
+  .wreader-app.is-sidebar-collapsed .wreader-brand { justify-content: space-between; padding: 0 2px; gap: 0; }
+  .wreader-app.is-sidebar-collapsed .wreader-brand-home { width: 24px; }
+  .wreader-app.is-sidebar-collapsed .wreader-brand-home img { width: 24px; height: 24px; }
+  .wreader-app.is-sidebar-collapsed .wreader-brand-home > span { display: none; }
+  .wreader-app.is-sidebar-collapsed .wreader-sidebar-collapse { width: 24px; min-width: 24px; margin: 0; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-search,
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-refresh,
   .wreader-app.is-sidebar-collapsed .wreader-nav-section-label,
