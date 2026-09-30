@@ -75,10 +75,8 @@
   .wreader-menu-button, .wreader-header-refresh { display: none !important; }
   .wreader-app.is-sidebar-collapsed { --wreader-list: 360px; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar { display: flex; width: 52px !important; min-width: 52px; }
-  .wreader-app.is-sidebar-collapsed .wreader-brand { justify-content: space-between; padding: 0 2px; gap: 0; }
-  .wreader-app.is-sidebar-collapsed .wreader-brand-home { width: 24px; }
-  .wreader-app.is-sidebar-collapsed .wreader-brand-home img { width: 24px; height: 24px; }
-  .wreader-app.is-sidebar-collapsed .wreader-brand-home > span { display: none; }
+  .wreader-app.is-sidebar-collapsed .wreader-brand { justify-content: center; padding: 0; gap: 0; }
+  .wreader-app.is-sidebar-collapsed .wreader-brand-name { display: none; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-collapse { width: 24px; min-width: 24px; margin: 0; }
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-search,
   .wreader-app.is-sidebar-collapsed .wreader-sidebar-refresh,
