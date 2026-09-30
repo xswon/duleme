@@ -36,8 +36,9 @@ describe("reader URL routing", () => {
 
   it("round-trips timeline filters and history on timeline, feed and folder scopes", () => {
     for (const pathname of ["/today", "/feed/feed-1", "/folder/Tech"]) {
-      const route = parseReaderRoute({ pathname, search: "?unread=1&type=podcast&days=60" });
-      expect(route).toMatchObject({ filterType: "unread", contentType: "podcast", historyWindowDays: 60 });
+      const route = parseReaderRoute({ pathname, search: "?q=agent&unread=1&type=podcast&days=60" });
+      expect(route).toMatchObject({ filterType: "unread", contentType: "podcast", historyWindowDays: 60, searchQuery: "agent" });
+      expect(buildReaderUrl(route)).toContain("q=agent");
       expect(buildReaderUrl(route)).toContain("unread=1");
       expect(buildReaderUrl(route)).toContain("type=podcast");
       expect(buildReaderUrl(route)).toContain("days=60");
