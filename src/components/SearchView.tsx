@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { FileText, Search as SearchIcon, X } from "lucide-react";
+import { FileText, Headphones, Search as SearchIcon, X } from "lucide-react";
 import { Article, Feed } from "../types";
-import { getHighlightSegments, getPreparedSearchDocument, type SearchResult } from "../services/searchService";
+import { getHighlightSegments, getPreparedSearchDocument, getSearchExcerpt, type SearchResult } from "../services/searchService";
 import { VirtualWindow } from "./VirtualWindow";
 
 export interface SearchViewProps {
@@ -37,6 +37,19 @@ function formatRelativeTime(pubDate: string) {
   return date.toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
 }
 
+function formatDuration(duration?: string) {
+  if (!duration) return "";
+  const trimmed = duration.trim();
+  if (!trimmed) return "";
+  const seconds = /^\d+(?:\.\d+)?$/.test(trimmed)
+    ? Number(trimmed)
+    : trimmed.split(":").reduce((total, part) => {
+      const value = Number(part);
+      return Number.isFinite(value) ? total * 60 + value : Number.NaN;
+    }, 0);
+  return Number.isFinite(seconds) && seconds > 0 ? `${Math.max(1, Math.round(seconds / 60))} min` : "";
+}
+
 export const SearchView: React.FC<SearchViewProps> = ({
   results,
   searchQuery,
@@ -63,7 +76,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
       <header className="wreader-search-heading">
         <span>工具</span>
         <h2>搜索</h2>
-        <p>在全部订阅源中查找文章。</p>
+        <p>在全部订阅源中查找文章、播客和摘要。</p>
       </header>
 
       <label className="wreader-search-box">
@@ -74,7 +87,7 @@ export const SearchView: React.FC<SearchViewProps> = ({
           autoFocus
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="搜索文章、订阅源或关键词"
+          placeholder="搜索标题、正文、摘要、作者或来源…"
           aria-label="全文搜索"
           aria-keyshortcuts="Control+K Meta+K"
         />
@@ -83,10 +96,11 @@ export const SearchView: React.FC<SearchViewProps> = ({
         ) : <kbd>⌘K</kbd>}
       </label>
 
-      <div className="wreader-search-results" aria-live="polite">
+      <div className="wreader-search-result-count" aria-live="polite">找到 {results.length} 条结果</div>
+      <div className="wreader-search-results">
         {results.length > 0 ? <VirtualWindow
           count={results.length}
-          estimateSize={66}
+          estimateSize={106}
           gap={4}
           overscan={10}
           className="wreader-search-virtual-window"
@@ -94,6 +108,9 @@ export const SearchView: React.FC<SearchViewProps> = ({
           renderItem={(index) => {
           const article = results[index].article;
           const fields = getPreparedSearchDocument(article).fields;
+          const isPodcast = Boolean(article.audioUrl?.trim());
+          const duration = isPodcast ? formatDuration(article.duration) : "";
+          const excerpt = getSearchExcerpt(article, resultQuery, 180);
           return (
           <button
             type="button"
@@ -101,13 +118,16 @@ export const SearchView: React.FC<SearchViewProps> = ({
             className={`wreader-search-result${selectedArticleId === article.id ? " is-selected" : ""}`}
             onClick={() => onSelectArticle(article)}
           >
-            <span className="wreader-search-result-icon"><FileText /></span>
+            <span className="wreader-search-result-icon">{isPodcast ? <Headphones /> : <FileText />}</span>
             <span className="wreader-search-result-copy">
-              <strong><HighlightedText text={fields.title} query={resultQuery} /></strong>
-              <small>
+              <small className="wreader-search-result-meta">
                 <HighlightedText text={fields.source} query={resultQuery} />
                 {article.author && article.author !== article.feedTitle ? <> · <HighlightedText text={fields.author} query={resultQuery} /></> : null}
+                <> · {isPodcast ? "播客" : "文章"}</>
+                {duration ? <> · {duration}</> : null}
               </small>
+              <strong><HighlightedText text={fields.title} query={resultQuery} /></strong>
+              {excerpt ? <span className="wreader-search-result-excerpt"><HighlightedText text={excerpt} query={resultQuery} /></span> : null}
             </span>
             <time dateTime={article.pubDate}>{formatRelativeTime(article.pubDate)}</time>
           </button>
