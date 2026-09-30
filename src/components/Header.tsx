@@ -27,6 +27,8 @@ interface HeaderProps {
   onMarkAllRead: () => void;
   isRefreshing: boolean;
   onToggleMobileMenu: () => void;
+  /** @deprecated Search is now inline on feed timelines; kept for call-site compatibility. */
+  onNavigateSearch?: () => void;
   unreadCount: number;
   refreshProgress?: { completed: number; total: number; successful: number; failed: number; newArticles: number };
   lastSyncAt?: number;
