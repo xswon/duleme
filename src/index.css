@@ -2418,52 +2418,6 @@ body,
   }
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
-  :root {
-    --wreader-sidebar: 52px;
-    --wreader-list: 100%;
-  }
-
-  .wreader-sidebar {
-    position: static !important;
-    width: var(--wreader-sidebar) !important;
-    min-width: var(--wreader-sidebar);
-    transform: none !important;
-    translate: none !important;
-  }
-
-  .wreader-brand {
-    justify-content: center;
-    padding-inline: 6px;
-  }
-
-  .wreader-brand > div:first-child,
-  .wreader-sidebar-refresh,
-  .wreader-nav-section-label,
-  .wreader-nav-label,
-  .wreader-nav-count,
-  .wreader-subscription-section,
-  .wreader-sidebar-footer span:not(.wreader-nav-leading) {
-    display: none;
-  }
-
-  .wreader-sidebar-scroll,
-  .wreader-sidebar-footer {
-    padding-inline: 6px;
-  }
-
-  .wreader-nav-item,
-  .wreader-sidebar-footer button {
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .wreader-menu-button,
-  .wreader-reader-menu {
-    display: none !important;
-  }
-}
-
 @media (max-width: 760px) {
   .wreader-feed-edit-modal {
     padding: 12px;
@@ -3857,4 +3811,50 @@ body,
     translate: none !important;
   }
 
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --wreader-sidebar: 52px;
+    --wreader-list: 100%;
+  }
+
+  .wreader-sidebar {
+    position: static !important;
+    width: var(--wreader-sidebar) !important;
+    min-width: var(--wreader-sidebar);
+    transform: none !important;
+    translate: none !important;
+  }
+
+  .wreader-brand {
+    justify-content: center;
+    padding-inline: 6px;
+  }
+
+  .wreader-brand > div:first-child,
+  .wreader-sidebar-refresh,
+  .wreader-nav-section-label,
+  .wreader-nav-label,
+  .wreader-nav-count,
+  .wreader-subscription-section,
+  .wreader-sidebar-footer span:not(.wreader-nav-leading) {
+    display: none;
+  }
+
+  .wreader-sidebar-scroll,
+  .wreader-sidebar-footer {
+    padding-inline: 6px;
+  }
+
+  .wreader-nav-item,
+  .wreader-sidebar-footer button {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .wreader-menu-button,
+  .wreader-reader-menu {
+    display: none !important;
+  }
 }
