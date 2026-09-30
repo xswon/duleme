@@ -11,7 +11,7 @@ const SITES_CAPABILITIES: ReaderBackendCapabilities = {
   bidclub: true,
   ai: true,
   loopbackAi: false,
-  transcription: false,
+  transcription: true,
   localPodcast: false,
   imageProxy: true,
   audioProxy: true,
@@ -70,7 +70,7 @@ export const sitesReaderBackend: ReaderBackend = {
     if (!pathname) return globalThis.fetch(input, init);
 
     const capability = capabilityForPath(pathname);
-    if (capability === "rss" || capability === "bidclub" || capability === "ai" || capability === "imageProxy" || capability === "audioProxy") {
+    if (capability === "rss" || capability === "bidclub" || capability === "ai" || capability === "transcription" || capability === "imageProxy" || capability === "audioProxy") {
       return globalThis.fetch(input, init);
     }
     return new Response(JSON.stringify({
