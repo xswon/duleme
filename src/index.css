@@ -87,7 +87,7 @@ button {
   letter-spacing: 0.01em;
   color: var(--color-slate-800);
   width: 100%;
-  max-width: 650px;
+  max-width: 680px;
   overflow-wrap: anywhere;
 }
 
@@ -173,7 +173,7 @@ button {
 .bidclub-overview,
 .bidclub-digest {
   width: 100%;
-  max-width: 650px;
+  max-width: 680px;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -339,8 +339,8 @@ button {
 
 /* Production shell follows the reviewed range-list-detail prototype. */
 :root {
-  --wreader-sidebar: 236px;
-  --wreader-list: 352px;
+  --wreader-sidebar: 220px;
+  --wreader-list: clamp(340px, 27vw, 380px);
   --wreader-hit: 32px;
   --wreader-selected: #e7effa;
   color: #202a35;
@@ -807,7 +807,7 @@ body,
 }
 
 #article-reader .reader-scroll > div {
-  max-width: 650px;
+  max-width: 680px;
 }
 
 #article-reader h1 {
@@ -1598,7 +1598,7 @@ body,
 
 #article-reader > [aria-label="阅读工具栏"] > div:first-child {
   min-height: 0;
-  max-width: 650px;
+  max-width: 680px;
   justify-content: center;
   padding: 10px 0;
 }
@@ -1657,7 +1657,7 @@ body,
 }
 
 #article-reader .reader-scroll > div {
-  max-width: 650px;
+  max-width: 680px;
 }
 
 #article-reader h1 {
@@ -2371,6 +2371,51 @@ body,
 .wreader-feed-edit-card footer button:disabled {
   cursor: not-allowed;
   opacity: .55;
+}
+
+@media (min-width: 1024px) and (max-width: 1279px) {
+  :root {
+    --wreader-sidebar: 56px;
+    --wreader-list: clamp(320px, 30vw, 340px);
+  }
+
+  .wreader-sidebar {
+    position: static !important;
+    width: var(--wreader-sidebar) !important;
+    min-width: var(--wreader-sidebar);
+    transform: none !important;
+    translate: none !important;
+  }
+
+  .wreader-brand {
+    justify-content: center;
+    padding-inline: 6px;
+  }
+
+  .wreader-brand > div:first-child,
+  .wreader-sidebar-refresh,
+  .wreader-nav-section-label,
+  .wreader-nav-label,
+  .wreader-nav-count,
+  .wreader-subscription-section,
+  .wreader-sidebar-footer span:not(.wreader-nav-leading) {
+    display: none;
+  }
+
+  .wreader-sidebar-scroll,
+  .wreader-sidebar-footer {
+    padding-inline: 6px;
+  }
+
+  .wreader-nav-item,
+  .wreader-sidebar-footer button {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .wreader-menu-button {
+    display: none !important;
+  }
 }
 
 @media (max-width: 760px) {
@@ -3561,7 +3606,7 @@ body,
   }
 }
 
-@media (max-width: 899px) {
+@media (max-width: 1023px) {
   :root {
     --wreader-list: 100%;
   }
@@ -3766,4 +3811,50 @@ body,
     translate: none !important;
   }
 
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root {
+    --wreader-sidebar: 52px;
+    --wreader-list: 100%;
+  }
+
+  .wreader-sidebar {
+    position: static !important;
+    width: var(--wreader-sidebar) !important;
+    min-width: var(--wreader-sidebar);
+    transform: none !important;
+    translate: none !important;
+  }
+
+  .wreader-brand {
+    justify-content: center;
+    padding-inline: 6px;
+  }
+
+  .wreader-brand > div:first-child,
+  .wreader-sidebar-refresh,
+  .wreader-nav-section-label,
+  .wreader-nav-label,
+  .wreader-nav-count,
+  .wreader-subscription-section,
+  .wreader-sidebar-footer span:not(.wreader-nav-leading) {
+    display: none;
+  }
+
+  .wreader-sidebar-scroll,
+  .wreader-sidebar-footer {
+    padding-inline: 6px;
+  }
+
+  .wreader-nav-item,
+  .wreader-sidebar-footer button {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .wreader-menu-button,
+  .wreader-reader-menu {
+    display: none !important;
+  }
 }
