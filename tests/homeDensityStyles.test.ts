@@ -16,7 +16,7 @@ describe("home density styles", () => {
 
   it("keeps the timeline width stable when opening an article", () => {
     expect(styles).toMatch(/\.wreader-workspace-grid \{[\s\S]*?grid-template-columns: var\(--wreader-list\) minmax\(0, 1fr\);/);
-    expect(styles).not.toMatch(/data-detail-open="false"[^\{]*\{[\s\S]*?grid-template-columns:/);
+    expect(styles).not.toMatch(/\.wreader-workspace-grid\[data-detail-open="false"\]\s*\{\s*grid-template-columns:/);
   });
 
   it("uses the text-first timeline hierarchy", () => {
