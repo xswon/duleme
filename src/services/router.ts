@@ -45,7 +45,7 @@ export function parseReaderRoute(location: Pick<Location, "pathname" | "search">
     filterType: query.get("unread") === "1" ? "unread" : "all",
     selectedFeedId: null,
     selectedCategory: null,
-    searchQuery: "",
+    searchQuery: query.get("q") || "",
     articleId,
     detailTab,
     contentType: query.get("type") === "article" || query.get("type") === "podcast" ? query.get("type") as TimelineContentFilter : "all",
@@ -78,7 +78,9 @@ export function buildReaderUrl(route: SerializableReaderRoute): string {
   else if (route.filterType === "starred") pathname = "/starred";
 
   const query = new URLSearchParams();
-  if (route.activeTab === "search" && route.searchQuery.trim()) query.set("q", route.searchQuery.trim());
+  if ((route.activeTab === "search" || route.activeTab === "feeds") && route.searchQuery.trim()) {
+    query.set("q", route.searchQuery.trim());
+  }
   if (route.activeTab === "feeds" && route.filterType === "unread") query.set("unread", "1");
   if (route.activeTab === "feeds" && route.filterType !== "starred" && route.contentType && route.contentType !== "all") query.set("type", route.contentType);
   if (route.activeTab === "feeds" && route.filterType !== "starred" && route.historyWindowDays && route.historyWindowDays !== DEFAULT_ROUTE_HISTORY_DAYS) query.set("days", String(route.historyWindowDays));
