@@ -19,21 +19,27 @@ describe("home density styles", () => {
     expect(styles).not.toMatch(/\.wreader-workspace-grid\[data-detail-open="false"\]\s*\{\s*grid-template-columns:/);
   });
 
-  it("uses the text-first timeline hierarchy", () => {
+  it("uses the lighter unified timeline hierarchy", () => {
     const titleRuleStart = styles.indexOf(".wreader-article-list .wreader-story-row h2 {");
     const titleRuleEnd = styles.indexOf(".wreader-article-list .wreader-story-row p {", titleRuleStart);
     const titleRules = styles.slice(titleRuleStart, titleRuleEnd);
 
-    expect(titleRules).toContain("font-weight: 700;");
-    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color: #3b82f6;[\s\S]*?background: #f5f8fc;/);
-    expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 6px;[\s\S]*?background: #2f7fd4;/);
+    expect(titleRules).toContain("font-weight: 600;");
+    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{\s*background: #f5f8fc;/);
+    expect(styles).not.toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color:/);
+    expect(styles).toMatch(/\.wreader-source-avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
+    expect(styles).toMatch(/\.wreader-story-duration svg \{[\s\S]*?width: 12px;[\s\S]*?height: 12px;/);
+    expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row p \{[\s\S]*?-webkit-line-clamp: 1;/);
     expect(styles).toContain(".wreader-article-list .wreader-story-row.is-read h2 {");
     expect(styles).toContain("font-weight: 500;");
   });
 
-  it("collapses secondary timeline chrome on narrow panes", () => {
-    expect(styles).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.wreader-timeline-search kbd,[\s\S]*?\.wreader-timeline-filter-chip\.is-static \{\s*display: none;/);
-    expect(styles).toMatch(/\.wreader-timeline-source-filter \{[\s\S]*?max-width: 126px;/);
+  it("keeps timeline chrome to the simple three-way type switch", () => {
+    expect(styles).toMatch(/\.wreader-timeline-type-switch \{[\s\S]*?background: #edf1f5;/);
+    expect(styles).toMatch(/\.wreader-timeline-type-switch button\.is-active \{[\s\S]*?background: #fff;/);
+    expect(styles).not.toContain(".wreader-timeline-search {");
+    expect(styles).not.toContain(".wreader-timeline-source-filter {");
+    expect(styles).not.toContain(".wreader-timeline-more-filters {");
   });
 
   it("only bolds selected sidebar navigation items", () => {

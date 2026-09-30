@@ -126,6 +126,38 @@ export const ArticleThumbnail: React.FC<ArticleThumbnailProps> = ({
   );
 };
 
+
+function SourceAvatar({
+  src,
+  title,
+  unread,
+}: {
+  src?: string;
+  title: string;
+  unread: boolean;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const imageSrc = resolveImageUrl(src);
+  const fallback = Array.from(title.trim())[0]?.toUpperCase() || "R";
+
+  return (
+    <span className="wreader-source-avatar-shell">
+      {imageSrc && !failed ? (
+        <img
+          src={imageSrc}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="wreader-source-avatar"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span className="wreader-source-avatar wreader-source-avatar-fallback" aria-hidden="true">{fallback}</span>
+      )}
+      {unread && <span className="wreader-unread-dot" aria-label="未读" />}
+    </span>
+  );
+}
+
 export function formatArticleRelativeTime(pubDate: string) {
   const date = new Date(pubDate);
   if (Number.isNaN(date.getTime())) return "";
@@ -203,7 +235,8 @@ export const ArticleList: React.FC<ArticleListProps> = ({
       )}
       <VirtualWindow
         count={articles.length}
-        estimateSize={104}
+        estimateSize={90}
+        gap={5}
         overscan={10}
         className="wreader-article-virtual-window"
         getItemKey={(index) => articles[index].id}
@@ -227,31 +260,25 @@ export const ArticleList: React.FC<ArticleListProps> = ({
             >
               <div className="wreader-story-copy">
                 <div className="wreader-story-source-meta">
-                  {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
-                  <span className="wreader-story-feed">{article.feedTitle}</span>
-                  {timeAgoStr && (
-                    <>
-                      <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
-                      <time>{timeAgoStr}</time>
-                    </>
-                  )}
-                  {audioDurationLabel && (
-                    <>
-                      <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
-                      <span>{audioDurationLabel}</span>
-                    </>
-                  )}
+                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} unread={!article.read} />
+                  <div className="wreader-story-meta-primary">
+                    <span className="wreader-story-feed">{article.feedTitle}</span>
+                    {audioDurationLabel && (
+                      <>
+                        <span className="wreader-story-meta-separator" aria-hidden="true">·</span>
+                        <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
+                          <TimelineIcon type="headphones" />
+                          <span>{audioDurationLabel}</span>
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
                 </div>
 
-                <h2 className="line-clamp-2">
-                  {article.title}
-                </h2>
+                <h2 className="line-clamp-2">{article.title}</h2>
 
-                {article.snippet && (
-                  <p className="line-clamp-2">
-                    {article.snippet}
-                  </p>
-                )}
+                {article.snippet && <p className="line-clamp-1">{article.snippet}</p>}
               </div>
             </article>
           );

@@ -99,11 +99,24 @@ describe("ArticleList content capabilities", () => {
     const heading = html.slice(html.indexOf("<h2"), html.indexOf("</h2>") + 5);
 
     expect(heading).not.toContain("播客");
-    expect(html).not.toContain('aria-label="播客"');
+    expect(html).toContain('class="wreader-story-duration"');
+    expect(html).toContain('aria-label="播客时长 62 分钟"');
     expect(html).toContain("62 分钟");
     expect(html).not.toContain("加入待播列表");
     expect(html).not.toContain("lucide-list-plus");
     expect(html).not.toContain("文章概要");
+  });
+
+  it("uses one compact source avatar instead of article thumbnails", () => {
+    const html = renderList(article({
+      feedFavicon: "https://example.com/favicon.png",
+      thumbnail: "https://example.com/article-cover.jpg",
+      feedTitle: "Source",
+    }));
+
+    expect(html).toContain("wreader-source-avatar");
+    expect(html).not.toContain("wreader-story-thumbnail h-12 w-12");
+    expect(html.indexOf("wreader-source-avatar")).toBeLessThan(html.indexOf("<h2"));
   });
 
   it("keeps playlist controls out of timeline rows regardless of queue state", () => {
