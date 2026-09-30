@@ -19,6 +19,7 @@ function Harness() {
     data-settings={String(navigation.isSettingsOpen)}
   >
     <button type="button" onClick={() => navigation.navigateToRoute({ activeTab: "feeds", selectedFeedId: "feed/two", selectedCategory: null, articleId: null, detailTab: undefined })}>push-feed</button>
+    <button type="button" onClick={() => navigation.navigateToRoute({ activeTab: "feeds", searchQuery: "agent" }, true)}>replace-timeline-search</button>
     <button type="button" onClick={() => navigation.navigateToRoute({ activeTab: "search", searchQuery: "local first" }, true)}>replace-search</button>
   </div>;
 }
@@ -55,8 +56,12 @@ describe("useReaderNavigation", () => {
     expect(pushSpy).toHaveBeenCalled();
     expect(window.location.pathname).toBe("/feed/feed%2Ftwo");
 
-    await act(async () => click(container, "replace-search"));
+    await act(async () => click(container, "replace-timeline-search"));
     expect(replaceSpy).toHaveBeenCalled();
+    expect(route.getAttribute("data-query")).toBe("agent");
+    expect(window.location.pathname + window.location.search).toBe("/feed/feed%2Ftwo?q=agent");
+
+    await act(async () => click(container, "replace-search"));
     expect(window.location.pathname + window.location.search).toBe("/search?q=local+first");
     await act(async () => root.unmount());
   });
@@ -68,11 +73,12 @@ describe("useReaderNavigation", () => {
     expect(window.location.pathname).toBe("/today");
 
     await act(async () => {
-      window.history.pushState({}, "", "/folder/Tech?unread=1");
+      window.history.pushState({}, "", "/folder/Tech?q=reader&unread=1");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
     expect(route.getAttribute("data-category")).toBe("Tech");
     expect(route.getAttribute("data-filter")).toBe("unread");
+    expect(route.getAttribute("data-query")).toBe("reader");
 
     await act(async () => {
       window.history.pushState({}, "", "/starred");

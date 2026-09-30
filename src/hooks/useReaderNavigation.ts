@@ -100,8 +100,9 @@ export function useReaderNavigation() {
 
   useEffect(() => {
     if (activeTab !== "feeds") setFilterType("all");
-    if (activeTab !== "search" && searchQuery) setSearchQuery("");
-  }, [activeTab, searchQuery]);
+    const supportsSearchQuery = activeTab === "search" || (activeTab === "feeds" && filterType !== "starred");
+    if (!supportsSearchQuery && searchQuery) setSearchQuery("");
+  }, [activeTab, filterType, searchQuery]);
 
   return {
     activeTab, setActiveTab,

@@ -137,6 +137,7 @@ describe("article recency scope", () => {
     expect(deriveTimeline(input, feeds, { selectedCategory: "A", filterType: "unread", now }).visibleArticles.map((item) => item.id)).toEqual(["a-new", "a-audio"]);
     expect(deriveTimeline(input, feeds, { selectedCategory: "A", filterType: "starred", contentType: "article", now }).visibleArticles.map((item) => item.id)).toEqual(["a-star"]);
     expect(deriveTimeline(input, feeds, { selectedCategory: "A", contentType: "podcast", now }).visibleArticles.map((item) => item.id)).toEqual(["a-audio"]);
+    expect(deriveTimeline(input, feeds, { selectedCategory: "A", searchQuery: "audio", contentType: "podcast", now }).visibleArticles.map((item) => item.id)).toEqual(["a-audio"]);
   });
 
   it("shows the complete saved history without the timeline date window", () => {

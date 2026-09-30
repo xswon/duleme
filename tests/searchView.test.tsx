@@ -47,8 +47,9 @@ describe("SearchView", () => {
   it("matches the prototype heading and compact search control", () => {
     const html = render("");
     expect(html).toContain("<span>工具</span><h2>搜索</h2>");
-    expect(html).toContain("在全部订阅源中查找文章。");
-    expect(html).toContain('placeholder="搜索文章、订阅源或关键词"');
+    expect(html).toContain("在全部订阅源中查找文章、播客和摘要。");
+    expect(html).toContain('placeholder="搜索标题、正文、摘要、作者或来源…"');
+    expect(html).toContain("找到 1 条结果");
     expect(html).toContain("<kbd>⌘K</kbd>");
   });
 
@@ -76,6 +77,28 @@ describe("SearchView", () => {
     );
     expect(html).toContain("lucide-file-text");
     expect(html).toContain('class="wreader-search-result is-selected"');
+    expect(html).toContain("Summary");
+    expect(html).toContain("· 文章");
     expect(html).not.toContain("lucide-bookmark");
+  });
+
+  it("shows podcast metadata without making podcast-only fields part of the search prompt", () => {
+    const podcast = { ...article, id: "podcast-1", audioUrl: "https://example.com/audio.mp3", duration: "3600" };
+    const html = renderToStaticMarkup(
+      <SearchView
+        results={searchArticles([podcast], "search")}
+        feeds={[feed]}
+        searchQuery="search"
+        setSearchQuery={vi.fn()}
+        onSelectArticle={vi.fn()}
+        onToggleStar={vi.fn()}
+        onToggleRead={vi.fn()}
+        onSummarizeAI={vi.fn()}
+      />
+    );
+    expect(html).toContain("lucide-headphones");
+    expect(html).toContain("· 播客");
+    expect(html).toContain("60 min");
+    expect(html).not.toContain("嘉宾");
   });
 });

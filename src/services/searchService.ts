@@ -210,10 +210,10 @@ export function getHighlightSegments(text: string | undefined | null, query: str
 export function getSearchExcerpt(article: Article, query: string, maxLength = 220): string {
   const { fields } = getPreparedSearchDocument(article);
   const terms = prepareSearchQuery(query).terms;
-  const candidates = [fields.content, fields.summary, fields.title].filter(Boolean);
+  const candidates = [fields.summary, fields.content].filter(Boolean);
   const candidate = terms.length
-    ? candidates.find((value) => terms.some((term) => normalize(value).includes(term))) ?? candidates[0] ?? ""
-    : candidates[0] ?? "";
+    ? candidates.find((value) => terms.some((term) => normalize(value).includes(term))) ?? candidates[0] ?? fields.title
+    : candidates[0] ?? fields.title;
 
   if (candidate.length <= maxLength) return candidate;
   const normalizedCandidate = normalize(candidate);

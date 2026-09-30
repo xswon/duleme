@@ -469,13 +469,77 @@ body,
   white-space: nowrap;
 }
 
+.wreader-timeline-tools {
+  padding-bottom: 8px;
+}
+
+.wreader-timeline-search {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding: 0 9px;
+  border: 1px solid #e0e6ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #7e8b98;
+}
+
+.wreader-timeline-search:focus-within {
+  border-color: #8eb8e8;
+  box-shadow: 0 0 0 2px rgb(47 120 203 / 10%);
+}
+
+.wreader-timeline-search > svg,
+.wreader-timeline-search button svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.wreader-timeline-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #334250;
+  font-size: 12px;
+}
+
+.wreader-timeline-search input::placeholder {
+  color: #9aa5af;
+}
+
+.wreader-timeline-search button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 5px;
+}
+
+.wreader-timeline-search button:hover {
+  background: #eef2f6;
+}
+
+.wreader-timeline-search kbd {
+  padding: 2px 5px;
+  border: 1px solid #dfe4e8;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #f6f7f9;
+  color: #7b8792;
+  font-size: 10px;
+}
+
 .wreader-timeline-filter {
   display: flex;
-  min-height: 42px;
+  min-height: 32px;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 6px;
 }
 
 .wreader-timeline-filter-segment {
@@ -499,6 +563,29 @@ body,
   background: #fff;
   color: #26384a;
   box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
+}
+
+.wreader-timeline-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wreader-timeline-window-select {
+  height: 28px;
+  padding: 0 24px 0 9px;
+  border: 0;
+  border-radius: 7px;
+  outline: 0;
+  background: #edf1f5;
+  color: #637080;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wreader-timeline-window-select:focus-visible {
+  box-shadow: 0 0 0 2px rgb(47 120 203 / 20%);
 }
 
 .wreader-timeline-unread-filter {
@@ -1430,6 +1517,12 @@ body,
   font-size: 10px;
 }
 
+.wreader-search-result-count {
+  margin: -6px 0 8px;
+  color: #87929d;
+  font-size: 11px;
+}
+
 .wreader-search-results {
   display: flex;
   flex-direction: column;
@@ -1439,9 +1532,10 @@ body,
 .wreader-search-result {
   display: flex;
   width: 100%;
-  align-items: center;
+  min-height: 98px;
+  align-items: flex-start;
   gap: 10px;
-  padding: 10px 8px;
+  padding: 11px 8px;
   border-radius: 8px;
   color: #4e5d6b;
   text-align: left;
@@ -1454,10 +1548,11 @@ body,
 
 .wreader-search-result-icon {
   display: grid;
-  width: 25px;
-  height: 25px;
+  width: 28px;
+  height: 28px;
   flex: none;
   place-items: center;
+  margin-top: 1px;
   border-radius: 7px;
   background: #edf2f7;
   color: #3477c5;
@@ -1474,27 +1569,46 @@ body,
 }
 
 .wreader-search-result-copy strong,
-.wreader-search-result-copy small {
+.wreader-search-result-meta,
+.wreader-search-result-excerpt {
   display: block;
+}
+
+.wreader-search-result-meta {
   overflow: hidden;
+  margin-bottom: 3px;
+  color: #738092;
+  font-size: 10.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wreader-search-result-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: #334250;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1.3;
 }
 
-.wreader-search-result-copy small {
-  margin-top: 3px;
-  color: #738092;
+.wreader-search-result-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 5px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #7b8794;
   font-size: 11px;
+  line-height: 1.4;
 }
 
 .wreader-search-result time {
-  color: #738092;
-  font-size: 11px;
+  flex: none;
+  padding-top: 2px;
+  color: #88939e;
+  font-size: 10.5px;
   white-space: nowrap;
 }
 
@@ -3670,6 +3784,37 @@ body,
   .wreader-mark-read,
   .wreader-timeline-sort {
     display: none;
+  }
+
+  .wreader-timeline-tools {
+    padding-bottom: 8px;
+  }
+
+  .wreader-timeline-search {
+    margin-bottom: 7px;
+  }
+
+  .wreader-timeline-search kbd {
+    display: none;
+  }
+
+  .wreader-timeline-filter {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .wreader-timeline-filter-segment {
+    width: 100%;
+  }
+
+  .wreader-timeline-filter-segment button {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .wreader-timeline-filter-actions {
+    justify-content: space-between;
   }
 
   .wreader-workspace-grid[data-detail-open="false"] .wreader-master-scroll {

@@ -34,7 +34,7 @@ export function useReaderDerivedState(options: UseReaderDerivedStateOptions) {
   // localDayVersion intentionally refreshes the time-windowed metric at local midnight.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- The clock tick is not a value read by the memo callback.
   const articleMetrics = useMemo(() => deriveArticleMetrics(articles, Date.now()), [articles, localDayVersion]);
-  const effectiveContentType = selectedFeedId ? "all" : contentType;
+  const effectiveContentType = contentType;
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchResults = useMemo(
     () => activeTab === "search" ? searchArticles(articles, deferredSearchQuery) : [],
@@ -45,12 +45,12 @@ export function useReaderDerivedState(options: UseReaderDerivedStateOptions) {
     contentType: effectiveContentType,
     selectedFeedId,
     selectedCategory,
-    searchQuery,
+    searchQuery: deferredSearchQuery,
     historyWindowDays,
     sortOrder: timelineSortOrder,
   // localDayVersion intentionally refreshes the time-windowed timeline at local midnight.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- The clock tick is not a value read by the memo callback.
-  }) : null, [activeTab, articles, effectiveContentType, feeds, filterType, historyWindowDays, localDayVersion, searchQuery, selectedCategory, selectedFeedId, timelineSortOrder]);
+  }) : null, [activeTab, articles, deferredSearchQuery, effectiveContentType, feeds, filterType, historyWindowDays, localDayVersion, selectedCategory, selectedFeedId, timelineSortOrder]);
   const visibleDerivation = useMemo(() => {
     if (timelineDerivation) return timelineDerivation;
     const visibleArticles = activeTab === "search"
@@ -77,7 +77,7 @@ export function useReaderDerivedState(options: UseReaderDerivedStateOptions) {
     selectedArticle,
     articleMetrics,
     effectiveContentType,
-    showTimelineFilters: activeTab === "feeds" && filterType !== "starred" && !selectedFeedId,
+    showTimelineFilters: activeTab === "feeds" && filterType !== "starred",
     deferredSearchQuery,
     searchResults,
     ...visibleDerivation,

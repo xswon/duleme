@@ -76,6 +76,12 @@ describe("searchService", () => {
     expect(excerpt.length).toBeLessThanOrEqual(52);
   });
 
+  it("uses the summary as result copy when the query only matches title or source", () => {
+    const item = article({ title: "Needle in the title", snippet: "Useful neutral summary", content: "<p>Long body copy</p>" });
+    expect(getSearchExcerpt(item, "needle")).toBe("Useful neutral summary");
+    expect(getSearchExcerpt(item, "example source")).toBe("Useful neutral summary");
+  });
+
   it("preserves NFKC/case matching and reports every matching field", () => {
     const item = article({ title: "Ｆｕｌｌ Reader", content: "<p>reader body</p>", author: "READER team" });
     const [result] = searchArticles([item], "full READER");
