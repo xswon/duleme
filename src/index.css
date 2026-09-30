@@ -462,76 +462,33 @@ body,
   line-height: normal;
 }
 
-.wreader-timeline-window {
-  color: #7b8794;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.wreader-timeline-filter {
-  display: flex;
-  min-height: 42px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-bottom: 6px;
-}
-
-.wreader-timeline-filter-segment {
-  display: flex;
+.wreader-timeline-type-switch {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 12px 10px 16px;
   padding: 2px;
   border-radius: 8px;
   background: #edf1f5;
 }
 
-.wreader-timeline-filter-segment button {
+.wreader-timeline-type-switch button {
   min-width: 52px;
-  height: 26px;
-  padding: 0 10px;
+  height: 28px;
+  padding: 0 11px;
   border-radius: 6px;
-  color: #6d7987;
+  color: #73808e;
   font-size: 11px;
   font-weight: 600;
 }
 
-.wreader-timeline-filter-segment button.is-active {
+.wreader-timeline-type-switch button:hover {
+  color: #46596b;
+}
+
+.wreader-timeline-type-switch button.is-active {
   background: #fff;
   color: #26384a;
   box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
-}
-
-.wreader-timeline-unread-filter {
-  display: flex;
-  height: 28px;
-  align-items: center;
-  gap: 6px;
-  padding: 0 9px;
-  border-radius: 7px;
-  color: #6c7886;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.wreader-timeline-unread-filter:hover {
-  background: #e9edf2;
-  color: #31465c;
-}
-
-.wreader-timeline-unread-filter.is-active {
-  background: #dceafd;
-  color: #2369b6;
-}
-
-.wreader-timeline-unread-filter b {
-  min-width: 18px;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: #fff;
-  color: inherit;
-  font-size: 10px;
-  text-align: center;
 }
 
 .wreader-menu-button {
@@ -557,11 +514,11 @@ body,
 .wreader-story-row {
   position: relative;
   min-height: 0;
-  padding: 13px 12px 14px 16px;
-  border-left: 2px solid transparent;
-  border-radius: 0;
+  padding: 10px 10px 11px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
-  transition: background .15s, border-color .15s;
+  transition: background .15s;
 }
 
 .wreader-story-row:hover {
@@ -569,7 +526,6 @@ body,
 }
 
 .wreader-story-row.is-selected {
-  border-left-color: #3b82f6;
   background: #f5f8fc;
 }
 
@@ -586,24 +542,70 @@ body,
 }
 
 .wreader-story-source-meta {
-  display: flex;
+  display: grid;
   min-width: 0;
-  min-height: 18px;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 5px;
-  overflow: hidden;
-  margin-bottom: 3px;
-  color: #84909d;
+  column-gap: 7px;
+  margin-bottom: 4px;
+  color: #8793a0;
   font-size: 11.5px;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.25;
   white-space: nowrap;
+}
+
+.wreader-source-avatar-shell {
+  position: relative;
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  place-items: center;
+}
+
+.wreader-source-avatar {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #e8edf3;
+  color: #657789;
+  object-fit: cover;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.wreader-source-avatar-fallback {
+  text-transform: uppercase;
+}
+
+.wreader-unread-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #fbfcfd;
+  border-radius: 999px;
+  background: #2f7fd4;
+}
+
+.wreader-story-meta-primary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
 }
 
 .wreader-story-feed {
   overflow: hidden;
-  color: #526170;
-  font-weight: 650;
+  color: #697786;
+  font-weight: 500;
   text-overflow: ellipsis;
 }
 
@@ -612,28 +614,36 @@ body,
   color: #b0b8c1;
 }
 
-.wreader-story-source-meta time {
+.wreader-story-duration {
+  display: inline-flex;
   flex: none;
-  font-variant-numeric: tabular-nums;
+  align-items: center;
+  gap: 3px;
+  color: #7b8997;
 }
 
-.wreader-unread-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  border-radius: 999px;
-  background: #2f7fd4;
+.wreader-story-duration svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  stroke-width: 1.7;
+}
+
+.wreader-story-time {
+  flex: none;
+  color: #909aa5;
+  font-variant-numeric: tabular-nums;
 }
 
 .wreader-article-list .wreader-story-row h2 {
   display: -webkit-box;
   overflow: hidden;
-  margin: 0 0 4px;
-  color: #202a35;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.012em;
-  line-height: 1.32;
+  margin: 0 0 3px 27px;
+  color: #27323d;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+  line-height: 1.34;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -641,16 +651,16 @@ body,
 .wreader-article-list .wreader-story-row p {
   display: -webkit-box;
   overflow: hidden;
-  margin: 0;
-  color: #6f7b88;
-  font-size: 13px;
-  line-height: 1.42;
+  margin: 0 0 0 27px;
+  color: #7a8794;
+  font-size: 12.5px;
+  line-height: 1.35;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 
 .wreader-article-list .wreader-story-row.is-read h2 {
-  color: #5a6571;
+  color: #596571;
   font-weight: 500;
 }
 
@@ -660,7 +670,7 @@ body,
 }
 
 .wreader-article-list .wreader-story-row.is-read .wreader-story-feed {
-  color: #7f8a95;
+  color: #8b96a1;
 }
 
 .wreader-story-thumbnail {
@@ -3687,7 +3697,7 @@ body,
 
   .wreader-story-row {
     min-height: 0;
-    padding: 13px 10px 14px 14px;
+    padding: 10px 9px 11px;
   }
 
   .wreader-article-list {
@@ -3854,262 +3864,6 @@ body,
   }
 }
 
-
-/* Timeline search and filters: keep discovery controls light and close to the content. */
-.wreader-timeline-controls {
-  position: relative;
-  padding: 0 12px 8px 16px;
-  background: #fbfcfd;
-}
-
-.wreader-timeline-search {
-  position: relative;
-  display: flex;
-  height: 34px;
-  align-items: center;
-  gap: 7px;
-  padding: 0 8px 0 10px;
-  border: 1px solid #e2e7ec;
-  border-radius: 8px;
-  background: #fff;
-  color: #7a8794;
-}
-
-.wreader-timeline-search:focus-within {
-  border-color: #c8d7e8;
-  box-shadow: 0 0 0 2px rgba(49, 117, 198, .08);
-}
-
-.wreader-timeline-search > svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 15px;
-}
-
-.wreader-timeline-search input {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #26313c;
-  font-size: 12px;
-}
-
-.wreader-timeline-search input::placeholder {
-  color: #9aa4ae;
-}
-
-.wreader-timeline-search input::-webkit-search-cancel-button {
-  display: none;
-}
-
-.wreader-timeline-search kbd {
-  padding: 1px 5px;
-  border: 1px solid #e3e8ee;
-  border-radius: 5px;
-  background: #f8fafc;
-  color: #909ba7;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.wreader-timeline-search-clear {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border-radius: 50%;
-  color: #8b97a3;
-  font-size: 15px;
-  line-height: 1;
-}
-
-.wreader-timeline-search-clear:hover {
-  background: #eef2f6;
-  color: #526170;
-}
-
-.wreader-timeline-filter {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 0 0;
-}
-
-.wreader-timeline-filter-primary {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.wreader-timeline-source-filter,
-.wreader-timeline-filter-chip,
-.wreader-timeline-more-filters > summary {
-  display: inline-flex;
-  height: 28px;
-  align-items: center;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: #f1f4f7;
-  color: #667483;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.wreader-timeline-source-filter {
-  position: relative;
-  max-width: 126px;
-}
-
-.wreader-timeline-source-filter::after {
-  content: "⌄";
-  position: absolute;
-  right: 7px;
-  color: #8a96a2;
-  pointer-events: none;
-}
-
-.wreader-timeline-source-filter select {
-  width: 100%;
-  height: 100%;
-  padding: 0 22px 0 9px;
-  appearance: none;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.wreader-timeline-filter-chip {
-  gap: 5px;
-  padding: 0 9px;
-}
-
-.wreader-timeline-filter-chip:hover,
-.wreader-timeline-more-filters > summary:hover {
-  background: #e9eef3;
-  color: #405365;
-}
-
-.wreader-timeline-filter-chip.is-active {
-  background: #e7f0fb;
-  color: #2369b6;
-}
-
-.wreader-timeline-filter-chip b {
-  min-width: 17px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .8);
-  font-size: 9px;
-  text-align: center;
-}
-
-.wreader-timeline-filter-chip.is-static {
-  color: #7b8794;
-  font-weight: 500;
-  pointer-events: none;
-}
-
-.wreader-timeline-more-filters {
-  position: relative;
-  flex: none;
-}
-
-.wreader-timeline-more-filters > summary {
-  padding: 0 9px;
-  list-style: none;
-  cursor: pointer;
-}
-
-.wreader-timeline-more-filters > summary::-webkit-details-marker {
-  display: none;
-}
-
-.wreader-timeline-more-filters[open] > summary {
-  background: #e9eef3;
-  color: #405365;
-}
-
-.wreader-timeline-filter-popover {
-  position: absolute;
-  z-index: 50;
-  top: 34px;
-  right: 0;
-  width: 190px;
-  padding: 10px;
-  border: 1px solid #e0e6ec;
-  border-radius: 10px;
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(31, 41, 55, .12);
-}
-
-.wreader-filter-group + .wreader-filter-group {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #edf0f3;
-}
-
-.wreader-filter-group > strong {
-  display: block;
-  margin-bottom: 6px;
-  color: #7a8794;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .04em;
-}
-
-.wreader-filter-group > div {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-}
-
-.wreader-filter-group button {
-  min-height: 28px;
-  padding: 0 7px;
-  border-radius: 6px;
-  color: #617080;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.wreader-filter-group button:hover {
-  background: #f1f4f7;
-}
-
-.wreader-filter-group button.is-active {
-  background: #e7f0fb;
-  color: #2369b6;
-}
-
-.wreader-filter-group .wreader-filter-sort {
-  width: 100%;
-  text-align: left;
-}
-
-@media (max-width: 760px) {
-  .wreader-timeline-controls {
-    padding: 0 10px 8px;
-  }
-
-  .wreader-timeline-search kbd,
-  .wreader-timeline-filter-chip.is-static {
-    display: none;
-  }
-
-  .wreader-timeline-source-filter {
-    max-width: 150px;
-  }
-}
 
 /* Reader first-screen hierarchy: metadata, title, dek, then a restrained summary preview. */
 .reader-subtitle {

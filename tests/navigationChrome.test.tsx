@@ -827,8 +827,7 @@ describe("navigation chrome", () => {
     expect(html).toContain('disabled=""');
   });
 
-  it("renders timeline type and unread filters and dispatches their changes", async () => {
-    const setFilterType = vi.fn();
+  it("renders only the three timeline content-type switches", async () => {
     const onContentTypeChange = vi.fn();
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -838,7 +837,7 @@ describe("navigation chrome", () => {
         activeTab="feeds"
         currentTitle="时间线"
         filterType="all"
-        setFilterType={setFilterType}
+        setFilterType={vi.fn()}
         onRefresh={vi.fn()}
         onMarkAllRead={vi.fn()}
         isRefreshing={false}
@@ -851,19 +850,19 @@ describe("navigation chrome", () => {
         historyWindowDays={30}
       />
     ));
-    expect(container.textContent).toContain("最近 30 天");
-    const primaryFilters = container.querySelector(".wreader-timeline-filter-primary");
-    expect(primaryFilters?.textContent).toContain("未读37");
-    expect(primaryFilters?.textContent).not.toContain("文章");
-    expect(primaryFilters?.textContent).not.toContain("播客");
-    expect(container.querySelector(".wreader-timeline-source-filter")).toBeTruthy();
-    const secondaryFilters = container.querySelector(".wreader-timeline-more-filters");
-    expect(secondaryFilters?.textContent).toContain("文章");
-    expect(secondaryFilters?.textContent).toContain("播客");
+
+    const switcher = container.querySelector(".wreader-timeline-type-switch");
+    expect(switcher).toBeTruthy();
+    expect(Array.from(switcher?.querySelectorAll("button") || []).map((button) => button.textContent)).toEqual(["全部", "文章", "播客"]);
+    expect(container.querySelector("#timeline-search-input")).toBeNull();
+    expect(container.querySelector(".wreader-timeline-source-filter")).toBeNull();
+    expect(container.querySelector(".wreader-timeline-more-filters")).toBeNull();
+    expect(container.textContent).not.toContain("最近 30 天");
+    expect(container.textContent).not.toContain("未读37");
+
     await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "播客")?.click());
-    await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.startsWith("未读"))?.click());
     expect(onContentTypeChange).toHaveBeenCalledWith("podcast");
-    expect(setFilterType).toHaveBeenCalledWith("unread");
+
     await act(async () => root.unmount());
     container.remove();
   });
