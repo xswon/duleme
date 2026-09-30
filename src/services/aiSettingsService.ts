@@ -1,5 +1,5 @@
 import { AiConfig, AiSecret } from "../types";
-import { backendRequest } from "./readerBackend";
+import { backendRequest, hasReaderBackendCapability } from "./readerBackend";
 import {
   deleteSecretFromDB,
   getAppStateFromDB,
@@ -121,7 +121,11 @@ export async function getAiCapability(): Promise<AiCapability> {
     );
     const hasUsableKey = secretMatchesEndpoint && Boolean(secret.apiKey.trim());
     return {
-      configured: Boolean(baseURL && model && (hasUsableKey || isLoopbackUrl(baseURL))),
+      configured: Boolean(
+        baseURL
+        && model
+        && (hasUsableKey || (isLoopbackUrl(baseURL) && hasReaderBackendCapability("loopbackAi"))),
+      ),
       baseURL: baseURL || undefined,
       model: model || undefined,
     };

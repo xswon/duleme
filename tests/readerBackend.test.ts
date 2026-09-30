@@ -51,15 +51,15 @@ describe("ReaderBackend boundary", () => {
   it("returns an explicit stub response for unmigrated Sites APIs", async () => {
     setReaderBackend(sitesReaderBackend);
 
-    const response = await backendRequest("/api/ai/summarize", { method: "POST" });
+    const response = await backendRequest("/api/transcription", { method: "POST" });
     const payload = await response.json();
 
     expect(response.status).toBe(501);
     expect(payload).toMatchObject({
       code: "sites_capability_unavailable",
-      capability: "ai",
+      capability: "transcription",
     });
-    expect(hasReaderBackendCapability("ai")).toBe(false);
+    expect(hasReaderBackendCapability("transcription")).toBe(false);
   });
 
   it("routes migrated RSS requests to the Sites same-origin worker", async () => {
@@ -74,6 +74,16 @@ describe("ReaderBackend boundary", () => {
       undefined,
     );
     expect(hasReaderBackendCapability("rss")).toBe(true);
+  });
+
+  it("routes migrated AI requests to the Sites worker", async () => {
+    const response = new Response(JSON.stringify({ models: [] }), { status: 200 });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    setReaderBackend(sitesReaderBackend);
+
+    await expect(backendRequest("/api/ai/models", { method: "POST" })).resolves.toBe(response);
+    expect(fetchMock).toHaveBeenCalledWith("/api/ai/models", { method: "POST" });
+    expect(hasReaderBackendCapability("ai")).toBe(true);
   });
 
   it("routes migrated BidClub requests to the Sites worker", async () => {
