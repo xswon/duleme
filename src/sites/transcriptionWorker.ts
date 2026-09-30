@@ -209,7 +209,7 @@ async function fetchAliyunJson(
   } catch (error) {
     if (error instanceof SitesTranscriptionError) throw error;
     if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
-      throw new SitesTranscriptionError("timeout");
+      throw new SitesTranscriptionError("timeout", undefined, 504);
     }
     if (error instanceof SitesOutboundError) {
       throw new SitesTranscriptionError("provider_unavailable");
@@ -274,7 +274,7 @@ async function fetchTranscriptResult(
   } catch (error) {
     if (error instanceof SitesTranscriptionError) throw error;
     if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
-      throw new SitesTranscriptionError("timeout");
+      throw new SitesTranscriptionError("timeout", undefined, 504);
     }
     throw new SitesTranscriptionError("provider_unavailable");
   } finally {
