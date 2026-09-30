@@ -22,6 +22,8 @@ vi.mock("../src/services/insightSettingsService", () => ({
 }));
 
 import { LocalAiSettingsPanel } from "../src/components/LocalAiSettingsModal";
+import { resetReaderBackend, setReaderBackend } from "../src/services/readerBackend";
+import { sitesReaderBackend } from "../src/sites/sitesReaderBackend";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -96,8 +98,32 @@ describe("AI model settings modals", () => {
 
   afterEach(async () => {
     await act(async () => root.unmount());
+    resetReaderBackend();
     node.remove();
     vi.clearAllMocks();
+  });
+
+  it("hides Ollama and warns about saved loopback AI in the Sites runtime", async () => {
+    setReaderBackend(sitesReaderBackend);
+    insight.get.mockResolvedValueOnce({
+      providerId: "ollama" as const,
+      provider: "Ollama",
+      baseURL: "http://127.0.0.1:11434/v1",
+      model: "local-model",
+      configured: false,
+      hasApiKey: false,
+      source: "browser" as const,
+    });
+    await act(async () => { root.render(<LocalAiSettingsPanel view="insight" panelId="insight" />); });
+    await flush();
+    await act(async () => {
+      (Array.from(node.querySelectorAll("button")).find((button) => button.textContent?.includes("尚未配置")) as HTMLButtonElement).click();
+    });
+
+    const provider = node.querySelector("#insight-provider") as HTMLSelectElement;
+    expect(Array.from(provider.options).some((option) => option.value === "ollama")).toBe(false);
+    expect(provider.value).toBe("");
+    expect(node.textContent).toContain("Ollama 仅在本地 Web 中可用");
   });
 
   it("keeps the full transcription form visible before a provider is chosen", async () => {
