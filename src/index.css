@@ -442,19 +442,6 @@ body,
   min-width: 0;
 }
 
-/* Browsing gets more room than the compact list used beside an open reader. */
-@media (min-width: 1280px) {
-  .wreader-workspace-grid[data-detail-open="false"] {
-    grid-template-columns: clamp(520px, 42vw, 640px) minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 1024px) and (max-width: 1279px) {
-  .wreader-workspace-grid[data-detail-open="false"] {
-    grid-template-columns: clamp(440px, 48vw, 560px) minmax(0, 1fr);
-  }
-}
-
 .wreader-master,
 .wreader-detail {
   min-width: 0;
