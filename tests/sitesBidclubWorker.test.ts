@@ -54,7 +54,7 @@ describe("Sites BidClub worker", () => {
   });
 
   it("accepts a canonical BidClub episode URL but rejects other origins", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify(episodePayload()), {
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL) => new Response(JSON.stringify(episodePayload()), {
       headers: { "Content-Type": "application/json" },
     }));
     const accepted = await handleSitesBidclubRequest(
