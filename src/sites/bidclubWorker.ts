@@ -26,12 +26,11 @@ class SitesBidclubError extends SitesOutboundError {
 }
 
 function jsonError(error: SitesBidclubError, headers?: HeadersInit): Response {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Cache-Control", "no-store");
   return Response.json({ code: error.code, error: error.message }, {
     status: error.status,
-    headers: {
-      "Cache-Control": "no-store",
-      ...(headers || {}),
-    },
+    headers: responseHeaders,
   });
 }
 
