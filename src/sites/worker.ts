@@ -1,6 +1,7 @@
 import { handleSitesRssRequest } from "./rssWorker";
 import { handleSitesMediaRequest } from "./mediaWorker";
 import { handleSitesBidclubRequest } from "./bidclubWorker";
+import { handleSitesAiRequest } from "./aiWorker";
 
 export default {
   fetch(request: Request): Promise<Response> | Response {
@@ -9,6 +10,7 @@ export default {
     if (url.pathname === "/api/media/image") return handleSitesMediaRequest(request, "image");
     if (url.pathname === "/api/media/audio") return handleSitesMediaRequest(request, "audio");
     if (url.pathname === "/api/bidclub/episode") return handleSitesBidclubRequest(request);
+    if (url.pathname.startsWith("/api/ai/")) return handleSitesAiRequest(request);
     return Response.json({ code: "sites_route_not_found", error: "Not found" }, { status: 404 });
   },
 };
