@@ -544,7 +544,7 @@ body,
 .wreader-story-source-meta {
   display: grid;
   min-width: 0;
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 7px;
   margin-bottom: 5px;
@@ -618,6 +618,14 @@ body,
   text-overflow: ellipsis;
 }
 
+.wreader-story-duration-row {
+  display: flex;
+  min-height: 15px;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 4px;
+}
+
 .wreader-story-duration {
   display: inline-flex;
   flex: none;
@@ -662,14 +670,8 @@ body,
   -webkit-line-clamp: 2;
 }
 
-.wreader-story-time-row {
-  display: flex;
-  min-height: 15px;
-  justify-content: flex-end;
-  margin-top: 3px;
-}
-
 .wreader-story-time {
+  flex: none;
   color: #96a0aa;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
