@@ -17,7 +17,7 @@
 - 远程 HTTPS OpenAI-compatible AI：模型列表、连接测试、文章/播客摘要（BYOK）
 - 阿里云百炼异步云转录：连接测试、任务提交、轮询与逐句结果（BYOK）
 
-本机播客处理仍保留在现有 Express 路径，尚未迁移到 Sites。Sites AI 只支持公网 HTTPS endpoint，不支持访问用户机器上的 Ollama/localhost。
+本机播客处理明确保留为本地 Web 专属能力：Sites 不做 NextEcho preflight、session 恢复或轮询，并优先使用已迁移的云转录 + AI 流程。Sites AI 只支持公网 HTTPS endpoint，不支持访问用户机器上的 Ollama/localhost。
 
 ## 本地开发
 

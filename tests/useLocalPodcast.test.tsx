@@ -1,18 +1,51 @@
 import React, { act, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Article } from "../src/types";
 
 const api = vi.hoisted(() => ({ start: vi.fn(), status: vi.fn(), createInsight: vi.fn() }));
 vi.mock("../src/services/localPodcastService", () => ({ localPodcastApi: api }));
 import { useLocalPodcast } from "../src/hooks/useLocalPodcast";
+import { resetReaderBackend, setReaderBackend } from "../src/services/readerBackend";
+import { sitesReaderBackend } from "../src/sites/sitesReaderBackend";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const baseArticle: Article = { id: "a", feedId: "f", feedTitle: "Feed", title: "Episode", link: "https://example.com", content: "Notes", snippet: "Notes", pubDate: "2026-09-01", read: false, starred: false, audioUrl: "https://cdn.example.com/a.mp3" };
 
 describe("useLocalPodcast", () => {
-  beforeEach(() => { api.start.mockReset(); api.status.mockReset(); api.createInsight.mockReset(); });
+  beforeEach(() => { resetReaderBackend(); api.start.mockReset(); api.status.mockReset(); api.createInsight.mockReset(); });
+  afterEach(() => resetReaderBackend());
+
+  it("does not restore, poll, or start machine-local sessions when the runtime disables local podcast processing", async () => {
+    setReaderBackend(sitesReaderBackend);
+    let local: ReturnType<typeof useLocalPodcast> | undefined;
+    function Harness() {
+      local = useLocalPodcast({
+        ...baseArticle,
+        localPodcast: {
+          sessionId: "s1",
+          jobId: "j1",
+          sourceAudioUrl: baseArticle.audioUrl!,
+          transcriptionStatus: "processing",
+          insightStatus: "not_started",
+          updatedAt: "before",
+        },
+      });
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    await act(async () => { root.render(<Harness />); await Promise.resolve(); });
+
+    expect(local?.available).toBe(false);
+    expect(api.status).not.toHaveBeenCalled();
+    await expect(local!.startTranscription()).resolves.toEqual({
+      started: false,
+      error: "本机播客处理仅在本地 Web 版本可用。",
+    });
+    expect(api.start).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
 
   it("deduplicates rapid transcription starts", async () => {
     api.start.mockResolvedValue({ session_id: "s1", job_id: "j1" });
