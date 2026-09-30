@@ -28,12 +28,15 @@ describe("home density styles", () => {
     expect(styles).toMatch(/\.wreader-story-row\.is-selected \{\s*background: #f5f8fc;/);
     expect(styles).not.toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color:/);
     expect(styles).toMatch(/\.wreader-source-avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
+    expect(styles).toMatch(/\.wreader-story-source-meta \{[\s\S]*?grid-template-columns: 20px minmax\(0, 1fr\) auto;/);
+    expect(styles).toMatch(/\.wreader-story-duration-row \{[\s\S]*?justify-content: flex-start;/);
     expect(styles).toMatch(/\.wreader-story-duration svg \{[\s\S]*?width: 12px;[\s\S]*?height: 12px;/);
     expect(styles).toMatch(/\.wreader-story-unread-slot \{[\s\S]*?width: 7px;/);
     expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 7px;[\s\S]*?background: #1f7ae0;/);
     expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row h2 \{[\s\S]*?margin: 0 0 4px;/);
     expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row p \{[\s\S]*?margin: 0;[\s\S]*?-webkit-line-clamp: 2;/);
-    expect(styles).toMatch(/\.wreader-story-time-row \{[\s\S]*?justify-content: flex-end;/);
+    expect(styles).toMatch(/\.wreader-story-time \{[\s\S]*?flex: none;[\s\S]*?white-space: nowrap;/);
+    expect(styles).not.toContain(".wreader-story-time-row {");
     expect(styles).not.toContain(".wreader-story-footer {");
     expect(styles).toContain(".wreader-article-list .wreader-story-row.is-read h2 {");
     expect(styles).toContain("font-weight: 500;");
