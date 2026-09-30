@@ -24,6 +24,7 @@ import { useLocalPodcast } from "../hooks/useLocalPodcast";
 import { useCloudTranscription } from "../hooks/useCloudTranscription";
 import type { ArticleGenerationController } from "../hooks/useArticleGenerationTasks";
 import { localPodcastApi } from "../services/localPodcastService";
+import { hasReaderBackendCapability } from "../services/readerBackend";
 import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
 import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
@@ -343,15 +344,16 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const generationTask = article ? generation?.tasks[article.id] : undefined;
   const generationArtifacts = article ? generation?.artifactsByArticleId[article.id] : undefined;
 
+  const localPodcastRuntimeAvailable = hasReaderBackendCapability("localPodcast");
   const transcriptionAvailable = cloudTranscriptionAvailable || localTranscriptionAvailable;
-  const shouldCheckLocalTranscription = Boolean(article?.audioUrl);
+  const shouldCheckLocalTranscription = Boolean(article?.audioUrl && localPodcastRuntimeAvailable);
 
   useEffect(() => {
     let cancelled = false;
     const refreshCapabilities = () => {
       setRuntimeCapabilitiesLoaded(false);
 
-      const localCheck = shouldCheckLocalTranscription
+      const localCheck = shouldCheckLocalTranscription && localPodcastRuntimeAvailable
         ? localPodcastApi.preflight().then(() => true).catch(() => false)
         : Promise.resolve(false);
       void localCheck.then((localAvailable) => {
@@ -380,7 +382,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       window.removeEventListener(AI_SETTINGS_CHANGED_EVENT, refreshCapabilities);
       window.removeEventListener(TRANSCRIPTION_SETTINGS_CHANGED_EVENT, refreshCapabilities);
     };
-  }, [shouldCheckLocalTranscription]);
+  }, [localPodcastRuntimeAvailable, shouldCheckLocalTranscription]);
 
   useEffect(() => {
     const articleId = article?.id;
@@ -826,7 +828,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
   if (!article) return null;
 
-  const effectiveArtifacts = generationArtifacts || localPodcast.artifacts;
+  const effectiveArtifacts = generationArtifacts || (localPodcastRuntimeAvailable ? localPodcast.artifacts : null);
   const effectivePipelineStage: OverviewPipelineStage = generationTask?.status === "processing"
     ? generationTask.stage
     : generationTask?.status === "failed"
@@ -1369,7 +1371,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: effectivePipelineStage === "transcribing" || effectivePipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage: effectivePipelineStage, pipelinePendingSummary: effectivePipelinePendingSummary, pipelineError: effectivePipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, bidclubEpisodeUrl: article.enrichment?.episodeUrl, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: generation ? undefined : cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: effectiveSummarizing, summaryProgress: effectiveSummaryProgress, summaryServiceLabel: aiModelLabel, summaryError: effectivePipelineError || summaryError, localArtifacts: effectiveArtifacts, localProgress: effectiveTranscriptionProgress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: generation ? () => { void generation.startTranscription(article.id, { preferLocal: localTranscriptionAvailable, force: true }); } : localPodcast.regenerateTranscription, onRetryTranscription: startPreferredTranscription, onCreateInsight: localPodcast.createInsight, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: effectivePipelineStage === "transcribing" || effectivePipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage: effectivePipelineStage, pipelinePendingSummary: effectivePipelinePendingSummary, pipelineError: effectivePipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, bidclubEpisodeUrl: article.enrichment?.episodeUrl, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: generation ? undefined : cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: effectiveSummarizing, summaryProgress: effectiveSummaryProgress, summaryServiceLabel: aiModelLabel, summaryError: effectivePipelineError || summaryError, localArtifacts: effectiveArtifacts, localProgress: effectiveTranscriptionProgress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: generation ? () => { void generation.startTranscription(article.id, { preferLocal: localTranscriptionAvailable, force: true }); } : localTranscriptionAvailable ? localPodcast.regenerateTranscription : () => { void startCloudTranscription(); }, onRetryTranscription: startPreferredTranscription, onCreateInsight: localTranscriptionAvailable ? localPodcast.createInsight : undefined, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}
