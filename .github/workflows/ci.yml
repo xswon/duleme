@@ -39,3 +39,5 @@ jobs:
         run: npm run check:architecture
       - name: Build ChatGPT Site
         run: npm run build:site
+      - name: Check ChatGPT Site artifact
+        run: npm run check:site-artifact
