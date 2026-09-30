@@ -13,9 +13,9 @@
 - 公共 RSS / Atom / RDF 获取与解析
 - 远程图片 direct-first 加载及受限同源 fallback
 - 播客音频 direct-first 加载及受限同源 streaming fallback
-- 单段 HTTP Range 转发与 206 / Content-Range 处理
+- 单段 HTTP Range 转发与 206 / Content-Range 处理\n- BidClub 节目增强详情（TL;DR、Digest、Transcript 与来源元数据）
 
-AI、云转录、BidClub 增强和本机播客处理仍保留在现有 Express 路径，尚未迁移到 Sites。
+AI、云转录和本机播客处理仍保留在现有 Express 路径，尚未迁移到 Sites。
 
 ## 本地开发
 
@@ -46,7 +46,7 @@ GitHub Actions 会同时执行常规验证和 Sites 构建。
 
 - `src/`：React/TypeScript 产品 UI
 - `src/services/readerBackend.ts`：产品代码到运行时能力的统一边界
-- `src/sites/`：ChatGPT Sites Worker、RSS 与媒体运行时适配
+- `src/sites/`：ChatGPT Sites Worker、RSS、媒体与 BidClub 运行时适配
 - `server/`、`server.ts`：本地 Web / Express API 实现
 - IndexedDB/localStorage：浏览器本地阅读数据与设置
 

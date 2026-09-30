@@ -8,7 +8,7 @@ import {
 
 const SITES_CAPABILITIES: ReaderBackendCapabilities = {
   rss: true,
-  bidclub: false,
+  bidclub: true,
   ai: false,
   transcription: false,
   localPodcast: false,
@@ -69,7 +69,7 @@ export const sitesReaderBackend: ReaderBackend = {
     if (!pathname) return globalThis.fetch(input, init);
 
     const capability = capabilityForPath(pathname);
-    if (capability === "rss" || capability === "imageProxy" || capability === "audioProxy") {
+    if (capability === "rss" || capability === "bidclub" || capability === "imageProxy" || capability === "audioProxy") {
       return globalThis.fetch(input, init);
     }
     return new Response(JSON.stringify({

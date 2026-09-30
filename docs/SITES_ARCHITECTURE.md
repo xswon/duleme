@@ -1,6 +1,6 @@
 # ChatGPT Sites-first architecture
 
-## Phase 3 decision
+## Phase 4 decision
 
 Duleme keeps the existing React UI, browser-owned IndexedDB/localStorage data, and product data model. The local Web runtime remains fully supported and continues to use the existing Express `/api` implementation.
 
@@ -16,12 +16,12 @@ ReaderBackend
 WebReaderBackend         SitesReaderBackend
 Express /api             same-origin Site Worker
                               |
-                         restricted RSS/media fetch
+                    restricted RSS/media/BidClub fetch
                               |
-                         shared rssParser
+                  shared parsers and episode mapper
 ```
 
-`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements `GET /api/rss/parse` plus purpose-specific `GET`/`HEAD` media routes. AI, transcription, BidClub, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
+`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements RSS parsing, purpose-specific media routes, and the narrow `GET /api/bidclub/episode` adapter. AI, transcription, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
 
 ## Capability matrix
 
@@ -38,7 +38,7 @@ Express /api             same-origin Site Worker
 | Sites audio adapter | Native fallback | `/api/media/audio`, public HTTP(S) only, streamed GET/HEAD and single `bytes=` Range forwarding | Keep for publisher/runtime edge cases |
 | Legacy Express media proxy | Local Web only | Existing `/api/proxy-image` and `/api/proxy-audio`; local URL resolution is unchanged | Yes |
 | Unsupported media cases | Unsupported | Private/LAN/localhost, authenticated or cookie-gated media, non-HTTP(S), multipart Range, origins that ignore Range | Yes where legacy policy permits |
-| BidClub enrichment | Unavailable | Explicit 501 | Yes |
+| BidClub enrichment | Native for public BidClub episodes | `/api/bidclub/episode` accepts only a BidClub slug/page URL, fetches the fixed public episode API, and maps through the shared `BidclubEpisode` model | Keep for runtime-specific edge cases |
 | AI endpoints | Unavailable | Explicit 501 | Yes |
 | Cloud transcription | Unavailable | Explicit 501 | Yes |
 | Local podcast processing | Unavailable | Explicit 501 | Yes |
@@ -80,6 +80,22 @@ Media remains behind `ReaderBackend`: product components ask for a primary URL a
 
 The media routes are not general-purpose proxies: methods, request headers, response types, redirects, and target schemes are constrained. Localhost, common metadata names, private/reserved IP literals, URL credentials, and unsafe redirect targets are rejected. The Worker runtime does not expose the Node DNS pre-resolution/address-pinning path used by Express, so a public hostname that later resolves to a private address cannot be independently pinned by application code; Cloudflare's outbound network enforcement is still required. Keep the legacy Express proxy for publishers that block Cloudflare egress, require a source-specific cookie/header, omit usable MIME metadata, ignore Range, or otherwise need the mature Node transport.
 
+## Sites BidClub behavior
+
+The product keeps the existing `GET /api/bidclub/episode?url=...` contract through `ReaderBackend`. In Sites, the same request is handled by a narrow Worker adapter:
+
+- accepts only a canonical BidClub episode slug or a `bidclub.ai/e/<slug>` page URL;
+- contacts only `https://bidclub.ai/api/v1/episodes/<slug>`;
+- permits redirects only when they remain HTTPS on BidClub's episode API;
+- applies a 15 second timeout, a three-redirect limit, and a 5 MiB response limit;
+- preserves useful upstream statuses such as 404 and 429 and forwards `Retry-After`;
+- rejects invalid JSON and incomplete episode payloads;
+- maps the upstream response through the same `mapBidclubEpisodePayload` code used by the local Express adapter;
+- exposes only the existing `BidclubEpisode` product model rather than arbitrary upstream JSON;
+- leaves cover images and episode audio inside the existing Sites media boundary.
+
+No BidClub API key, cookie, custom outbound header, or user-supplied upstream origin is accepted by this adapter. If the public BidClub read API is unavailable from the Sites runtime, the existing local Express path remains the operational fallback.
+
 ## Architecture rules
 
 1. Product components and services must not call application `/api` endpoints with `fetch` directly; use `ReaderBackend`.
@@ -91,10 +107,8 @@ The media routes are not general-purpose proxies: methods, request headers, resp
 
 ## Recommended migration order
 
-1. Migrate `GET /api/bidclub/episode` as a narrow slug/episode adapter, reusing the existing `BidclubEpisode` model and sanitization/rendering path.
-2. Port the BidClub upstream fetch and error mapping without accepting arbitrary target URLs; validate that only the intended BidClub API/origin is contacted.
-3. Verify TL;DR, digest, transcript HTML, attribution URL, cover URL, and episode audio URL independently; the latter two must continue through the media boundary added in this phase.
-4. Add redirect, malformed payload, missing episode, upstream rate-limit, timeout, and cache tests before enabling the `bidclub` Sites capability.
-5. Migrate AI status/model/test/summary endpoints as one credential-safe server capability.
-6. Migrate transcription orchestration.
-7. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
+1. Deploy and smoke-test the completed RSS/media/BidClub stack in the private ChatGPT Site when deployment quota is available.
+2. Verify a real BidClub episode end-to-end: TL;DR, digest chapters, transcript, source attribution, cover image, and episode audio.
+3. Migrate AI status/model/test/summary endpoints as one credential-safe server capability.
+4. Migrate transcription orchestration.
+5. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.
