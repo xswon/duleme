@@ -1,0 +1,135 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { handleSitesRssRequest } from "../src/sites/rssWorker";
+
+const rssXml = `<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <title>RSS Example</title><description>News</description><link>https://example.com/</link>
+  <item><title>First item</title><guid>rss-1</guid><link>https://example.com/1</link><description><![CDATA[<p>Hello RSS</p>]]></description></item>
+</channel></rss>`;
+
+const atomXml = `<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Atom Example</title><link rel="alternate" href="https://example.org/" />
+  <entry><id>atom-1</id><title>Atom item</title><link href="https://example.org/1"/><summary>Hello Atom</summary></entry>
+</feed>`;
+
+function requestFor(feedUrl = "https://feeds.example.com/main.xml") {
+  return new Request(`https://reader.example/api/rss/parse?url=${encodeURIComponent(feedUrl)}`);
+}
+
+describe("Sites RSS worker", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("fetches and parses RSS 2.0 into the existing product response shape", async () => {
+    const fetchImpl = vi.fn(async () => new Response(rssXml, {
+      status: 200,
+      headers: { "Content-Type": "application/rss+xml" },
+    }));
+
+    const response = await handleSitesRssRequest(requestFor(), { fetchImpl });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toMatchObject({
+      title: "RSS Example",
+      description: "News",
+      feedUrl: "https://feeds.example.com/main.xml",
+      itemCount: 1,
+      items: [{ id: "rss-1", title: "First item", snippet: "Hello RSS" }],
+    });
+    expect(fetchImpl).toHaveBeenCalledWith(
+      new URL("https://feeds.example.com/main.xml"),
+      expect.objectContaining({ method: "GET", redirect: "manual" }),
+    );
+  });
+
+  it("fetches and parses Atom", async () => {
+    const response = await handleSitesRssRequest(requestFor("https://example.org/atom.xml"), {
+      fetchImpl: async () => new Response(atomXml, { status: 200 }),
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toMatchObject({
+      title: "Atom Example",
+      link: "https://example.org/",
+      itemCount: 1,
+      items: [{ id: "atom-1", link: "https://example.org/1", snippet: "Hello Atom" }],
+    });
+  });
+
+  it("returns a structured upstream error for non-success HTTP responses", async () => {
+    const response = await handleSitesRssRequest(requestFor(), {
+      fetchImpl: async () => new Response("missing", { status: 404, statusText: "Not Found" }),
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "rss_upstream_http_error",
+      error: expect.stringContaining("HTTP 404"),
+    });
+  });
+
+  it("rejects malformed XML as an invalid feed", async () => {
+    const response = await handleSitesRssRequest(requestFor(), {
+      fetchImpl: async () => new Response("<rss><channel></rss>", { status: 200 }),
+    });
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({ code: "rss_invalid_feed" });
+  });
+
+  it("follows redirects manually and validates the redirect target", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "https://feeds.example.com/main.xml") {
+        return new Response(null, { status: 302, headers: { Location: "/canonical.xml" } });
+      }
+      return new Response(rssXml, { status: 200 });
+    });
+
+    const response = await handleSitesRssRequest(requestFor(), { fetchImpl });
+
+    expect(response.status).toBe(200);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(String(fetchImpl.mock.calls[1][0])).toBe("https://feeds.example.com/canonical.xml");
+  });
+
+  it("reports network failures", async () => {
+    const response = await handleSitesRssRequest(requestFor(), {
+      fetchImpl: async () => { throw new TypeError("connection failed"); },
+    });
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      code: "rss_network_error",
+      error: expect.stringContaining("connection failed"),
+    });
+  });
+
+  it("aborts requests that exceed the runtime timeout", async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    }));
+
+    const pending = handleSitesRssRequest(requestFor(), { fetchImpl, timeoutMs: 25 });
+    await vi.advanceTimersByTimeAsync(25);
+    const response = await pending;
+
+    expect(response.status).toBe(504);
+    await expect(response.json()).resolves.toMatchObject({ code: "rss_timeout" });
+  });
+
+  it("blocks private and local targets instead of acting as an open proxy", async () => {
+    const fetchImpl = vi.fn();
+    const response = await handleSitesRssRequest(requestFor("http://127.0.0.1/feed.xml"), { fetchImpl });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "rss_unsafe_url" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});

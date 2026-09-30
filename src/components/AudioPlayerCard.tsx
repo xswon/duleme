@@ -3,6 +3,7 @@ import { Article } from "../types";
 import { Headphones, ListCheck } from "lucide-react";
 import { resolveImageUrl } from "./ArticleList";
 import { formatAudioTime } from "../hooks/useAudioPlayer";
+import { retryBackendImage } from "../services/mediaAssetService";
 
 export interface AudioPlayerModel {
   article: Article;
@@ -25,7 +26,9 @@ export function AudioPlayerCard({ model: p }: { model: AudioPlayerModel }) {
   const progress = p.duration > 0 ? Math.min(100, (p.currentTime / p.duration) * 100) : 0;
   return <section className="wreader-audio-card" aria-label="音频播放器">
     <div className="wreader-audio-cover" aria-hidden="true">
-      {article.thumbnail ? <img src={resolveImageUrl(article.thumbnail)} alt="" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : <Headphones />}
+      {article.thumbnail ? <img src={resolveImageUrl(article.thumbnail)} alt="" referrerPolicy="no-referrer" onError={(event) => {
+        if (!retryBackendImage(event.currentTarget, article.thumbnail)) event.currentTarget.style.display = "none";
+      }} /> : <Headphones />}
     </div>
     <div className="wreader-audio-body">
       <strong title={article.title}>{article.title}</strong>
