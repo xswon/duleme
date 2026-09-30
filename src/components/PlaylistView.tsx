@@ -3,6 +3,7 @@ import { LoaderCircle } from "lucide-react";
 import { Article, AudioProgress } from "../types";
 import type { SharedAudioPlayer } from "../hooks/useAudioPlayer";
 import { formatArticleRelativeTime, resolveImageUrl } from "./ArticleList";
+import { retryBackendImage } from "../services/mediaAssetService";
 
 interface PlaylistViewProps {
   articles: Article[];
@@ -122,7 +123,9 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({
     <div className="wreader-tool-view wreader-playlist-view animate-fadeIn">
       <section className={`playlist-player ${activeArticle ? "" : "is-empty"}`} aria-label="播放控制器">
         <div className="playlist-player-main">
-          <div className="playlist-player-cover">{activeArticle && resolveImageUrl(activeArticle.thumbnail) ? <img src={resolveImageUrl(activeArticle.thumbnail)} alt="" /> : <span>{activeArticle?.feedTitle || "待播清单"}</span>}</div>
+          <div className="playlist-player-cover">{activeArticle && resolveImageUrl(activeArticle.thumbnail) ? <img src={resolveImageUrl(activeArticle.thumbnail)} alt="" referrerPolicy="no-referrer" onError={(event) => {
+            if (!retryBackendImage(event.currentTarget, activeArticle.thumbnail)) event.currentTarget.style.display = "none";
+          }} /> : <span>{activeArticle?.feedTitle || "待播清单"}</span>}</div>
           <div className="playlist-player-body">
             <div className="playlist-player-copy"><strong>{activeArticle?.title || "播放列表为空"}</strong>{activeArticle && <span>{activeArticle.feedTitle}</span>}</div>
             <div className="playlist-timeline">
@@ -150,7 +153,9 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({
           return (
             <article key={article.id} draggable={Boolean(onReorder)} onDragStart={(event) => { setDraggedId(article.id); event.dataTransfer.setData("text/plain", article.id); }} onDragOver={(event) => { if (draggedId && draggedId !== article.id) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); const fromId = draggedId || event.dataTransfer.getData("text/plain"); const from = articles.findIndex((item) => item.id === fromId); const to = articles.findIndex((item) => item.id === article.id); if (onReorder && from >= 0 && to >= 0) onReorder(moveItem<Article>(articles, from, to).map((item) => item.id)); setDraggedId(null); }} onDragEnd={() => setDraggedId(null)} className={`playlist-row ${isActive ? "is-active" : ""} ${draggedId === article.id ? "is-dragging" : ""}`}>
               <button type="button" className="playlist-open" onClick={() => onSelectArticle(article)} title={`查看文章：${article.title}`}>
-                <span className="playlist-thumb">{coverUrl ? <img src={coverUrl} alt="" /> : <span>{article.feedTitle.slice(0, 2)}</span>}</span>
+                <span className="playlist-thumb">{coverUrl ? <img src={coverUrl} alt="" referrerPolicy="no-referrer" onError={(event) => {
+                  if (!retryBackendImage(event.currentTarget, article.thumbnail)) event.currentTarget.style.display = "none";
+                }} /> : <span>{article.feedTitle.slice(0, 2)}</span>}</span>
                 <span className="playlist-item-copy"><strong>{article.title} <span>｜{article.feedTitle}</span></strong><small>{remainingLabel(progress)} · {formatArticleRelativeTime(article.pubDate)}</small></span>
               </button>
               <button type="button" className="playlist-row-play" onClick={() => togglePlayback(article)} aria-label={`${isActive && playing ? "暂停" : "播放"} ${article.title}`} title={`${isActive && playing ? "暂停" : "播放"} ${article.title}`}>{isActive && playing ? <PlayerIcon type="pause" /> : <PlayerIcon type="play" />}</button>

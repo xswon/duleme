@@ -14,6 +14,8 @@ import {
   saveAudioProgressToDB,
 } from "../src/services/dbService";
 import { migrateAudioProgressMap } from "../src/services/rssService";
+import { resetReaderBackend, setReaderBackend } from "../src/services/readerBackend";
+import { sitesReaderBackend } from "../src/sites/sitesReaderBackend";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -47,6 +49,26 @@ describe("audio player helpers", () => {
   it("uses the proxy for supported remote audio hosts", () => {
     expect(resolveAudioUrl("http://example.com/a.mp3")).toBe("/api/proxy-audio?url=http%3A%2F%2Fexample.com%2Fa.mp3");
     expect(resolveAudioUrl("/api/proxy-audio?url=x")).toBe("/api/proxy-audio?url=x");
+  });
+
+  it("falls back from direct Sites audio to the same-origin streaming adapter", async () => {
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    setReaderBackend(sitesReaderBackend);
+    let player: SharedAudioPlayer | undefined;
+    function Harness() {
+      player = useSharedAudioPlayer();
+      return React.createElement("audio", { ref: player.audioRef });
+    }
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(Harness)));
+    await act(async () => player?.loadArticle("sites-audio", "https://podcast.example.com/episode.mp3"));
+    expect(player?.audioSrc).toBe("https://podcast.example.com/episode.mp3");
+
+    await act(async () => player?.handleAudioError());
+    expect(player?.audioSrc).toBe("/api/media/audio?url=https%3A%2F%2Fpodcast.example.com%2Fepisode.mp3");
+    act(() => root.unmount());
   });
 
   it("keeps one media element while switching episodes and persists its progress", async () => {
@@ -278,6 +300,7 @@ describe("audio player helpers", () => {
 });
 
 afterEach(() => {
+  resetReaderBackend();
   vi.restoreAllMocks();
   vi.useRealTimers();
   document.body.innerHTML = "";

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, Podcast, Upload } from "lucide-react";
 import type { CuratedFeedOption } from "../types";
+import { backendRequest } from "../services/readerBackend";
+import { retryBackendImage } from "../services/mediaAssetService";
 
 interface WelcomeScreenProps {
   featuredFeeds: CuratedFeedOption[];
@@ -19,7 +21,9 @@ function FeedArtwork({ src, isPodcast }: { src?: string; isPodcast: boolean }) {
     const Icon = isPodcast ? Podcast : BookOpen;
     return <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500"><Icon className="h-5 w-5" /></span>;
   }
-  return <img src={src} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" onError={() => setFailed(true)} />;
+  return <img src={src} alt="" referrerPolicy="no-referrer" className="h-9 w-9 shrink-0 rounded-lg object-cover" onError={(event) => {
+    if (!retryBackendImage(event.currentTarget, src)) setFailed(true);
+  }} />;
 }
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
@@ -38,7 +42,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     if (view !== "featured") return;
     let active = true;
     featuredFeeds.filter((feed) => feed.contentType === "podcast").forEach((feed) => {
-      void fetch(`/api/rss/parse?url=${encodeURIComponent(feed.feedUrl)}`)
+      void backendRequest(`/api/rss/parse?url=${encodeURIComponent(feed.feedUrl)}`)
         .then((response) => response.ok ? response.json() : null)
         .then((data: { feedImage?: string } | null) => {
           const image = data?.feedImage;

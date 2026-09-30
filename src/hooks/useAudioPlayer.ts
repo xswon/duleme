@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { hasReaderBackendCapability, resolveBackendAssetUrl } from "../services/readerBackend";
+import { resolveAudioFallbackUrl } from "../services/mediaAssetService";
 
 export function resolveAudioUrl(src?: string): string | undefined {
-  if (!src) return undefined;
-  if (src.startsWith("/api/proxy-audio")) return src;
-  if (src.startsWith("http://") || src.includes("xyzcdn.net") || src.includes("xiaoyuzhoufm.com") || src.includes("ximalaya.com")) {
-    return `/api/proxy-audio?url=${encodeURIComponent(src)}`;
-  }
-  return src;
+  return resolveBackendAssetUrl("audio", src);
 }
 
 export function formatAudioTime(sec: number) {
@@ -96,10 +93,10 @@ export function useSharedAudioPlayer(
       await audio.play();
       setIsPlaying(true);
     } catch {
-      if (originalUrl && /^https?:\/\//i.test(originalUrl) && !audioSrc?.includes("/api/proxy-audio")) {
-        const proxy = `/api/proxy-audio?url=${encodeURIComponent(originalUrl)}`;
-        setAudioSrc(proxy);
-        audio.src = proxy;
+      const fallback = resolveAudioFallbackUrl(originalUrl);
+      if (hasReaderBackendCapability("audioProxy") && fallback && fallback !== audioSrc) {
+        setAudioSrc(fallback);
+        audio.src = fallback;
         audio.load();
         try {
           await audio.play();
@@ -271,8 +268,9 @@ export function useSharedAudioPlayer(
     if (currentArticleId) onEnded?.(currentArticleId);
   }, [flushProgress, onEnded]);
   const handleAudioError = useCallback(() => {
-    if (originalUrl && /^https?:\/\//i.test(originalUrl) && !audioSrc?.includes("/api/proxy-audio")) {
-      setAudioSrc(`/api/proxy-audio?url=${encodeURIComponent(originalUrl)}`);
+    const fallback = resolveAudioFallbackUrl(originalUrl);
+    if (hasReaderBackendCapability("audioProxy") && fallback && fallback !== audioSrc) {
+      setAudioSrc(fallback);
     } else {
       setIsPlaying(false);
       setAudioPlayError("音频源暂时无法载入，建议在浏览器原网页中打开。");
