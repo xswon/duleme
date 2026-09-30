@@ -8,6 +8,9 @@ import './styles/prototype-reader.css';
 import './styles/prototype-player.css';
 import './styles/button-system.css';
 import { PrototypeTooltipLayer } from './components/PrototypeTooltipLayer';
+import { installSitesReaderBackend } from './sites/sitesReaderBackend';
+
+if (import.meta.env.MODE === 'sites') installSitesReaderBackend();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

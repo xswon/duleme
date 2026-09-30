@@ -1,6 +1,8 @@
 import React from "react";
 import { Article } from "../types";
 import { resolveArticlePresentation } from "../services/articlePresentation";
+import { resolveBackendAssetUrl } from "../services/readerBackend";
+import { resolveImageCandidates } from "../services/mediaAssetService";
 import { VirtualWindow } from "./VirtualWindow";
 
 function TimelineIcon({ type }: { type: "mail" | "headphones" }) {
@@ -46,10 +48,7 @@ function HistoryWindowControl({
 }
 
 export function resolveImageUrl(src?: string): string | undefined {
-  if (!src) return undefined;
-  if (src.startsWith("/api/proxy-image")) return src;
-  if (!src.startsWith("http")) return src;
-  return `/api/proxy-image?url=${encodeURIComponent(src)}`;
+  return resolveBackendAssetUrl("image", src);
 }
 
 export function formatDurationMinutes(duration?: string): string | undefined {
@@ -80,47 +79,25 @@ export const ArticleThumbnail: React.FC<ArticleThumbnailProps> = ({
   feedTitle,
   title,
 }) => {
-  const [imageSrc, setImageSrc] = React.useState<string | undefined>(() => resolveImageUrl(src));
+  const [candidateIndex, setCandidateIndex] = React.useState(0);
   const [imgError, setImgError] = React.useState(false);
-  const [retryStage, setRetryStage] = React.useState(0);
+  const candidates = React.useMemo(() => resolveImageCandidates(src), [src]);
+  const imageSrc = candidates[candidateIndex];
 
   React.useEffect(() => {
-    setImageSrc(resolveImageUrl(src));
+    setCandidateIndex(0);
     setImgError(false);
-    setRetryStage(0);
   }, [src]);
 
   const handleImgError = () => {
-    if (!src) {
-      setImgError(true);
-      return;
-    }
-
-    if (retryStage === 0) {
-      // Stage 1: Try stripping @small or @suffix if present
-      if (src.includes("@")) {
-        const cleanSrc = src.replace(/@[^/]+$/, "");
-        if (cleanSrc !== src) {
-          setImageSrc(resolveImageUrl(cleanSrc));
-          setRetryStage(1);
-          return;
-        }
+    setCandidateIndex((current) => {
+      const next = current + 1;
+      if (next >= candidates.length) {
+        setImgError(true);
+        return current;
       }
-      // Stage 1b: Try raw unproxied URL
-      setImageSrc(src);
-      setRetryStage(2);
-      return;
-    }
-
-    if (retryStage === 1) {
-      // Stage 2: Try raw unproxied URL
-      setImageSrc(src);
-      setRetryStage(2);
-      return;
-    }
-
-    // Stage 3: All failed -> display fallback cover
-    setImgError(true);
+      return next;
+    });
   };
 
   const sizeClasses = "wreader-story-thumbnail h-12 w-12 shrink-0 rounded-md";

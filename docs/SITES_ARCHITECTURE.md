@@ -1,70 +1,100 @@
-# ChatGPT Sites migration architecture
+# ChatGPT Sites-first architecture
 
-## Decision
+## Phase 3 decision
 
-Duleme is now a Web-first product targeting ChatGPT Sites. Native desktop packaging is out of scope.
+Duleme keeps the existing React UI, browser-owned IndexedDB/localStorage data, and product data model. The local Web runtime remains fully supported and continues to use the existing Express `/api` implementation.
 
-The React product UI remains the source of truth. Environment-specific capabilities must stay behind a narrow frontend boundary so the Sites migration does not fork product logic.
-
-## Current runtime
-
-Today the application consists of:
+The Sites build now contains the same React SPA plus a Cloudflare Worker-compatible API entrypoint:
 
 ```text
-React / TypeScript UI
-        |
-   ReaderBackend
-        |
- browser HTTP adapter
-        |
- Node / Express /api
-        |
- RSS, proxy, AI, transcription, local-podcast integrations
+React product UI
+      |
+IndexedDB / localStorage
+      |
+ReaderBackend
+   /                    \
+WebReaderBackend         SitesReaderBackend
+Express /api             same-origin Site Worker
+                              |
+                         restricted RSS/media fetch
+                              |
+                         shared rssParser
 ```
 
-IndexedDB remains the primary local store for subscriptions, articles, notes, reading state, audio progress, and user-owned configuration.
+`npm run build:site` emits the Site Worker and SPA assets under `dist/`. The Worker implements `GET /api/rss/parse` plus purpose-specific `GET`/`HEAD` media routes. AI, transcription, BidClub, and local-podcast APIs continue to return `501 sites_capability_unavailable` from `SitesReaderBackend`.
 
-## Sites target
+## Capability matrix
 
-ChatGPT Sites is the deployment target, but the existing Express server must not be assumed to run unchanged inside Sites. The migration should replace runtime capabilities behind `ReaderBackend` only after each capability is confirmed to be supported by the Sites runtime.
+| Capability | Sites status | Sites implementation | Legacy Express fallback |
+| --- | --- | --- | --- |
+| React reader UI and navigation | Native | Same React SPA | No |
+| IndexedDB/localStorage state | Native, device-local | Existing browser stores | No |
+| Add and refresh RSS 2.0/Atom/RDF feeds | Native for public feeds | Same-origin `/api/rss/parse` Worker route | Keep for runtime-specific edge cases |
+| Feed metadata and article parsing | Native | Existing `parseFeedXml` and `RssParseResponse` shape | Keep for runtime-specific edge cases |
+| WelcomeScreen podcast/feed artwork metadata | Native for public feeds | Existing ReaderBackend call reaches the RSS Worker | Keep for runtime-specific edge cases |
+| OPML import/export | Native | Existing browser file APIs | No |
+| Direct browser media | Native when the publisher permits it | Remote image/audio URL is always tried first in Sites | No, but failures use the Sites adapter |
+| Sites image adapter | Native fallback | `/api/media/image`, public HTTP(S) only, redirect/type/size checks, streamed response, one-day browser cache | Keep for publisher/runtime edge cases |
+| Sites audio adapter | Native fallback | `/api/media/audio`, public HTTP(S) only, streamed GET/HEAD and single `bytes=` Range forwarding | Keep for publisher/runtime edge cases |
+| Legacy Express media proxy | Local Web only | Existing `/api/proxy-image` and `/api/proxy-audio`; local URL resolution is unchanged | Yes |
+| Unsupported media cases | Unsupported | Private/LAN/localhost, authenticated or cookie-gated media, non-HTTP(S), multipart Range, origins that ignore Range | Yes where legacy policy permits |
+| BidClub enrichment | Unavailable | Explicit 501 | Yes |
+| AI endpoints | Unavailable | Explicit 501 | Yes |
+| Cloud transcription | Unavailable | Explicit 501 | Yes |
+| Local podcast processing | Unavailable | Explicit 501 | Yes |
 
-```text
-React product features
-        |
-   ReaderBackend
-      /       \
- current HTTP  Sites adapter
-    adapter       |
-       \      supported Sites runtime capabilities
-        \       /
-      shared product behavior
-```
+## Sites-native RSS behavior
 
-## Rules
+The browser does not fetch third-party feeds directly. It calls the Site's same-origin Worker, so feed-server browser CORS headers are not required. The Worker:
 
-1. Product components and feature services must not call application `/api` endpoints with `fetch` directly.
-2. Add new runtime-dependent behavior behind `ReaderBackend`.
-3. Keep user secrets out of source control. Local `.env*` files stay ignored; only empty/example values belong in `.env.example`.
-4. Do not delete the Node/Express implementation until the equivalent Sites path is working for RSS refresh, article fetch/proxy, AI summary, and transcription.
-5. Do not add Electron, Tauri, DMG, NSIS, notarization, or desktop-release workflows back to this repository.
+- accepts only `GET /api/rss/parse?url=...` and returns parsed JSON, not arbitrary upstream bytes;
+- accepts public `http` and `https` feed URLs without credentials;
+- blocks local/private/reserved IP literals and common local or metadata hostnames;
+- follows at most five redirects manually and validates every redirect target;
+- applies a 20 second end-to-end timeout and a 5 MiB response limit;
+- tolerates incorrect or generic response content types, then validates XML and the RSS/Atom/RDF document shape;
+- uses the existing parser and existing product response fields, including feed metadata, article items, enclosures, images, and durations.
 
-## Migration order
+The restricted parse-only endpoint is intentionally not a general-purpose proxy. In the Worker runtime there is no Node DNS lookup/Undici agent, so the Site path cannot reproduce Express's DNS pre-resolution and address pinning. Hostname and literal validation is still applied before every request and redirect; Cloudflare's outbound runtime remains the final network boundary.
 
-1. Centralize all existing frontend application-API calls behind `ReaderBackend`.
-2. Keep current web behavior as the default adapter and retain regression tests.
-3. Build a Sites prototype from the React UI.
-4. Verify RSS/network behavior in the Sites runtime.
-5. Move or replace proxy, AI, and transcription capabilities one at a time.
-6. Validate IndexedDB persistence and import/export in the deployed Site.
-7. Remove the legacy Express runtime only when all required production paths have Sites equivalents.
+## Supported and limited RSS scenarios
 
-## Publication gate
+Sites-native support:
 
-Before making this repository public:
+- public RSS 2.0, Atom, and RDF feeds reachable from the Sites/Cloudflare egress network;
+- redirects to another public HTTP(S) feed;
+- servers with missing, generic, or inaccurate XML content types;
+- structured errors for upstream HTTP failures, invalid XML/feed documents, oversized responses, redirect failures, network failures, and timeouts.
 
-- scan the current tree and Git history for credentials and private URLs;
-- verify no committed `.env` or credential material exists;
-- rotate any credential that ever appeared in Git history, even if later deleted;
-- review fixtures, logs, screenshots, and sample data for private user content.
+Keep the local Express path for compatibility and operational fallback when a publisher blocks Cloudflare egress, requires source-IP allowlisting, or serves a feed larger than the Site limit. Browser CORS is not a reason to use the fallback because the Site Worker performs the remote request. Feeds requiring cookies, custom authentication headers, client certificates, private/LAN access, or non-HTTP protocols are currently unsupported by the Sites RSS route.
 
-Repository visibility and Site audience are separate decisions.
+## Sites media behavior
+
+Media remains behind `ReaderBackend`: product components ask for a primary URL and, after a load failure, a fallback URL. In Sites the primary URL is the publisher URL, so ordinary `<img>` and `<audio>` loading avoids a server hop. In local Web the existing Express URL selection is unchanged. The fallback in Sites is same-origin and purpose-specific:
+
+- `GET`/`HEAD /api/media/image?url=...` accepts only public HTTP(S), validates every redirect, requires `image/*`, rejects declared images above 15 MiB, bounds unknown-length streams, and emits `public, max-age=86400` caching.
+- `GET`/`HEAD /api/media/audio?url=...` accepts only public HTTP(S), requires an audio/binary media MIME type, and streams the upstream body without buffering the complete episode.
+- A single valid `Range: bytes=start-end`, `bytes=start-`, or `bytes=-suffix` header is forwarded for audio. A Range request succeeds only when the origin returns `206` with `Content-Range`; `Content-Type`, `Content-Range`, `Accept-Ranges`, and valid `Content-Length` metadata are copied. Upstream `416` is preserved.
+- Audio responses use `private, no-store`, so the Site route does not rely on full-object Worker caching that could strip or synthesize Range behavior. Pause/resume and seeking continue through the existing single `<audio>` element.
+- The connection timeout covers URL resolution, redirects, and receipt of upstream headers. It is cleared before body streaming so a long podcast is not aborted merely because playback lasts longer than the connection timeout.
+
+The media routes are not general-purpose proxies: methods, request headers, response types, redirects, and target schemes are constrained. Localhost, common metadata names, private/reserved IP literals, URL credentials, and unsafe redirect targets are rejected. The Worker runtime does not expose the Node DNS pre-resolution/address-pinning path used by Express, so a public hostname that later resolves to a private address cannot be independently pinned by application code; Cloudflare's outbound network enforcement is still required. Keep the legacy Express proxy for publishers that block Cloudflare egress, require a source-specific cookie/header, omit usable MIME metadata, ignore Range, or otherwise need the mature Node transport.
+
+## Architecture rules
+
+1. Product components and services must not call application `/api` endpoints with `fetch` directly; use `ReaderBackend`.
+2. Runtime-specific media URL handling belongs in `ReaderBackend`.
+3. Do not delete `server.ts`, `server/`, or Express routes until equivalent production paths exist and are verified in Sites.
+4. Do not move API keys or server secrets into the Site client. Browser-owned settings remain device-local in IndexedDB.
+5. A capability is enabled in `SitesReaderBackend` only after a real Site runtime implementation exists.
+6. Outbound Site routes must be purpose-specific, bounded by method, response size, redirects, and timeout, and must validate every upstream target.
+
+## Recommended migration order
+
+1. Migrate `GET /api/bidclub/episode` as a narrow slug/episode adapter, reusing the existing `BidclubEpisode` model and sanitization/rendering path.
+2. Port the BidClub upstream fetch and error mapping without accepting arbitrary target URLs; validate that only the intended BidClub API/origin is contacted.
+3. Verify TL;DR, digest, transcript HTML, attribution URL, cover URL, and episode audio URL independently; the latter two must continue through the media boundary added in this phase.
+4. Add redirect, malformed payload, missing episode, upstream rate-limit, timeout, and cache tests before enabling the `bidclub` Sites capability.
+5. Migrate AI status/model/test/summary endpoints as one credential-safe server capability.
+6. Migrate transcription orchestration.
+7. Reassess local podcast processing separately; its machine-local dependency may remain outside Sites or require a redesigned remote service.

@@ -30,4 +30,13 @@ describe("rssParser format compatibility", () => {
       duration: "01:02:03",
     });
   });
+
+  it("rejects malformed XML and non-feed documents", () => {
+    expect(() => parseFeedXml("<rss><channel></rss>", "https://example.com/broken.xml", { strict: true }))
+      .toThrow(/Invalid feed XML/);
+    expect(() => parseFeedXml("<html><body>Not a feed</body></html>", "https://example.com/", { strict: true }))
+      .toThrow(/not a supported RSS/);
+    expect(parseFeedXml("<html><body>Not a feed</body></html>", "https://example.com/"))
+      .toMatchObject({ title: "Untitled Feed", items: [] });
+  });
 });

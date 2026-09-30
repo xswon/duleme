@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Article, ArticleNote, DetailTab, OverviewPipelineStage } from "../types";
 import { resolveImageUrl } from "./ArticleList";
+import { retryBackendImage } from "../services/mediaAssetService";
 import { summarizeArticleWithAI } from "../services/rssService";
 import { AI_SETTINGS_CHANGED_EVENT, getAiCapability } from "../services/aiSettingsService";
 import { useBidclubEpisode } from "../hooks/useBidclubEpisode";
@@ -1330,13 +1331,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                   onError={(e) => {
                     const coverSrc = article.thumbnail || bidclub?.thumbnailUrl;
                     const target = e.currentTarget;
-                    if (coverSrc && coverSrc.includes("@") && !target.dataset.triedClean) {
-                      target.dataset.triedClean = "true";
-                      target.src = coverSrc.replace(/@[^/]+$/, "");
-                    } else if (!target.dataset.triedProxy && coverSrc) {
-                      target.dataset.triedProxy = "true";
-                      target.src = `/api/proxy-image?url=${encodeURIComponent(coverSrc)}`;
-                    } else {
+                    if (!retryBackendImage(target, coverSrc)) {
                       target.closest("div")!.style.display = "none";
                     }
                   }}
@@ -1363,6 +1358,13 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               onPointerUp={notesEnabledForCurrentTab ? captureSelection : undefined}
               onKeyUp={notesEnabledForCurrentTab ? captureSelection : undefined}
               onClick={notesEnabledForCurrentTab ? handleHighlightClick : undefined}
+              onErrorCapture={(event) => {
+                const target = event.target;
+                if (target instanceof HTMLImageElement) {
+                  const source = target.dataset.mediaSource || target.getAttribute("src") || undefined;
+                  retryBackendImage(target, source);
+                }
+              }}
             >
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />

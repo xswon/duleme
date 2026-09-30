@@ -6,7 +6,16 @@
 
 项目采用 **Web-first / ChatGPT Sites-first** 路线，不再维护 Electron、Tauri 或原生桌面打包目标。
 
-现有 React UI 与本地 IndexedDB 数据层继续保留。RSS、代理、AI、转录等能力目前仍由 Node/Express `/api` 服务提供；迁移到 ChatGPT Sites 时，这些运行时能力必须经过 `ReaderBackend` 边界适配，而不是让 UI 直接依赖具体托管环境。
+现有 React UI、IndexedDB/localStorage 数据层和本地 Web + Express 运行方式继续保留。ChatGPT Sites 使用同一套产品 UI，并通过 `ReaderBackend` 隔离运行时差异。
+
+当前 Sites 已具备：
+
+- 公共 RSS / Atom / RDF 获取与解析
+- 远程图片 direct-first 加载及受限同源 fallback
+- 播客音频 direct-first 加载及受限同源 streaming fallback
+- 单段 HTTP Range 转发与 206 / Content-Range 处理
+
+AI、云转录、BidClub 增强和本机播客处理仍保留在现有 Express 路径，尚未迁移到 Sites。
 
 ## 本地开发
 
@@ -19,15 +28,26 @@ npm run dev
 
 ## 验证
 
+本地 Web：
+
 ```bash
 npm run verify
 ```
 
+ChatGPT Sites 构建：
+
+```bash
+npm run build:site
+```
+
+GitHub Actions 会同时执行常规验证和 Sites 构建。
+
 ## 架构
 
 - `src/`：React/TypeScript 产品 UI
-- `src/services/readerBackend.ts`：前端到运行时能力的统一边界
-- `server/`、`server.ts`：当前 Node/Express API 实现
-- IndexedDB：浏览器本地阅读数据与设置
+- `src/services/readerBackend.ts`：产品代码到运行时能力的统一边界
+- `src/sites/`：ChatGPT Sites Worker、RSS 与媒体运行时适配
+- `server/`、`server.ts`：本地 Web / Express API 实现
+- IndexedDB/localStorage：浏览器本地阅读数据与设置
 
-迁移原则和 Sites 约束见 `docs/SITES_ARCHITECTURE.md`。
+迁移原则、能力矩阵和限制见 `docs/SITES_ARCHITECTURE.md`。

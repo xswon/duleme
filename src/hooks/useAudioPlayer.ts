@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { hasReaderBackendCapability, resolveBackendAssetUrl } from "../services/readerBackend";
+import { resolveAudioFallbackUrl } from "../services/mediaAssetService";
 
 export function resolveAudioUrl(src?: string): string | undefined {
-  if (!src) return undefined;
-  if (src.startsWith("/api/proxy-audio")) return src;
-  if (src.startsWith("http://") || src.includes("xyzcdn.net") || src.includes("xiaoyuzhoufm.com") || src.includes("ximalaya.com")) {
-    return `/api/proxy-audio?url=${encodeURIComponent(src)}`;
-  }
-  return src;
+  return resolveBackendAssetUrl("audio", src);
 }
 
 export function formatAudioTime(sec: number) {
@@ -96,16 +93,11 @@ export function useSharedAudioPlayer(
       await audio.play();
       setIsPlaying(true);
     } catch {
-      if (originalUrl && /^https?:\/\//i.test(originalUrl) && !audioSrc?.includes("/api/proxy-audio")) {
-        const proxy = `/api/proxy-audio?url=${encodeURIComponent(originalUrl)}`;
-        setAudioSrc(proxy);
-        audio.src = proxy;
-        audio.load();
-        try {
-          await audio.play();
-          setIsPlaying(true);
-          return;
-        } catch { /* show the common error below */ }
+      const fallback = resolveAudioFallbackUrl(originalUrl);
+      if (hasReaderBackendCapability("audioProxy") && fallback && fallback !== audioSrc) {
+        pendingAutoplayRef.current = true;
+        setAudioSrc(fallback);
+        return;
       }
       setIsPlaying(false);
       setAudioPlayError("音频文件播放遇到阻碍，可尝试在新标签页打开。");
@@ -271,13 +263,15 @@ export function useSharedAudioPlayer(
     if (currentArticleId) onEnded?.(currentArticleId);
   }, [flushProgress, onEnded]);
   const handleAudioError = useCallback(() => {
-    if (originalUrl && /^https?:\/\//i.test(originalUrl) && !audioSrc?.includes("/api/proxy-audio")) {
-      setAudioSrc(`/api/proxy-audio?url=${encodeURIComponent(originalUrl)}`);
+    const fallback = resolveAudioFallbackUrl(originalUrl);
+    if (hasReaderBackendCapability("audioProxy") && fallback && fallback !== audioSrc) {
+      pendingAutoplayRef.current = isPlaying || pendingAutoplayRef.current;
+      setAudioSrc(fallback);
     } else {
       setIsPlaying(false);
       setAudioPlayError("音频源暂时无法载入，建议在浏览器原网页中打开。");
     }
-  }, [audioSrc, originalUrl]);
+  }, [audioSrc, isPlaying, originalUrl]);
   const handlePlay = useCallback(() => setIsPlaying(true), []);
   const handlePause = useCallback(() => { setIsPlaying(false); flushProgress(true); }, [flushProgress]);
 

@@ -1,6 +1,7 @@
-import { XMLParser } from "fast-xml-parser";
+import { XMLParser, XMLValidator } from "fast-xml-parser";
 
 export type ParsedFeed = { title: string; description: string; link: string; feedImage: string; items: Array<Record<string, unknown>> };
+export interface ParseFeedOptions { strict?: boolean }
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", parseAttributeValue: true, trimValues: true });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- XML parser leaf values are runtime-narrowed in this helper.
 const value = (v: any, fallback = ""): string => typeof v === "string" || typeof v === "number" ? String(v) : v && typeof v === "object" && v["#text"] !== null && v["#text"] !== undefined ? String(v["#text"]) : fallback;
@@ -38,10 +39,17 @@ function itemAudio(item: any, content: string) {
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Feed-level image extensions are untyped XML data.
 function feedImage(source: any, feedUrl: string): string { for (const key of ["itunes:image", "podcast:image", "image", "logo", "icon"]) { const u = imageFromObject(source?.[key]); if (u) return u; } try { return `https://www.google.com/s2/favicons?domain=${new URL(feedUrl).hostname}&sz=64`; } catch { return ""; } }
-export function parseFeedXml(xml: string, feedUrl: string): ParsedFeed {
+export function parseFeedXml(xml: string, feedUrl: string, options: ParseFeedOptions = {}): ParsedFeed {
+  if (options.strict) {
+    const validation = XMLValidator.validate(xml);
+    if (validation !== true) throw new Error(`Invalid feed XML: ${validation.err.msg}`);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The XML library exposes parsed RSS/Atom trees without a schema.
   const parsed = parser.parse(xml) as any; const atom = parsed.feed; const channel = parsed.rss?.channel || parsed["rdf:RDF"]?.channel; const source = channel || atom;
-  if (!source) return { title: "Untitled Feed", description: "", link: feedUrl, feedImage: feedImage({}, feedUrl), items: [] };
+  if (!source) {
+    if (options.strict) throw new Error("Document is not a supported RSS, Atom, or RDF feed");
+    return { title: "Untitled Feed", description: "", link: feedUrl, feedImage: feedImage({}, feedUrl), items: [] };
+  }
   const isAtom = !!atom; const raw = isAtom ? atom.entry : (channel?.item || parsed["rdf:RDF"]?.item); const list = raw ? (Array.isArray(raw) ? raw : [raw]) : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Atom link variants are selected from the untyped parsed tree.
   const link = isAtom ? (Array.isArray(atom.link) ? (atom.link.find((x: any) => x?.["@_rel"] === "alternate") || atom.link[0])?.["@_href"] : atom.link?.["@_href"]) || feedUrl : value(channel?.link, feedUrl);
