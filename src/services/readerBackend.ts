@@ -12,6 +12,7 @@ export type ReaderBackendCapability =
   | "rss"
   | "bidclub"
   | "ai"
+  | "loopbackAi"
   | "transcription"
   | "localPodcast"
   | "imageProxy"
@@ -29,6 +30,7 @@ const WEB_CAPABILITIES: ReaderBackendCapabilities = {
   rss: true,
   bidclub: true,
   ai: true,
+  loopbackAi: true,
   transcription: true,
   localPodcast: true,
   imageProxy: true,
