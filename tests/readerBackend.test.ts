@@ -85,6 +85,8 @@ describe("ReaderBackend boundary", () => {
       .toBe("/api/media/image?url=https%3A%2F%2Fexample.com%2Fimage.jpg");
     expect(resolveBackendAssetUrl("audio", "/api/proxy-audio?url=https%3A%2F%2Fexample.com%2Fa.mp3"))
       .toBe("https://example.com/a.mp3");
+    expect(resolveBackendAssetUrl("image", "/api/proxy/image?url=https%3A%2F%2Fexample.com%2Fcover.jpg"))
+      .toBe("https://example.com/cover.jpg");
     expect(resolveBackendAssetUrl("audio", "https://example.com/a.mp3", "fallback"))
       .toBe("/api/media/audio?url=https%3A%2F%2Fexample.com%2Fa.mp3");
     expect(resolveImageCandidates("https://example.com/image.jpg@small")).toEqual([
@@ -104,6 +106,15 @@ describe("ReaderBackend boundary", () => {
       .toBe("https://cdn.example.com/a.mp3");
     expect(resolveBackendAssetUrl("audio", "http://cdn.example.com/a.mp3"))
       .toBe("/api/proxy-audio?url=http%3A%2F%2Fcdn.example.com%2Fa.mp3");
+  });
+
+  it("does not treat cross-origin /api URLs as Site application APIs", async () => {
+    const response = new Response("external", { status: 200 });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    setReaderBackend(sitesReaderBackend);
+
+    await expect(backendRequest("https://example.com/api/ai/models")).resolves.toBe(response);
+    expect(fetchMock).toHaveBeenCalledWith("https://example.com/api/ai/models", undefined);
   });
 
   it("passes non-application requests through in Sites", async () => {
