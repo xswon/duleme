@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Article, LocalPodcastArtifacts, LocalPodcastProcessing, LocalTaskStatus } from "../types";
 import { localPodcastApi, type LocalSessionStatus } from "../services/localPodcastService";
+import { hasReaderBackendCapability } from "../services/readerBackend";
 
 function mapStatus(value?: string): LocalTaskStatus {
   if (value === "completed") return "completed";
@@ -15,6 +16,7 @@ export interface LocalTranscriptionStartResult {
 }
 
 export function useLocalPodcast(article: Article | null, onPatch?: (id: string, patch: Partial<Article>) => void) {
+  const available = hasReaderBackendCapability("localPodcast");
   const [artifacts, setArtifacts] = useState<LocalPodcastArtifacts | null>(null);
   const [progress, setProgress] = useState(0);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
   const refresh = useCallback(async (): Promise<LocalSessionStatus | null> => {
     const current = articleRef.current;
     const sessionId = current?.localPodcast?.sessionId;
-    if (!current || !sessionId || inFlight.current) return null;
+    if (!available || !current || !sessionId || inFlight.current) return null;
     inFlight.current = true;
     setRestoring(true);
     try {
@@ -65,24 +67,25 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
       setFetchError(error.message || "暂时无法读取本机逐字稿。");
       return null;
     } finally { inFlight.current = false; setRestoring(false); }
-  }, [applyStatus]);
+  }, [applyStatus, available]);
 
   useEffect(() => {
     setArtifacts(null);
     setProgress(0);
     setFetchError(null);
-    if (article?.localPodcast?.sessionId) void refresh();
-  }, [article?.id, article?.localPodcast?.sessionId, refresh]);
+    if (available && article?.localPodcast?.sessionId) void refresh();
+  }, [article?.id, article?.localPodcast?.sessionId, available, refresh]);
 
   useEffect(() => {
     const task = article?.localPodcast;
-    if (!task?.sessionId || (task.transcriptionStatus !== "processing" && task.insightStatus !== "processing")) return;
+    if (!available || !task?.sessionId || (task.transcriptionStatus !== "processing" && task.insightStatus !== "processing")) return;
     const timer = window.setInterval(() => void refresh(), 2000);
     return () => window.clearInterval(timer);
-  }, [article?.localPodcast?.sessionId, article?.localPodcast?.transcriptionStatus, article?.localPodcast?.insightStatus, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- Polling follows task fields without restarting for unrelated article updates.
+  }, [article?.localPodcast?.sessionId, article?.localPodcast?.transcriptionStatus, article?.localPodcast?.insightStatus, available, refresh]); // eslint-disable-line react-hooks/exhaustive-deps -- Polling follows task fields without restarting for unrelated article updates.
 
   const startTranscription = useCallback(async (options: { force?: boolean } = {}): Promise<LocalTranscriptionStartResult> => {
     const current = articleRef.current;
+    if (!available) return { started: false, error: "本机播客处理仅在本地 Web 版本可用。" };
     if (!current?.audioUrl) return { started: false, error: "当前节目没有可转录的音频。" };
     if (current.localPodcast?.transcriptionStatus === "processing") return { started: true };
     if (inFlight.current) return { started: false, error: "本地转录正在处理中。" };
@@ -102,7 +105,7 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
       patchRef.current?.(current.id, { localPodcast: { sourceAudioUrl: current.audioUrl, transcriptionStatus: "failed", insightStatus: "not_started", error: message, updatedAt: new Date().toISOString() } });
       return { started: false, error: message };
     } finally { inFlight.current = false; }
-  }, []);
+  }, [available]);
 
   const regenerateTranscription = useCallback(
     () => startTranscription({ force: true }),
@@ -112,26 +115,26 @@ export function useLocalPodcast(article: Article | null, onPatch?: (id: string, 
   const retryTranscription = useCallback(async () => {
     const current = articleRef.current;
     const task = current?.localPodcast;
-    if (!current || inFlight.current) return;
+    if (!available || !current || inFlight.current) return;
     if (task?.sessionId) {
       const payload = await refresh();
       if (!payload) return;
       if (mapStatus(payload.job.status) !== "failed") return;
     }
     await startTranscription();
-  }, [refresh, startTranscription]);
+  }, [available, refresh, startTranscription]);
 
   const createInsight = useCallback(async () => {
     const current = articleRef.current;
     const task = current?.localPodcast;
-    if (!current || !task?.sessionId || task.transcriptionStatus !== "completed" || task.insightStatus === "processing" || task.insightStatus === "completed" || inFlight.current) return;
+    if (!available || !current || !task?.sessionId || task.transcriptionStatus !== "completed" || task.insightStatus === "processing" || task.insightStatus === "completed" || inFlight.current) return;
     patchRef.current?.(current.id, { localPodcast: { ...task, insightStatus: "processing", insightError: undefined, updatedAt: new Date().toISOString() } });
     inFlight.current = true;
     try { await localPodcastApi.createInsight(task.sessionId); }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Existing local-podcast request rejections have no typed error contract.
     catch (error: any) { patchRef.current?.(current.id, { localPodcast: { ...task, insightStatus: "failed", insightError: error.message, updatedAt: new Date().toISOString() } }); }
     finally { inFlight.current = false; }
-  }, []);
+  }, [available]);
 
-  return { artifacts, progress, fetchError, restoring, refresh, startTranscription, regenerateTranscription, retryTranscription, createInsight };
+  return { available, artifacts, progress, fetchError, restoring, refresh, startTranscription, regenerateTranscription, retryTranscription, createInsight };
 }
