@@ -52,6 +52,22 @@ describe("Sites media worker", () => {
     await expect(privateRedirect.json()).resolves.toMatchObject({ code: "media_unsafe_url" });
   });
 
+  it("rejects declared oversized images before streaming", async () => {
+    const response = await handleSitesMediaRequest(
+      mediaRequest("image", "https://cdn.example.com/huge.png"),
+      "image",
+      {
+        maxImageBytes: 4,
+        fetchImpl: async () => new Response(new Uint8Array(5), {
+          headers: { "Content-Type": "image/png", "Content-Length": "5" },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toMatchObject({ code: "media_image_too_large" });
+  });
+
   it("supports audio HEAD metadata without reading a body", async () => {
     const fetchImpl = vi.fn(async () => new Response(null, {
       status: 200,
@@ -155,6 +171,25 @@ describe("Sites media worker", () => {
         fetchImpl: async () => new Response(new Uint8Array(100), {
           status: 206,
           headers: { "Content-Type": "audio/mpeg", "Content-Length": "100" },
+        }),
+      },
+    );
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: "media_invalid_content_range" });
+  });
+
+  it("rejects malformed Content-Range values from audio origins", async () => {
+    const response = await handleSitesMediaRequest(
+      mediaRequest("audio", "https://podcast.example.com/episode.mp3", { headers: { Range: "bytes=0-99" } }),
+      "audio",
+      {
+        fetchImpl: async () => new Response(new Uint8Array(100), {
+          status: 206,
+          headers: {
+            "Content-Type": "audio/mpeg",
+            "Content-Length": "100",
+            "Content-Range": "bytes 100-99/100",
+          },
         }),
       },
     );
