@@ -10,6 +10,7 @@ const SITES_CAPABILITIES: ReaderBackendCapabilities = {
   rss: true,
   bidclub: true,
   ai: true,
+  loopbackAi: false,
   transcription: false,
   localPodcast: false,
   imageProxy: true,
