@@ -14,10 +14,9 @@ describe("home density styles", () => {
     expect(styles).not.toContain("--wreader-list: 352px;");
   });
 
-  it("widens the timeline while browsing and contracts it beside an open reader", () => {
-    expect(styles).toMatch(/@media \(min-width: 1280px\)[\s\S]*?data-detail-open="false"[\s\S]*?grid-template-columns: clamp\(520px, 42vw, 640px\) minmax\(0, 1fr\);/);
-    expect(styles).toMatch(/@media \(min-width: 1024px\) and \(max-width: 1279px\)[\s\S]*?data-detail-open="false"[\s\S]*?grid-template-columns: clamp\(440px, 48vw, 560px\) minmax\(0, 1fr\);/);
+  it("keeps the timeline width stable when opening an article", () => {
     expect(styles).toMatch(/\.wreader-workspace-grid \{[\s\S]*?grid-template-columns: var\(--wreader-list\) minmax\(0, 1fr\);/);
+    expect(styles).not.toMatch(/data-detail-open="false"[^\{]*\{[\s\S]*?grid-template-columns:/);
   });
 
   it("uses the text-first timeline hierarchy", () => {
