@@ -12,6 +12,7 @@ import {
   type InsightSettingsStatus,
 } from "../services/insightSettingsService";
 import { transcriptionApi } from "../services/transcriptionService";
+import { hasReaderBackendCapability } from "../services/readerBackend";
 import "./LocalAiSettingsModal.css";
 
 const TRANSCRIPTION_PROVIDERS = {
@@ -208,6 +209,10 @@ function ConnectionFeedback({ feedback }: { feedback: Feedback | null }) {
 }
 
 export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view?: "transcription" | "insight"; panelId: string }) {
+  const loopbackAiAvailable = hasReaderBackendCapability("loopbackAi");
+  const advancedInsightProviderIds = loopbackAiAvailable
+    ? ADVANCED_INSIGHT_PROVIDER_IDS
+    : ADVANCED_INSIGHT_PROVIDER_IDS.filter((id) => id !== "ollama");
   const [settings, setSettings] = useState<TranscriptionSettings | null>(null);
   const [language, setLanguage] = useState("auto");
   const [diarization, setDiarization] = useState(true);
@@ -413,15 +418,21 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   }
 
   const openInsightModal = () => {
-    const nextProvider = insight?.source === "browser" ? insight.providerId : insight?.configured ? "custom" : "";
-    const nextBaseURL = insight?.baseURL || (nextProvider ? INSIGHT_PROVIDERS[nextProvider].baseURL : "");
-    const nextModel = insight?.model || "";
+    const savedProvider = insight?.source === "browser" ? insight.providerId : insight?.configured ? "custom" : "";
+    const unavailableLoopbackProvider = savedProvider === "ollama" && !loopbackAiAvailable;
+    const nextProvider = unavailableLoopbackProvider ? "" : savedProvider;
+    const nextBaseURL = nextProvider
+      ? insight?.baseURL || INSIGHT_PROVIDERS[nextProvider].baseURL
+      : "";
+    const nextModel = unavailableLoopbackProvider ? "" : insight?.model || "";
     setDraftInsightProvider(nextProvider);
     setDraftInsightBaseURL(nextBaseURL);
     setDraftInsightModel(nextModel);
     setDraftInsightKey("");
     setShowInsightKey(false);
-    setInsightFeedback(null);
+    setInsightFeedback(unavailableLoopbackProvider
+      ? { tone: "warning", text: "Ollama 仅在本地 Web 中可用；ChatGPT Sites 请配置公网 HTTPS 模型服务。" }
+      : null);
     setInsightModels([]);
     setInsightModelsError("");
     setShowInsightAdvanced(nextProvider === "custom" || nextProvider === "ollama");
@@ -438,6 +449,10 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
   };
 
   const changeInsightProvider = (value: "" | InsightProviderId) => {
+    if (value === "ollama" && !loopbackAiAvailable) {
+      setInsightFeedback({ tone: "warning", text: "当前运行环境无法访问本机 Ollama，请选择公网 HTTPS 模型服务。" });
+      return;
+    }
     setDraftInsightProvider(value);
     setDraftInsightKey("");
     setInsightFeedback(null);
@@ -474,6 +489,8 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
     try {
       const url = new URL(draftInsightBaseURL.trim());
       if (url.protocol !== "http:" && url.protocol !== "https:") return "Base URL 仅支持 HTTP / HTTPS";
+      if (!loopbackAiAvailable && isLoopbackUrl(draftInsightBaseURL)) return "当前运行环境无法访问本机 AI 服务";
+      if (!loopbackAiAvailable && url.protocol !== "https:") return "ChatGPT Sites 仅支持 HTTPS AI 地址";
     } catch {
       return "Base URL 格式不正确";
     }
@@ -638,7 +655,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
                       {PRIMARY_INSIGHT_PROVIDER_IDS.map((id) => <option key={id} value={id}>{INSIGHT_PROVIDERS[id].name}</option>)}
                     </optgroup>
                     <optgroup label="高级">
-                      {ADVANCED_INSIGHT_PROVIDER_IDS.map((id) => <option key={id} value={id}>{INSIGHT_PROVIDERS[id].name}</option>)}
+                      {advancedInsightProviderIds.map((id) => <option key={id} value={id}>{INSIGHT_PROVIDERS[id].name}</option>)}
                     </optgroup>
                   </select>
                   <ChevronDown aria-hidden="true" />
