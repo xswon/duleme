@@ -129,7 +129,7 @@ describe("ArticleList content capabilities", () => {
     const metaStart = html.indexOf("wreader-story-source-meta");
     const bodyStart = html.indexOf("wreader-story-body");
     const timeRowIndex = html.indexOf("wreader-story-time-row");
-    const timeIndex = html.indexOf("wreader-story-time");
+    const timeIndex = html.indexOf('<time class="wreader-story-time"');
 
     expect(metaStart).toBeGreaterThanOrEqual(0);
     expect(bodyStart).toBeGreaterThan(metaStart);
