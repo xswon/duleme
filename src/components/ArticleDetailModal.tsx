@@ -887,6 +887,13 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const showAuthor = article.author && article.author !== article.feedTitle;
 
   const tabs = presentation?.tabs || [];
+  const readerDek = (bidclubDek || "").trim();
+  const summaryPreview = (aiSummary || bidclubDek || "").trim();
+  const summaryTargetTab: DetailTab = tabs.some((tab) => tab.key === "overview")
+    ? "overview"
+    : tabs.some((tab) => tab.key === "digest")
+      ? "digest"
+      : "overview";
   const hasOverviewContent = Boolean(
     aiSummary?.trim()
       || bidclubTldrHtml?.trim()
@@ -1158,7 +1165,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           <div className="wreader-reader-nav flex shrink-0 items-center gap-1">
           <button
             type="button"
-            ref={readerSettingsTriggerRef}
             onClick={onClose}
             className="inline-flex h-9 w-9 min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
             title="返回文章列表"
@@ -1214,26 +1220,40 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             >
               <ExternalLink className="h-4 w-4" />
             </a>
-          <button
-            type="button"
-            className="reader-action reader-settings-button"
-            onClick={() => setReaderSettingsOpen((open) => !open)}
-            title="阅读设置"
-            aria-label="阅读设置"
-            aria-expanded={readerSettingsOpen}
-          >Aa</button>
-          {onToggleImmersive && (
-            <button
-              type="button"
-              onClick={onToggleImmersive}
-              className="reader-action inline-flex h-9 w-9 min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
-              title={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
-              aria-label={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
-              aria-pressed={isImmersive}
-            >
-              {isImmersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </button>
-          )}
+          <details className="reader-more-menu">
+            <summary className="reader-action" title="更多操作" aria-label="更多操作">···</summary>
+            <div className="reader-more-popover">
+              <button
+                ref={readerSettingsTriggerRef}
+                type="button"
+                onClick={(event) => {
+                  setReaderSettingsOpen((open) => !open);
+                  const details = event.currentTarget.closest("details");
+                  if (details) details.open = false;
+                }}
+                aria-label="阅读设置"
+                aria-expanded={readerSettingsOpen}
+              >
+                <span className="reader-more-leading">Aa</span>
+                阅读设置
+              </button>
+              {onToggleImmersive && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    onToggleImmersive();
+                    const details = event.currentTarget.closest("details");
+                    if (details) details.open = false;
+                  }}
+                  aria-label={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
+                  aria-pressed={isImmersive}
+                >
+                  {isImmersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  {isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
+                </button>
+              )}
+            </div>
+          </details>
           </div>
         </div>
         <div className="h-0.5 w-full bg-slate-100" aria-hidden="true">
@@ -1262,24 +1282,39 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           onScroll={handleContentScroll}
         >
           <div className="reader-column w-full max-w-[650px] mx-auto">
-            {/* Title & Subtitle */}
+            {/* Source metadata leads; title and dek carry the visual hierarchy. */}
+            <div className="reader-subtitle min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <strong>{article.feedTitle}</strong>
+              {showAuthor && (
+                <>
+                  <span>·</span>
+                  <span>{article.author}</span>
+                </>
+              )}
+              <span>·</span>
+              <span>{timeAgo}</span>
+            </div>
             <h1 className="text-xl font-bold leading-snug tracking-tight text-slate-900 sm:text-[28px] sm:leading-[1.3]">
               {article.title}
             </h1>
-            <div className="reader-subtitle min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <strong>{article.feedTitle}</strong>
-                {showAuthor && (
-                  <>
-                    <span>·</span>
-                    <span>{article.author}</span>
-                  </>
-                )}
-                <span>·</span>
-                <span>{timeAgo}</span>
-            </div>
+            {readerDek && readerDek !== article.title && (
+              <p className="reader-dek">{readerDek}</p>
+            )}
 
             {/* Audio Card (仅真实播客音频) */}
             {hasAudio && <AudioPlayerCard model={{ article, isPlaying, currentTime, duration, playbackRate, audioPlayError, isInPlaylist, onTogglePlaylist, togglePlay: handleTogglePlay, onSeek: seekTo, onRateChange: () => audioPlayer?.cyclePlaybackRate(), onRewind: () => seekTo(currentTime - 15), onForward: () => seekTo(currentTime + 30) }} />}
+
+            {detailTab === "body" && summaryPreview && hasOverviewContent && (
+              <section className="reader-summary-preview" aria-label="AI 摘要">
+                <div className="reader-summary-preview-heading">
+                  <span><AiSummaryIcon className="h-4 w-4" />AI 摘要</span>
+                  {tabs.some((tab) => tab.key === summaryTargetTab) && (
+                    <button type="button" onClick={() => handleDetailTabChange(summaryTargetTab)}>查看完整摘要</button>
+                  )}
+                </div>
+                <p>{summaryPreview}</p>
+              </section>
+            )}
 
             {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
             {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
