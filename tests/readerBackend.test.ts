@@ -76,6 +76,16 @@ describe("ReaderBackend boundary", () => {
     expect(hasReaderBackendCapability("rss")).toBe(true);
   });
 
+  it("routes migrated BidClub requests to the Sites worker", async () => {
+    const response = new Response(JSON.stringify({ title: "Episode" }), { status: 200 });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    setReaderBackend(sitesReaderBackend);
+
+    await expect(backendRequest("/api/bidclub/episode?url=episode-a")).resolves.toBe(response);
+    expect(fetchMock).toHaveBeenCalledWith("/api/bidclub/episode?url=episode-a", undefined);
+    expect(hasReaderBackendCapability("bidclub")).toBe(true);
+  });
+
   it("uses direct media first and exposes a same-origin Sites fallback", () => {
     setReaderBackend(sitesReaderBackend);
 
