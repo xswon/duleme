@@ -27,6 +27,8 @@ function applicationApiPath(input: RequestInfo | URL): string | null {
   try {
     const base = globalThis.location?.origin || "https://sites.invalid";
     const url = new URL(value, base);
+    const isAbsoluteHttpUrl = /^https?:\/\//i.test(value);
+    if (isAbsoluteHttpUrl && url.origin !== base) return null;
     return url.pathname.startsWith("/api/") ? url.pathname : null;
   } catch {
     return value.startsWith("/api/") ? value.split("?")[0] : null;
@@ -47,7 +49,7 @@ function capabilityForPath(pathname: string): ReaderBackendCapability {
 }
 
 function unwrapProxyUrl(source: string): string {
-  if (!source.startsWith("/api/proxy-") && !source.startsWith("/api/media/")) return source;
+  if (!source.startsWith("/api/proxy-") && !source.startsWith("/api/proxy/") && !source.startsWith("/api/media/")) return source;
   try {
     return new URL(source, "https://sites.invalid").searchParams.get("url") || source;
   } catch {
