@@ -100,7 +100,7 @@ export function useReaderNavigation() {
 
   useEffect(() => {
     if (activeTab !== "feeds") setFilterType("all");
-    if (activeTab !== "search" && searchQuery) setSearchQuery("");
+    if (activeTab !== "search" && activeTab !== "feeds" && searchQuery) setSearchQuery("");
   }, [activeTab, searchQuery]);
 
   return {

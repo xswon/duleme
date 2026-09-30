@@ -7,10 +7,17 @@ const navigationStyles = readFileSync(resolve(process.cwd(), "src/styles/prototy
 
 describe("home density styles", () => {
   it("uses the reviewed responsive layout thresholds", () => {
-    expect(styles).toContain("@media (min-width: 900px) and (max-width: 1279px)");
-    expect(styles).toContain("--wreader-list: 352px;");
+    expect(styles).toContain("@media (min-width: 1024px) and (max-width: 1279px)");
+    expect(styles).toContain("--wreader-list: clamp(320px, 30vw, 340px);");
     expect(styles).toContain("@media (min-width: 1280px)");
-    expect(styles).not.toContain("@media (min-width: 1040px)");
+    expect(styles).not.toContain("@media (min-width: 900px) and (max-width: 1279px)");
+    expect(styles).not.toContain("--wreader-list: 352px;");
+  });
+
+  it("widens the timeline while browsing and contracts it beside an open reader", () => {
+    expect(styles).toMatch(/@media \(min-width: 1280px\)[\s\S]*?data-detail-open="false"[\s\S]*?grid-template-columns: clamp\(520px, 42vw, 640px\) minmax\(0, 1fr\);/);
+    expect(styles).toMatch(/@media \(min-width: 1024px\) and \(max-width: 1279px\)[\s\S]*?data-detail-open="false"[\s\S]*?grid-template-columns: clamp\(440px, 48vw, 560px\) minmax\(0, 1fr\);/);
+    expect(styles).toMatch(/\.wreader-workspace-grid \{[\s\S]*?grid-template-columns: var\(--wreader-list\) minmax\(0, 1fr\);/);
   });
 
   it("uses the text-first timeline hierarchy", () => {
@@ -23,6 +30,11 @@ describe("home density styles", () => {
     expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 6px;[\s\S]*?background: #2f7fd4;/);
     expect(styles).toContain(".wreader-article-list .wreader-story-row.is-read h2 {");
     expect(styles).toContain("font-weight: 500;");
+  });
+
+  it("collapses secondary timeline chrome on narrow panes", () => {
+    expect(styles).toMatch(/@media \(max-width: 760px\)[\s\S]*?\.wreader-timeline-search kbd,[\s\S]*?\.wreader-timeline-filter-chip\.is-static \{\s*display: none;/);
+    expect(styles).toMatch(/\.wreader-timeline-source-filter \{[\s\S]*?max-width: 126px;/);
   });
 
   it("only bolds selected sidebar navigation items", () => {

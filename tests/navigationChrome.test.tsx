@@ -851,9 +851,17 @@ describe("navigation chrome", () => {
         historyWindowDays={30}
       />
     ));
-    expect(container.textContent).not.toContain("最近 30 天");
+    expect(container.textContent).toContain("最近 30 天");
+    const primaryFilters = container.querySelector(".wreader-timeline-filter-primary");
+    expect(primaryFilters?.textContent).toContain("未读37");
+    expect(primaryFilters?.textContent).not.toContain("文章");
+    expect(primaryFilters?.textContent).not.toContain("播客");
+    expect(container.querySelector(".wreader-timeline-source-filter")).toBeTruthy();
+    const secondaryFilters = container.querySelector(".wreader-timeline-more-filters");
+    expect(secondaryFilters?.textContent).toContain("文章");
+    expect(secondaryFilters?.textContent).toContain("播客");
     await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "播客")?.click());
-    await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("仅看未读"))?.click());
+    await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.startsWith("未读"))?.click());
     expect(onContentTypeChange).toHaveBeenCalledWith("podcast");
     expect(setFilterType).toHaveBeenCalledWith("unread");
     await act(async () => root.unmount());
