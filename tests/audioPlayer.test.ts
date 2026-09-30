@@ -71,6 +71,38 @@ describe("audio player helpers", () => {
     act(() => root.unmount());
   });
 
+  it("retries playback through the Sites audio adapter without reloading a successful fallback", async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play")
+      .mockRejectedValueOnce(new Error("direct media failed"))
+      .mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    const load = vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    setReaderBackend(sitesReaderBackend);
+    let player: SharedAudioPlayer | undefined;
+    function Harness() {
+      player = useSharedAudioPlayer();
+      return React.createElement("audio", { ref: player.audioRef });
+    }
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => root.render(React.createElement(Harness)));
+    await act(async () => {
+      player?.playArticle("sites-retry", "https://podcast.example.com/episode.mp3");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(player?.audioSrc).toBe("/api/media/audio?url=https%3A%2F%2Fpodcast.example.com%2Fepisode.mp3");
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(player?.isPlaying).toBe(true);
+    act(() => root.unmount());
+  });
+
   it("keeps one media element while switching episodes and persists its progress", async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
