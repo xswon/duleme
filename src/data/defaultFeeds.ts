@@ -311,6 +311,15 @@ export const LEGACY_DEFAULT_FEEDS: Feed[] = [
 
 const CURRENT_CURATED_FEED_ADDITIONS: CuratedFeedOption[] = [
   {
+    id: "feed-moss-fire",
+    title: "苔藓之火",
+    feedUrl: "https://feed.xyzfm.space/c6t98368jtpv",
+    siteUrl: "https://www.xiaoyuzhoufm.com/podcast/67f40c212ac4d88190caa56a?utm_source=rss",
+    category: "人文 | 生活",
+    description: "",
+    favicon: "https://www.google.com/s2/favicons?domain=www.xiaoyuzhoufm.com&sz=64",
+  },
+  {
     id: "feed-light-the-star",
     title: "卫诗婕｜漫谈Light the Star",
     feedUrl: "https://feed.xyzfm.space/4jjdlpq3khc9",
@@ -430,16 +439,16 @@ const CURRENT_CURATED_FEED_ADDITIONS: CuratedFeedOption[] = [
 ];
 
 export const FEATURED_CURATED_FEED_IDS = [
+  "feed-moss-fire",
+  "feed-zhangxiaojun",
+  "feed-kuaguo",
   "feed-crossing",
   "feed-42",
   "feed-sv101",
-  "feed-dwarkesh",
-  "feed-hardfork",
   "feed-acquired",
-  "feed-zhixing",
+  "feed-dwarkesh",
   "feed-qianliang",
   "feed-zhankaijiangjiang",
-  "feed-aihot",
 ] as const;
 
 const featuredCuratedFeedIds = new Set<string>(FEATURED_CURATED_FEED_IDS);
@@ -467,13 +476,35 @@ function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
   };
 }
 
-export const CURATED_FEEDS: CuratedFeedOption[] = [
+const ALL_CURATED_FEEDS: CuratedFeedOption[] = [
   ...LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption),
   ...CURRENT_CURATED_FEED_ADDITIONS,
-].map((feed) => ({
-  ...feed,
-  featured: featuredCuratedFeedIds.has(feed.id),
-}));
+];
+
+const RECOMMENDED_FEED_DETAILS: Record<string, Pick<CuratedFeedOption, "title" | "siteUrl">> = {
+  "feed-moss-fire": {
+    title: "苔藓之火",
+    siteUrl: "https://www.xiaoyuzhoufm.com/podcast/67f40c212ac4d88190caa56a?utm_source=rss",
+  },
+  "feed-zhangxiaojun": {
+    title: "张小珺Jùn｜商业访谈录",
+    siteUrl: "https://www.xiaoyuzhoufm.com/podcast/626b46ea9cbbf0451cf5a962?utm_source=rss",
+  },
+  "feed-kuaguo": { title: "跨国串门儿计划", siteUrl: "https://xyzfm.space" },
+  "feed-crossing": { title: "十字路口Crossing", siteUrl: "https://bidclub.ai/shows/shizilukou" },
+  "feed-42": { title: "42章经", siteUrl: "https://bidclub.ai/shows/42zhangjing" },
+  "feed-sv101": { title: "硅谷101", siteUrl: "https://bidclub.ai/shows/valley101" },
+  "feed-acquired": { title: "Acquired", siteUrl: "https://bidclub.ai/shows/acquired" },
+  "feed-dwarkesh": { title: "Dwarkesh Podcast", siteUrl: "https://bidclub.ai/shows/dwarkesh" },
+  "feed-qianliang": { title: "钱粮胡同FM", siteUrl: "https://xyzfm.space" },
+  "feed-zhankaijiangjiang": { title: "展开讲讲", siteUrl: "https://feed.xyzfm.space/444v89dnlhkf" },
+};
+
+export const CURATED_FEEDS: CuratedFeedOption[] = FEATURED_CURATED_FEED_IDS.flatMap((id) => {
+  const feed = ALL_CURATED_FEEDS.find((candidate) => candidate.id === id);
+  if (!feed) return [];
+  return [{ ...feed, ...RECOMMENDED_FEED_DETAILS[id], featured: featuredCuratedFeedIds.has(id) }];
+});
 
 function normalizedFeedUrl(feedUrl: string): string | undefined {
   try {
@@ -496,7 +527,7 @@ export function resolveKnownPrimaryFeedUrl(feedUrl: string): string {
 }
 
 const knownEnrichmentSources = new Map(
-  CURATED_FEEDS.filter((feed) => feed.bidclubFeedUrl).map((feed) => [
+  ALL_CURATED_FEEDS.filter((feed) => feed.bidclubFeedUrl).map((feed) => [
     normalizedFeedUrl(feed.feedUrl),
     { bidclubFeedUrl: feed.bidclubFeedUrl, bidclubShowSlug: feed.bidclubShowSlug },
   ])
