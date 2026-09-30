@@ -851,7 +851,7 @@ describe("navigation chrome", () => {
         historyWindowDays={30}
       />
     ));
-    expect(container.textContent).not.toContain("最近 30 天");
+    expect(container.textContent).toContain("最近 30 天");
     await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "播客")?.click());
     await act(async () => Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("仅看未读"))?.click());
     expect(onContentTypeChange).toHaveBeenCalledWith("podcast");
