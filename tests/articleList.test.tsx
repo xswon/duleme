@@ -73,7 +73,8 @@ describe("ArticleList content capabilities", () => {
         onSummarizeAI={vi.fn()}
       />
     );
-    expect(html).toContain("is-selected bg-blue-50");
+    expect(html).toContain("is-selected");
+    expect(html).not.toContain("bg-blue-50");
     expect(html).not.toContain("标记为已读");
     expect(html).not.toContain("收藏文章");
   });

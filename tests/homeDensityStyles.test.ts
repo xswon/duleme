@@ -13,14 +13,14 @@ describe("home density styles", () => {
     expect(styles).not.toContain("@media (min-width: 1040px)");
   });
 
-  it("uses the prototype timeline title weights", () => {
+  it("uses the text-first timeline hierarchy", () => {
     const titleRuleStart = styles.indexOf(".wreader-article-list .wreader-story-row h2 {");
     const titleRuleEnd = styles.indexOf(".wreader-article-list .wreader-story-row p {", titleRuleStart);
     const titleRules = styles.slice(titleRuleStart, titleRuleEnd);
 
-    expect(titleRules).toContain("font-weight: 750;");
-    expect(styles).toContain(".wreader-story-row.is-selected:not(.is-read) h2 {");
-    expect(styles).toContain("font-weight: 750;");
+    expect(titleRules).toContain("font-weight: 700;");
+    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color: #3b82f6;[\s\S]*?background: #f5f8fc;/);
+    expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 6px;[\s\S]*?background: #2f7fd4;/);
     expect(styles).toContain(".wreader-article-list .wreader-story-row.is-read h2 {");
     expect(styles).toContain("font-weight: 500;");
   });
