@@ -52,6 +52,18 @@ function isValidSingleRange(value: string): boolean {
   return Number(match[1]) <= Number(match[2]);
 }
 
+function isValidContentRange(value: string | null): boolean {
+  if (!value) return false;
+  const match = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i.exec(value.trim());
+  if (!match) return false;
+  const start = Number(match[1]);
+  const end = Number(match[2]);
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end) return false;
+  if (match[3] === "*") return true;
+  const total = Number(match[3]);
+  return Number.isSafeInteger(total) && total > end;
+}
+
 function numericHeader(headers: Headers, name: string): string | null {
   const value = headers.get(name);
   return value && /^\d+$/.test(value) ? value : null;
@@ -167,9 +179,9 @@ export async function handleSitesMediaRequest(
       await upstream.body?.cancel();
       return mediaError("Audio origin ignored the requested byte range", 502, "media_range_not_honored");
     }
-    if (kind === "audio" && upstream.status === 206 && !upstream.headers.get("Content-Range")) {
+    if (kind === "audio" && upstream.status === 206 && !isValidContentRange(upstream.headers.get("Content-Range"))) {
       await upstream.body?.cancel();
-      return mediaError("Audio origin returned 206 without Content-Range", 502, "media_invalid_content_range");
+      return mediaError("Audio origin returned an invalid Content-Range", 502, "media_invalid_content_range");
     }
 
     const responseHeaders = safeResponseHeaders(upstream, kind);
