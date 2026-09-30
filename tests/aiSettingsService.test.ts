@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDB } from "../src/services/dbService";
+import { resetReaderBackend, setReaderBackend } from "../src/services/readerBackend";
+import { sitesReaderBackend } from "../src/sites/sitesReaderBackend";
 import { listInsightModels } from "../src/services/insightSettingsService";
 import {
   getAiCapability,
@@ -19,7 +21,10 @@ async function resetDatabase() {
 
 describe("AI settings service", () => {
   beforeEach(resetDatabase);
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    resetReaderBackend();
+    vi.unstubAllGlobals();
+  });
 
   it("does not use a saved key that belongs to a different endpoint", async () => {
     await saveAiConfig({
@@ -89,6 +94,23 @@ describe("AI settings service", () => {
     expect(body.config).toEqual({
       baseURL: "https://one.example.com/v1",
       apiKey: "matching-key",
+    });
+  });
+
+  it("reports loopback AI as unavailable in the Sites runtime", async () => {
+    await saveAiConfig({
+      enabled: true,
+      providerPreset: "ollama",
+      baseURL: "http://127.0.0.1:11434/v1",
+      model: "local-model",
+    });
+    await saveAiSecret({ apiKey: "", baseURL: "http://127.0.0.1:11434/v1" });
+    setReaderBackend(sitesReaderBackend);
+
+    await expect(getAiCapability()).resolves.toMatchObject({
+      configured: false,
+      baseURL: "http://127.0.0.1:11434/v1",
+      model: "local-model",
     });
   });
 
