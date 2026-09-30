@@ -56,7 +56,6 @@ export const Header: React.FC<HeaderProps> = ({
   onMarkAllRead,
   isRefreshing,
   onToggleMobileMenu,
-  unreadCount,
   refreshProgress,
   timelineSortOrder = "newest",
   onToggleTimelineSort,
