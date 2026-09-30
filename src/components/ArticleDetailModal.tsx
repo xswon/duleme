@@ -24,6 +24,7 @@ import { useLocalPodcast } from "../hooks/useLocalPodcast";
 import { useCloudTranscription } from "../hooks/useCloudTranscription";
 import type { ArticleGenerationController } from "../hooks/useArticleGenerationTasks";
 import { localPodcastApi } from "../services/localPodcastService";
+import { hasReaderBackendCapability } from "../services/readerBackend";
 import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
 import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
@@ -344,7 +345,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const generationArtifacts = article ? generation?.artifactsByArticleId[article.id] : undefined;
 
   const transcriptionAvailable = cloudTranscriptionAvailable || localTranscriptionAvailable;
-  const shouldCheckLocalTranscription = Boolean(article?.audioUrl);
+  const shouldCheckLocalTranscription = Boolean(article?.audioUrl) && hasReaderBackendCapability("localPodcast");
 
   useEffect(() => {
     let cancelled = false;
