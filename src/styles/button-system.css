@@ -18,25 +18,25 @@
   --wreader-btn-font-lg: 13px;
   --wreader-btn-font-weight: 650;
 
-  --wreader-btn-primary: #3175c6;
-  --wreader-btn-primary-hover: #286aa9;
-  --wreader-btn-primary-active: #245f98;
-  --wreader-btn-primary-text: #ffffff;
+  --wreader-btn-primary: var(--wreader-primary-button);
+  --wreader-btn-primary-hover: var(--wreader-primary-hover);
+  --wreader-btn-primary-active: var(--wreader-primary-hover);
+  --wreader-btn-primary-text: var(--wreader-on-accent);
 
-  --wreader-btn-secondary: #edf1f5;
-  --wreader-btn-secondary-hover: #e2e8ef;
-  --wreader-btn-secondary-active: #d7dee6;
-  --wreader-btn-secondary-text: #4f6172;
+  --wreader-btn-secondary: var(--wreader-surface-subtle);
+  --wreader-btn-secondary-hover: var(--wreader-hover);
+  --wreader-btn-secondary-active: var(--wreader-selection);
+  --wreader-btn-secondary-text: var(--wreader-ui-text);
 
-  --wreader-btn-ghost-hover: #eef2f6;
-  --wreader-btn-ghost-active: #e2e8ef;
-  --wreader-btn-ghost-text: #5d6d7d;
+  --wreader-btn-ghost-hover: var(--wreader-surface-subtle);
+  --wreader-btn-ghost-active: var(--wreader-hover);
+  --wreader-btn-ghost-text: var(--wreader-ui-muted);
 
-  --wreader-btn-danger: #b55353;
-  --wreader-btn-danger-hover: #9f3f3f;
-  --wreader-btn-danger-bg-hover: #fdeeee;
+  --wreader-btn-danger: var(--wreader-danger);
+  --wreader-btn-danger-hover: var(--wreader-danger);
+  --wreader-btn-danger-bg-hover: var(--wreader-danger-bg);
 
-  --wreader-btn-focus: #4b86cc;
+  --wreader-btn-focus: var(--wreader-focus);
   --wreader-btn-disabled-opacity: .52;
   --wreader-btn-transition: 140ms ease;
 }
@@ -72,18 +72,18 @@ button[aria-disabled="true"] {
 }
 
 button.wreader-featured-feed-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--wreader-ui-border);
   padding: 12px 14px;
-  background: #fff;
+  background: var(--wreader-ui-surface);
 }
 
 button.wreader-featured-feed-card[aria-pressed="true"] {
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  border-color: var(--wreader-ui-border);
+  background: var(--wreader-surface-subtle);
 }
 
 button.wreader-featured-feed-card:hover {
-  border-color: #93c5fd;
+  border-color: var(--wreader-ui-border);
 }
 
 /* Reusable action primitives for new UI and ad-hoc actions. */
@@ -138,7 +138,7 @@ button.wreader-featured-feed-card:hover {
 
 .wreader-btn-ghost:hover:not(:disabled) {
   background: var(--wreader-btn-ghost-hover);
-  color: #33475a;
+  color: var(--wreader-ui-text);
 }
 
 .wreader-btn-ghost:active:not(:disabled) {
@@ -155,8 +155,8 @@ button.wreader-featured-feed-card:hover {
 }
 
 .wreader-annotation-highlight:hover:not(:disabled) {
-  background: #fff7dc;
-  color: #8a651d;
+  background: var(--wreader-warning-bg);
+  color: var(--wreader-warning);
 }
 
 .wreader-btn-link {
@@ -173,7 +173,7 @@ button.wreader-featured-feed-card:hover {
 
 .wreader-btn-link:hover:not(:disabled) {
   background: var(--wreader-btn-ghost-hover);
-  color: #33475a;
+  color: var(--wreader-ui-text);
 }
 
 .wreader-btn-link-accent {
@@ -181,7 +181,7 @@ button.wreader-featured-feed-card:hover {
 }
 
 .wreader-btn-link-accent:hover:not(:disabled) {
-  background: #eef5fc;
+  background: var(--wreader-surface-subtle);
   color: var(--wreader-btn-primary-hover);
 }
 
@@ -211,12 +211,12 @@ button.wreader-featured-feed-card:hover {
   place-items: center;
   padding: 0;
   border-radius: var(--wreader-btn-radius-md);
-  color: #667687;
+  color: var(--wreader-ui-muted);
 }
 
 .wreader-btn-icon:hover:not(:disabled) {
   background: var(--wreader-btn-ghost-hover);
-  color: #33475a;
+  color: var(--wreader-ui-text);
 }
 
 .wreader-btn-icon-round {
@@ -283,7 +283,7 @@ button.wreader-featured-feed-card:hover {
   .wreader-model-modal-card footer button.secondary
 ):hover:not(:disabled) {
   background: var(--wreader-btn-secondary-hover);
-  color: #3f5366;
+  color: var(--wreader-ui-text);
 }
 
 /* Standard square icon actions: settings, dialogs, row tools and failure detail. */
@@ -301,7 +301,7 @@ button.wreader-featured-feed-card:hover {
   place-items: center;
   padding: 0;
   border-radius: var(--wreader-btn-radius-md);
-  color: #748291;
+  color: var(--wreader-ui-muted);
 }
 
 :is(
@@ -311,7 +311,7 @@ button.wreader-featured-feed-card:hover {
   .wreader-model-modal-card header > button
 ):hover:not(:disabled) {
   background: var(--wreader-btn-ghost-hover);
-  color: #3d5266;
+  color: var(--wreader-ui-text);
 }
 
 /* Text actions inside a row menu must not inherit the square icon-button sizing. */
@@ -378,7 +378,7 @@ button.wreader-featured-feed-card:hover {
 
 .wreader-icon-button:hover:not(:disabled) {
   background: var(--wreader-btn-ghost-hover);
-  color: #42576b;
+  color: var(--wreader-ui-text);
 }
 
 /* Lightweight text actions use one consistent hover/focus treatment. */
@@ -397,7 +397,7 @@ button.wreader-featured-feed-card:hover {
   .wreader-timeline-load-more button,
   .wreader-ai-actions .link-button
 ):hover:not(:disabled) {
-  background: #eef5fc;
+  background: var(--wreader-surface-subtle);
 }
 
 /* Destructive actions use the same red treatment wherever they appear. */

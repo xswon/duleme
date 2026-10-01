@@ -1,3 +1,5 @@
+import { AppearanceControls } from "./AppearanceControls";
+import { useAppearancePreferences } from "../hooks/useAppearancePreferences";
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import {
   ExternalLink,
@@ -292,7 +294,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [readerFontSize, setReaderFontSize] = useState<"compact" | "standard" | "large">("standard");
   const [readerLineHeight, setReaderLineHeight] = useState<"compact" | "standard" | "relaxed">("standard");
   const [readerMeasure, setReaderMeasure] = useState<"compact" | "standard" | "wide">("standard");
-  const [readerTheme, setReaderTheme] = useState<"light" | "paper" | "dark">("light");
+  const { preferences: appearance } = useAppearancePreferences();
   const [sessionHighlights, setSessionHighlights] = useState<Array<{
     noteId: string;
     source: DetailTab;
@@ -1150,10 +1152,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       data-reader-font-size={readerFontSize}
       data-reader-line-height={readerLineHeight}
       data-reader-measure={readerMeasure}
-      data-reader-theme={readerTheme}
-      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white text-slate-900"
+      data-reader-font={appearance.font}
+      data-reader-alignment={appearance.alignment}
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-(--wreader-ui-surface) text-slate-900"
     >
-      <div className="shrink-0 border-b border-slate-200/80 bg-white" aria-label="阅读工具栏">
+      <div className="shrink-0 border-b border-slate-200/80 bg-(--wreader-ui-surface)" aria-label="阅读工具栏">
         <div className="wreader-reader-toolbar-inner mx-auto grid min-h-14 w-full max-w-[760px] grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 sm:px-5" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr" }}>
           <div className="wreader-reader-nav flex shrink-0 items-center gap-1">
           <button
@@ -1238,7 +1241,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         </div>
         <div className="h-0.5 w-full bg-slate-100" aria-hidden="true">
           <div
-            className="h-full bg-blue-500 transition-[width] duration-150"
+            className="h-full bg-(--wreader-primary-button) transition-[width] duration-150"
             style={{ width: `${Number.isFinite(readingProgress) ? readingProgress * 100 : 0}%` }}
             data-reading-progress
           />
@@ -1251,7 +1254,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           <label>字号 <span><button type="button" className={readerFontSize === "compact" ? "is-selected" : ""} onClick={() => setReaderFontSize("compact")} aria-label="减小字号">A</button><button type="button" className={readerFontSize === "standard" ? "is-selected" : ""} onClick={() => setReaderFontSize("standard")} aria-label="标准字号">A</button><button type="button" className={readerFontSize === "large" ? "is-selected" : ""} onClick={() => setReaderFontSize("large")} aria-label="增大字号">A</button></span></label>
           <label>行距 <span><button type="button" className={readerLineHeight === "compact" ? "is-selected" : ""} onClick={() => setReaderLineHeight("compact")}>1.5</button><button type="button" className={readerLineHeight === "standard" ? "is-selected" : ""} onClick={() => setReaderLineHeight("standard")}>1.8</button><button type="button" className={readerLineHeight === "relaxed" ? "is-selected" : ""} onClick={() => setReaderLineHeight("relaxed")}>2.0</button></span></label>
           <label>版心 <span><button type="button" className={readerMeasure === "compact" ? "is-selected" : ""} onClick={() => setReaderMeasure("compact")}>紧凑</button><button type="button" className={readerMeasure === "standard" ? "is-selected" : ""} onClick={() => setReaderMeasure("standard")}>标准</button><button type="button" className={readerMeasure === "wide" ? "is-selected" : ""} onClick={() => setReaderMeasure("wide")}>宽松</button></span></label>
-          <label>主题 <span className="theme-swatches"><button type="button" className={`theme-light ${readerTheme === "light" ? "is-selected" : ""}`} onClick={() => setReaderTheme("light")} aria-label="浅色" /><button type="button" className={`theme-paper ${readerTheme === "paper" ? "is-selected" : ""}`} onClick={() => setReaderTheme("paper")} aria-label="米黄" /><button type="button" className={`theme-dark ${readerTheme === "dark" ? "is-selected" : ""}`} onClick={() => setReaderTheme("dark")} aria-label="深色" /></span></label>
+          <AppearanceControls typography />
         </div>
       )}
 
@@ -1379,7 +1382,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         </div>
         {selectionAction && (
           <div
-            className={`fixed z-[70] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${selectionAction.placement === "above" ? "-translate-y-full" : ""}`}
+            className={`fixed z-[70] -translate-x-1/2 rounded-xl border border-slate-200 bg-(--wreader-ui-surface) p-1.5 shadow-xl ${selectionAction.placement === "above" ? "-translate-y-full" : ""}`}
             style={{ left: selectionAction.left, top: selectionAction.top }}
             role="toolbar"
             aria-label="文本标注"

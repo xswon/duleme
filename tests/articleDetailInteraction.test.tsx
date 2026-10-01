@@ -106,6 +106,26 @@ afterEach(() => {
 });
 
 describe("ArticleDetailModal resolved enrichment behavior", () => {
+  it("keeps the reader scroller mounted and its position when appearance changes", async () => {
+    localStorage.removeItem("wreader.appearance.v1");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => renderDetail(root, { ...baseArticle, audioUrl: undefined, enrichment: undefined }));
+    await waitForNotesToLoad(container);
+    const scroller = container.querySelector<HTMLDivElement>(".reader-scroll")!;
+    scroller.scrollTop = 480;
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="阅读设置"]')?.click());
+    for (const label of ["深色", "思源宋体", "两端对齐", "浅色", "系统黑体", "左对齐"]) {
+      await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === label)?.click());
+      expect(container.querySelector(".reader-scroll")).toBe(scroller);
+      expect(scroller.scrollTop).toBe(480);
+    }
+    await act(async () => root.unmount());
+    localStorage.removeItem("wreader.appearance.v1");
+    document.getElementById("reader-serif-font")?.remove();
+  });
+
   it("keeps the article action capsule controls interactive", async () => {
     const onRead = vi.fn();
     const onStar = vi.fn();

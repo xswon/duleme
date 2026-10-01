@@ -326,6 +326,14 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           return (
             <article
               data-article-id={article.id}
+              tabIndex={0}
+              aria-current={selectedArticleId === article.id ? "true" : undefined}
+              onKeyDown={(event) => {
+                if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  onSelectArticle(article);
+                }
+              }}
               onClick={() => onSelectArticle(article)}
               className={`wreader-story-row group cursor-pointer ${
                 selectedArticleId === article.id ? "is-selected" : ""

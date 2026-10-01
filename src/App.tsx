@@ -393,8 +393,8 @@ export default function App() {
       onNavigate={navigateToRoute} onRefresh={refreshAll} isRefreshing={isRefreshing} isCollapsed={isSidebarCollapsed}
       onCollapse={isSettingsOpen ? undefined : () => { setIsSidebarCollapsed((collapsed) => !collapsed); setIsMobileMenuOpen(false); }} />}
     <div className="min-w-0 flex-1 overflow-hidden">
-      {isImmersive ? <main className="h-full bg-white">{detailView}</main> : <div className="wreader-workspace-grid h-full" data-detail-open={Boolean(selectedArticle || invalidArticleId)}>
-        <section className="wreader-master flex min-h-0 flex-col bg-[#fbfcfd]">
+      {isImmersive ? <main className="h-full bg-(--wreader-ui-surface)">{detailView}</main> : <div className="wreader-workspace-grid h-full" data-detail-open={Boolean(selectedArticle || invalidArticleId)}>
+        <section className="wreader-master flex min-h-0 flex-col bg-(--wreader-list-bg)">
           <Header activeTab={activeTab} currentTitle={activeTitle} currentCountLabel={activeCountLabel} filterType={filterType}
             setFilterType={(nextFilter) => navigateToRoute({ activeTab: "feeds", filterType: nextFilter, articleId: null })}
             onRefresh={refreshAll} onMarkAllRead={activeTab === "playlist" ? clearPlaylist : activeTab === "notes" ? notes.clearNotes : activeTab === "feeds" && filterType === "starred" ? mutations.clearFavorites : mutations.markAllRead}
@@ -413,7 +413,7 @@ export default function App() {
             onToggleTimelineSort={activeTab === "playlist" ? togglePlaylistSort : () => setTimelineSortOrder((order) => order === "newest" ? "oldest" : "newest")} />
           <main ref={mainScrollRef} className="wreader-master-scroll min-h-0 flex-1 overflow-y-auto scrollbar-thin">{masterView}</main>
         </section>
-        <section className="wreader-detail min-h-0 overflow-hidden bg-white">{detailView}</section>
+        <section className="wreader-detail min-h-0 overflow-hidden bg-(--wreader-ui-surface)">{detailView}</section>
       </div>}
     </div>
     {isSettingsOpen && !isImmersive && <SettingsPage feeds={feeds} categories={categories}
@@ -433,7 +433,7 @@ export default function App() {
     <ReaderFeedbackLayer toast={toast} refreshFeedback={refreshFeedback.refreshFeedback} refreshState={refreshState}
       failureDetailsOpen={refreshFeedback.isRefreshFailureDetailsOpen} onFailureDetailsOpenChange={refreshFeedback.setIsRefreshFailureDetailsOpen}
       onDismissRefresh={() => { refreshFeedback.setRefreshFeedback(null); refreshFeedback.setIsRefreshFailureDetailsOpen(false); }}
-      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id)); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
+      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id), "retry"); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
       generationTask={generationFeedbackTask} generationCount={generation.processingCount}
       onViewGeneration={(task: ArticleGenerationTask) => openGenerationResult(task.articleId, task.kind === "pipeline" || task.stage === "summarizing" ? "overview" : "transcript")}
       onDismissGeneration={generation.dismissTask} />

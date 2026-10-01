@@ -5,6 +5,7 @@ import {
   attachBidclubSelfReferences,
   backfillArticleBidclubReferences,
   fetchRssFeed,
+  RssFeedRequestError,
   isBidclubFeedUrl,
   matchBidclubItems,
   mergeFetchedFeedArticles,
@@ -22,6 +23,8 @@ export interface FeedRefreshState {
   newArticles: number;
   startedAt?: number;
   finishedAt?: number;
+  mode: "refresh" | "retry" | "background";
+  criticalFailure: boolean;
 }
 
 interface UseFeedSyncOptions {
@@ -40,7 +43,47 @@ interface UseFeedSyncOptions {
   showToast: (message: string) => void;
 }
 
-const EMPTY_REFRESH_STATE: FeedRefreshState = { completed: 0, total: 0, successful: 0, failed: [], newArticles: 0 };
+type PendingRefreshRequest = { feedIds: string[]; mode: FeedRefreshState["mode"] };
+
+const BACKGROUND_RETRY_DELAYS_MS = [15 * 60_000, 60 * 60_000, 6 * 60 * 60_000, 24 * 60 * 60_000];
+
+const EMPTY_REFRESH_STATE: FeedRefreshState = {
+  completed: 0,
+  total: 0,
+  successful: 0,
+  failed: [],
+  newArticles: 0,
+  mode: "refresh",
+  criticalFailure: false,
+};
+
+function successfulFeed(feed: Feed, patch: Partial<Feed> = {}): Feed {
+  const now = new Date().toISOString();
+  return {
+    ...feed,
+    ...patch,
+    lastUpdated: now,
+    lastSyncAttemptAt: now,
+    lastSyncStatus: "success",
+    lastSyncError: undefined,
+    syncFailureCount: 0,
+    nextSyncRetryAt: undefined,
+  };
+}
+
+function failedFeed(feed: Feed, error: unknown, message: string): Feed {
+  const failureCount = (feed.syncFailureCount || 0) + 1;
+  const retryable = error instanceof RssFeedRequestError && error.retryable;
+  const retryDelay = BACKGROUND_RETRY_DELAYS_MS[Math.min(failureCount - 1, BACKGROUND_RETRY_DELAYS_MS.length - 1)];
+  return {
+    ...feed,
+    lastSyncStatus: "error",
+    lastSyncError: message,
+    lastSyncAttemptAt: new Date().toISOString(),
+    syncFailureCount: failureCount,
+    nextSyncRetryAt: retryable ? new Date(Date.now() + retryDelay).toISOString() : undefined,
+  };
+}
 
 export function useFeedSync(options: UseFeedSyncOptions) {
   const {
@@ -50,21 +93,30 @@ export function useFeedSync(options: UseFeedSyncOptions) {
   } = options;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshState, setRefreshState] = useState<FeedRefreshState>(EMPTY_REFRESH_STATE);
-  const [pendingRefreshFeedIds, setPendingRefreshFeedIds] = useState<string[] | null>(null);
+  const [pendingRefresh, setPendingRefresh] = useState<PendingRefreshRequest | null>(null);
   const refreshGeneration = useRef(0);
   const refreshInFlight = useRef(false);
 
   const invalidateRefresh = useCallback(() => { refreshGeneration.current += 1; }, []);
-  const queueRefresh = useCallback((feedIds: string[]) => setPendingRefreshFeedIds(feedIds), []);
+  const queueRefresh = useCallback((feedIds: string[]) => setPendingRefresh({ feedIds, mode: "refresh" }), []);
 
-  const refreshAll = useCallback(async (requestedFeedIds?: string[]) => {
+  const refreshAll = useCallback(async (requestedFeedIds?: string[], mode: FeedRefreshState["mode"] = "refresh") => {
     const generation = refreshGeneration.current;
     const requestedIds = Array.isArray(requestedFeedIds) ? requestedFeedIds : undefined;
     const sourceFeeds = feedsRef.current.filter((feed) => !requestedIds || requestedIds.includes(feed.id));
-    if (refreshInFlight.current || sourceFeeds.length === 0) return;
+    if (sourceFeeds.length === 0) return;
+    if (refreshInFlight.current) {
+      if (mode === "retry" && requestedIds?.length) {
+        setPendingRefresh({ feedIds: requestedIds, mode });
+        showToast("当前同步完成后将自动重试");
+      } else if (mode === "background" && requestedIds?.length) {
+        setPendingRefresh((current) => current ?? { feedIds: requestedIds, mode });
+      }
+      return;
+    }
     refreshInFlight.current = true;
     setIsRefreshing(true);
-    setRefreshState({ ...EMPTY_REFRESH_STATE, total: sourceFeeds.length, startedAt: Date.now() });
+    setRefreshState({ ...EMPTY_REFRESH_STATE, total: sourceFeeds.length, startedAt: Date.now(), mode });
     try {
       const results: Array<{ feed: Feed; articles: Article[]; feedIcon?: string } | null> = new Array(sourceFeeds.length).fill(null);
       let nextFeedIndex = 0;
@@ -93,15 +145,13 @@ export function useFeedSync(options: UseFeedSyncOptions) {
               })),
             };
             if (refreshGeneration.current !== generation) continue;
-            setFeeds((current) => current.map((item) => item.id === feed.id
-              ? { ...item, lastUpdated: new Date().toISOString(), lastSyncStatus: "success", lastSyncError: undefined }
-              : item));
+            setFeeds((current) => current.map((item) => item.id === feed.id ? successfulFeed(item) : item));
             setRefreshState((state) => ({ ...state, completed: state.completed + 1, successful: state.successful + 1 }));
           } catch (error) {
             const message = error instanceof Error ? error.message : "同步失败";
             console.warn(`Failed to sync feed ${feed.title}:`, error);
             if (refreshGeneration.current !== generation) continue;
-            const failed = { ...feed, lastSyncStatus: "error" as const, lastSyncError: message };
+            const failed = failedFeed(feed, error, message);
             setFeeds((current) => current.map((item) => item.id === feed.id ? failed : item));
             setRefreshState((state) => ({ ...state, completed: state.completed + 1, failed: [...state.failed, failed] }));
           }
@@ -139,7 +189,7 @@ export function useFeedSync(options: UseFeedSyncOptions) {
           commitArticleIdMigration(merged.articleIdMap, nextPlaylistIds, nextAudioProgressMap);
         } catch (error) {
           const message = error instanceof Error ? error.message : "本地保存失败";
-          const failedFeeds = successfulResults.map((result) => ({ ...result.feed, lastSyncStatus: "error" as const, lastSyncError: `本地保存失败：${message}` }));
+          const failedFeeds = successfulResults.map((result) => failedFeed(result.feed, error, `本地保存失败：${message}`));
           setFeeds((current) => current.map((feed) => failedFeeds.find((item) => item.id === feed.id) || feed));
           setRefreshState((state) => ({
             ...state,
@@ -147,6 +197,7 @@ export function useFeedSync(options: UseFeedSyncOptions) {
             failed: [...state.failed, ...failedFeeds],
             newArticles: 0,
             finishedAt: Date.now(),
+            criticalFailure: true,
           }));
           showToast(`同步内容保存失败：${message}`);
           return;
@@ -169,10 +220,15 @@ export function useFeedSync(options: UseFeedSyncOptions) {
   const retryFeed = useCallback(async (feedId: string) => {
     const feed = feedsRef.current.find((item) => item.id === feedId);
     const generation = refreshGeneration.current;
-    if (!feed || refreshInFlight.current) return;
+    if (!feed) return;
+    if (refreshInFlight.current) {
+      setPendingRefresh({ feedIds: [feedId], mode: "retry" });
+      showToast("当前同步完成后将自动重试");
+      return;
+    }
     refreshInFlight.current = true;
     setIsRefreshing(true);
-    setRefreshState({ ...EMPTY_REFRESH_STATE, total: 1, failed: [feed], startedAt: Date.now() });
+    setRefreshState({ ...EMPTY_REFRESH_STATE, total: 1, failed: [feed], startedAt: Date.now(), mode: "retry" });
     try {
       const parsed = await fetchRssFeed(feed.feedUrl);
       const parsedItems = feed.enrichmentDisabled !== true && isBidclubFeedUrl(feed.feedUrl) ? attachBidclubSelfReferences(parsed.items) : parsed.items;
@@ -188,26 +244,33 @@ export function useFeedSync(options: UseFeedSyncOptions) {
       const merged = mergeFetchedFeedArticles(articlesRef.current, refreshed, new Set([feed.id]));
       const nextPlaylistIds = migrateArticleBackrefs(playlistIdsRef.current, merged.articleIdMap);
       const nextAudioProgressMap = migrateAudioProgressMap(audioProgressMapRef.current, merged.articleIdMap);
-      await replaceStoredArticlesForFeedsAndMigrateReferences(
-        new Set([feed.id]),
-        merged.articles.filter((article) => article.feedId === feed.id),
-        merged.articleIdMap,
-        { playlistIds: nextPlaylistIds },
-      );
+      try {
+        await replaceStoredArticlesForFeedsAndMigrateReferences(
+          new Set([feed.id]),
+          merged.articles.filter((article) => article.feedId === feed.id),
+          merged.articleIdMap,
+          { playlistIds: nextPlaylistIds },
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "本地保存失败";
+        const failed = failedFeed(feed, error, `本地保存失败：${message}`);
+        setFeeds((current) => current.map((item) => item.id === feed.id ? failed : item));
+        setRefreshState({ completed: 1, total: 1, successful: 0, failed: [failed], newArticles: 0, startedAt: Date.now(), finishedAt: Date.now(), mode: "retry", criticalFailure: true });
+        showToast(`同步内容保存失败：${message}`);
+        return;
+      }
       commitArticleIdMigration(merged.articleIdMap, nextPlaylistIds, nextAudioProgressMap);
       articlesRef.current = merged.articles;
       setArticles(merged.articles);
       setSelectedArticleId((previous) => previous ? merged.articleIdMap.get(previous) || previous : previous);
-      setFeeds((current) => current.map((item) => item.id === feed.id
-        ? { ...item, lastUpdated: new Date().toISOString(), lastSyncStatus: "success", lastSyncError: undefined }
-        : item));
-      setRefreshState({ completed: 1, total: 1, successful: 1, failed: [], newArticles: newArticleCount, startedAt: Date.now(), finishedAt: Date.now() });
+      setFeeds((current) => current.map((item) => item.id === feed.id ? successfulFeed(item) : item));
+      setRefreshState({ completed: 1, total: 1, successful: 1, failed: [], newArticles: newArticleCount, startedAt: Date.now(), finishedAt: Date.now(), mode: "retry", criticalFailure: false });
       showToast(`已重试「${feed.title}」`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "同步失败";
-      const failed = { ...feed, lastSyncStatus: "error" as const, lastSyncError: message };
+      const failed = failedFeed(feed, error, message);
       setFeeds((current) => current.map((item) => item.id === feed.id ? failed : item));
-      setRefreshState({ completed: 1, total: 1, successful: 0, failed: [failed], newArticles: 0, startedAt: Date.now(), finishedAt: Date.now() });
+      setRefreshState({ completed: 1, total: 1, successful: 0, failed: [failed], newArticles: 0, startedAt: Date.now(), finishedAt: Date.now(), mode: "retry", criticalFailure: false });
       showToast(`「${feed.title}」重试失败，可稍后再试`);
     } finally {
       refreshInFlight.current = false;
@@ -216,11 +279,27 @@ export function useFeedSync(options: UseFeedSyncOptions) {
   }, [articlesRef, audioProgressMapRef, commitArticleIdMigration, feedsRef, playlistIdsRef, setArticles, setFeeds, setSelectedArticleId, showToast]);
 
   useEffect(() => {
-    if (!pendingRefreshFeedIds || isRefreshing) return;
-    const ids = pendingRefreshFeedIds;
-    setPendingRefreshFeedIds(null);
-    void refreshAll(ids);
-  }, [isRefreshing, pendingRefreshFeedIds, refreshAll]);
+    if (!pendingRefresh || isRefreshing) return;
+    const request = pendingRefresh;
+    setPendingRefresh(null);
+    void refreshAll(request.feedIds, request.mode);
+  }, [isRefreshing, pendingRefresh, refreshAll]);
+
+  useEffect(() => {
+    const scheduled = feeds.flatMap((feed) => {
+      if (feed.lastSyncStatus !== "error" || !feed.nextSyncRetryAt) return [];
+      const retryAt = new Date(feed.nextSyncRetryAt).getTime();
+      return Number.isFinite(retryAt) ? [{ feedId: feed.id, retryAt }] : [];
+    });
+    if (scheduled.length === 0) return;
+    const earliest = Math.min(...scheduled.map((item) => item.retryAt));
+    const timer = setTimeout(() => {
+      const now = Date.now();
+      const dueFeedIds = scheduled.filter((item) => item.retryAt <= now + 1_000).map((item) => item.feedId);
+      if (dueFeedIds.length > 0) void refreshAll(dueFeedIds, "background");
+    }, Math.max(0, earliest - Date.now()));
+    return () => clearTimeout(timer);
+  }, [feeds, refreshAll]);
 
   const hasAutoRefreshed = useRef(false);
   useEffect(() => {

@@ -41,6 +41,16 @@ const sidebarProps = (overrides: Partial<React.ComponentProps<typeof Sidebar>> =
 });
 
 describe("navigation chrome", () => {
+  it("marks a failed feed locally without turning the whole sidebar into an error state", () => {
+    const html = renderToStaticMarkup(<Sidebar {...sidebarProps({
+      feeds: [feed({ lastSyncStatus: "error", lastSyncError: "RSS request timed out" })],
+      selectedFeedId: "feed-1",
+    })} />);
+
+    expect(html).toContain("科技播客更新异常");
+    expect(html).toContain("wreader-feed-sync-warning");
+  });
+
   it("returns to the default timeline when the brand is clicked", () => {
     const onNavigate = vi.fn();
     const container = document.createElement("div");
@@ -412,6 +422,7 @@ describe("navigation chrome", () => {
     expect(html).not.toContain("https://example.com/feed.xml");
     expect(html).not.toContain("example.com");
     expect(html).not.toContain("同步失败");
+    expect(html).toContain("更新异常");
     expect(html).not.toContain("2 篇未读");
     expect(html).not.toContain("wreader-settings-feed-chevron");
   });

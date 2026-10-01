@@ -115,7 +115,16 @@ describe("ArticleDetailModal", () => {
     // The relative-time formatter switches to a localized calendar date after
     // 30 days; retain the metadata ordering assertion without coupling to it.
     expect(html).toMatch(/author@example\.com<\/span><span>·<\/span><span>/);
-    expect(html.indexOf("author@example.com")).toBeLessThan(html.indexOf("<h1"));
+    const markup = document.createElement("div");
+    markup.innerHTML = html;
+    const column = markup.querySelector(".reader-column")!;
+    const heading = column.querySelector("h1")!;
+    const metadata = column.querySelector(".reader-subtitle")!;
+    expect(heading.textContent).toBe(article.title);
+    expect(heading.compareDocumentPosition(metadata) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect([...metadata.children].map((element) => element.textContent).slice(0, 4))
+      .toEqual(["Example", "·", "author@example.com", "·"]);
+    expect(metadata.lastElementChild?.textContent).toBeTruthy();
     expect(html).not.toContain("已整理");
 
   });

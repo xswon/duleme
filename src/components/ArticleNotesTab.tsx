@@ -85,7 +85,7 @@ export function ArticleNotesTab({ notes, onUpdate, onDelete, onOpenTranscript }:
                   onChange={(event) => setDraft(event.target.value)}
                   rows={3}
                   autoFocus
-                  className="reader-note-textarea w-full resize-y rounded-lg border border-slate-200 bg-white p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                  className="reader-note-textarea w-full resize-y rounded-lg border border-slate-200 bg-(--wreader-ui-surface) p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                   placeholder="写下你的想法（可留空）"
                 />
                 <div className="reader-note-editor-actions mt-2 flex justify-end gap-2">

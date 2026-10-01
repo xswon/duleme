@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
   contentType = "all",
   onContentTypeChange,
 }) => (
-  <header id="inoreader-header" className={`wreader-list-header relative z-30 shrink-0 bg-[#fbfcfd] text-slate-800 ${showTimelineFilters ? "has-timeline-filters" : ""}`}>
+  <header id="inoreader-header" className={`wreader-list-header relative z-30 shrink-0 bg-(--wreader-list-bg) text-slate-800 ${showTimelineFilters ? "has-timeline-filters" : ""}`}>
     <div className="wreader-list-header-main flex h-[58px] min-h-[58px] items-center justify-between">
       <div className="flex min-w-0 items-center gap-2">
         <button type="button" onClick={onToggleMobileMenu} aria-label="打开导航菜单" aria-controls="inoreader-sidebar" title="打开菜单" className={`wreader-menu-button wreader-icon-button ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}><PrototypeIcon type="menu" className="h-4 w-4" /></button>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Podcast } from "lucide-react";
+import { resolveBackendAssetUrl } from "../services/readerBackend";
 import { ActiveTab, Feed, FilterType } from "../types";
 import { DEFAULT_ROUTE_HISTORY_DAYS, type ReaderRoute } from "../services/router";
 import type { SortMode } from "../services/feedSorting";
@@ -38,6 +39,20 @@ interface SidebarProps {
   isRefreshing?: boolean;
   onCollapse?: () => void;
   isCollapsed?: boolean;
+}
+
+export function FeedAvatar({ feed }: { feed: Feed }) {
+  const [failed, setFailed] = useState(false);
+  const title = (feed.title || "RSS").trim();
+  const label = /少数派(?!播客)/.test(title) ? "36" : title.slice(0, /^[\x00-\x7F]/.test(title) ? 2 : 1).toUpperCase();
+  const palette = ["#39a7c8", "#8d68bb", "#e19643", "#63a478", "#5f8eca"];
+  const colorIndex = Array.from(feed.id || title).reduce((sum, character) => sum + character.charCodeAt(0), 0) % palette.length;
+  const src = resolveBackendAssetUrl("image", feed.favicon);
+  return (
+    <span className="wreader-feed-avatar" style={{ backgroundColor: palette[colorIndex] }} aria-hidden="true">
+      {src && !failed ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : label}
+    </span>
+  );
 }
 
 const PrototypeIcon = ({ children }: { children: React.ReactNode }) => (
@@ -252,18 +267,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsMobileOpen(false);
   };
 
-  const renderFeedAvatar = (feed: Feed) => {
-    const title = (feed.title || "RSS").trim();
-    const label = /少数派(?!播客)/.test(title) ? "36" : title.slice(0, /^[\x00-\x7F]/.test(title) ? 2 : 1).toUpperCase();
-    const palette = ["#39a7c8", "#8d68bb", "#e19643", "#63a478", "#5f8eca"];
-    const colorIndex = Array.from(feed.id || title).reduce((sum, character) => sum + character.charCodeAt(0), 0) % palette.length;
-    return (
-      <span className="wreader-feed-avatar" style={{ backgroundColor: palette[colorIndex] }} aria-hidden="true">
-        {label}
-      </span>
-    );
-  };
-
   const itemClass = (selected: boolean) =>
     `wreader-nav-item flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
       selected
@@ -429,10 +432,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               }`}
                             >
                               <span className="flex min-w-0 items-center gap-2 pr-2">
-                                {renderFeedAvatar(feed)}
+                                <FeedAvatar key={feed.favicon || feed.id} feed={feed} />
                                 <span className={`wreader-nav-name truncate text-slate-800 ${isFeedSelected ? "wreader-nav-selected-label" : ""}`}>
                                   {feed.title}
                                 </span>
+                                {feed.lastSyncStatus === "error" && <span className="wreader-feed-sync-warning" title={feed.lastSyncError || "订阅源更新异常"} aria-label={`${feed.title}更新异常`}>!</span>}
                               </span>
                               {feed.unreadCount > 0 && (
                                 <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500" aria-label={getUnreadCountAriaLabel(feed.unreadCount)} title={getUnreadCountAriaLabel(feed.unreadCount)}>
@@ -491,7 +495,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </aside>
       {isFolderDialogOpen && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/25 p-4" role="presentation" onMouseDown={closeFolderDialog}>
-          <form role="dialog" aria-modal="true" aria-labelledby="folder-dialog-title" className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onSubmit={submitFolder} onMouseDown={(event) => event.stopPropagation()}>
+          <form role="dialog" aria-modal="true" aria-labelledby="folder-dialog-title" className="w-full max-w-sm rounded-xl bg-(--wreader-ui-surface) p-5 shadow-xl" onSubmit={submitFolder} onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="folder-dialog-title" className="text-sm font-semibold text-slate-900">添加文件夹</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">用于整理订阅源，创建后会立即出现在侧栏。</p>
             <input autoFocus value={folderName} onChange={(event) => { setFolderName(event.target.value); setFolderError(null); }} className="mt-4 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="文件夹名称" aria-invalid={Boolean(folderError)} />
