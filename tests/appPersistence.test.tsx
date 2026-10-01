@@ -8,6 +8,7 @@ import {
   saveAppStateToDB,
   saveArticlesToDB,
 } from "../src/services/dbService";
+import { RssFeedRequestError } from "../src/services/rssService";
 
 const rss = vi.hoisted(() => ({
   fetchRssFeed: vi.fn(),
@@ -239,7 +240,7 @@ describe("App persistence rollback", () => {
 
     const { container, root } = await renderApp();
     await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:unread:plain");
-    await waitFor(() => container.textContent?.includes("1 个订阅源同步失败") === true);
+    await waitFor(() => container.textContent?.includes("1 个未能更新") === true);
     await act(async () => click(container, "select-a"));
     expect(window.location.search).toContain("article=a");
     await act(async () => click(container, "test-toggle-read"));
@@ -316,6 +317,29 @@ describe("App persistence rollback", () => {
     await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
     expect(unhandled).not.toHaveBeenCalled();
     window.removeEventListener("unhandledrejection", unhandled);
+    await act(async () => root.unmount());
+  });
+
+  it("shows the failure reason and immediate progress while retrying", async () => {
+    await replaceFeedsInDB([feed]);
+    const pendingRetry = deferred<RssParseResponse>();
+    rss.fetchRssFeed
+      .mockRejectedValueOnce(new RssFeedRequestError("RSS request timed out", "rss_timeout", 504, true))
+      .mockReturnValueOnce(pendingRetry.promise);
+
+    const { container, root } = await renderApp();
+    await waitFor(() => container.textContent?.includes("1 个将在后台重试") === true);
+
+    await act(async () => click(container, "查看"));
+    expect(container.textContent).toContain("请求超时，订阅源暂时没有响应");
+
+    await act(async () => click(container, "重试"));
+    expect(container.textContent).toContain("正在重试 0/1");
+    expect(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "重试中…")?.disabled).toBe(true);
+
+    await act(async () => pendingRetry.resolve(remoteFeed(article("recovered"))));
+    await waitFor(() => container.textContent?.includes("同步完成：已更新 1 个订阅源") === true);
+    expect(container.textContent).not.toContain("订阅源同步失败");
     await act(async () => root.unmount());
   });
 

@@ -70,7 +70,18 @@ describe("Sites RSS worker", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "rss_upstream_http_error",
       error: expect.stringContaining("HTTP 404"),
+      retryable: false,
     });
+  });
+
+  it("marks rate limits retryable and preserves Retry-After", async () => {
+    const response = await handleSitesRssRequest(requestFor(), {
+      fetchImpl: async () => new Response("limited", { status: 429, headers: { "Retry-After": "2" } }),
+    });
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get("Retry-After")).toBe("2");
+    await expect(response.json()).resolves.toMatchObject({ code: "rss_upstream_http_error", retryable: true });
   });
 
   it("rejects malformed XML as an invalid feed", async () => {
@@ -107,6 +118,7 @@ describe("Sites RSS worker", () => {
     await expect(response.json()).resolves.toMatchObject({
       code: "rss_network_error",
       error: expect.stringContaining("connection failed"),
+      retryable: true,
     });
   });
 

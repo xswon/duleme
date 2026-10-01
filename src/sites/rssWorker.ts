@@ -6,7 +6,7 @@ import {
   type SitesFetchLike,
 } from "./outboundNetwork";
 
-const RSS_FETCH_TIMEOUT_MS = 20_000;
+const RSS_FETCH_TIMEOUT_MS = 15_000;
 const RSS_MAX_BYTES = 15 * 1024 * 1024;
 const RSS_MAX_REDIRECTS = 5;
 const RSS_ACCEPT = "application/rss+xml, application/atom+xml, application/xml, text/xml, text/plain;q=0.8, */*;q=0.1";
@@ -23,6 +23,8 @@ class SitesRssError extends SitesOutboundError {
     message: string,
     readonly status: number,
     readonly code: string,
+    readonly retryable = false,
+    readonly retryAfter?: string,
   ) {
     super(message, status, code);
   }
@@ -91,9 +93,12 @@ function responsePayload(feedUrl: string, xml: string) {
 }
 
 function jsonError(error: SitesRssError): Response {
-  return Response.json({ code: error.code, error: error.message }, {
+  return Response.json({ code: error.code, error: error.message, retryable: error.retryable }, {
     status: error.status,
-    headers: { "Cache-Control": "no-store" },
+    headers: {
+      "Cache-Control": "no-store",
+      ...(error.retryAfter ? { "Retry-After": error.retryAfter } : {}),
+    },
   });
 }
 
@@ -135,6 +140,8 @@ export async function handleSitesRssRequest(
         `RSS upstream returned HTTP ${response.status}${response.statusText ? `: ${response.statusText}` : ""}`,
         502,
         "rss_upstream_http_error",
+        response.status === 408 || response.status === 429 || response.status >= 500,
+        response.headers.get("Retry-After") || undefined,
       );
     }
     const xml = await readTextLimited(response, options.maxBytes ?? RSS_MAX_BYTES);
@@ -142,14 +149,17 @@ export async function handleSitesRssRequest(
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
+    if (error instanceof SitesRssError) {
+      return jsonError(error);
+    }
     if (error instanceof SitesOutboundError) {
       return jsonError(new SitesRssError(error.message, error.status, error.code));
     }
     if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
-      return jsonError(new SitesRssError("RSS request timed out", 504, "rss_timeout"));
+      return jsonError(new SitesRssError("RSS request timed out", 504, "rss_timeout", true));
     }
     const message = error instanceof Error ? error.message : "Unknown network error";
-    return jsonError(new SitesRssError(`Failed to fetch RSS feed: ${message}`, 502, "rss_network_error"));
+    return jsonError(new SitesRssError(`Failed to fetch RSS feed: ${message}`, 502, "rss_network_error", true));
   } finally {
     clearTimeout(timeout);
   }

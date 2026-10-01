@@ -164,8 +164,12 @@
 .wreader-refresh-failure-panel p { margin: 9px 0 12px; }
 .wreader-failure-list { max-height: min(280px, 45vh); overflow-y: auto; }
 .wreader-failure-list > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--wreader-danger-border); }
-.wreader-failure-list > div > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wreader-failure-copy { display: grid; min-width: 0; gap: 2px; }
+.wreader-failure-copy strong, .wreader-failure-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wreader-failure-copy strong { color: var(--wreader-ui-text); font-size: 12px; }
+.wreader-failure-copy small { color: var(--wreader-ui-muted); font-size: 11px; }
 .wreader-failure-list button { flex: none; color: var(--wreader-accent-text); font-weight: 700; }
+.wreader-feed-sync-warning { display: inline-grid; width: 14px; height: 14px; flex: none; place-items: center; border-radius: 50%; background: var(--wreader-danger-bg); color: var(--wreader-danger); font-size: 9px; font-weight: 800; line-height: 1; }
 @media (max-width: 760px) {
   .wreader-toast-stack { top: max(10px, env(safe-area-inset-top)); width: calc(100vw - 20px); }
   .wreader-toast { width: 100%; }

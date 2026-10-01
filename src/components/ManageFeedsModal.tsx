@@ -376,11 +376,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <button type="button" onClick={() => handleStartEditFeed(feed)} aria-label={`编辑${feed.title}`} className="wreader-settings-feed-open">
               <span className="wreader-settings-feed-copy">
                 <strong>{feed.title}</strong>
-                {options.showCategory && <small>{category}</small>}
+                {options.showCategory && <small>{category}{feed.lastSyncStatus === "error" ? " · 更新异常" : ""}</small>}
+                {feed.lastSyncStatus === "error" && <small className="wreader-settings-feed-error" title={feed.lastSyncError}>{feed.lastSyncError || "订阅源更新异常"}</small>}
               </span>
             </button>
           ) : (
-            <span className="wreader-settings-feed-copy"><strong>{feed.title}</strong></span>
+            <span className="wreader-settings-feed-copy"><strong>{feed.title}</strong>{feed.lastSyncStatus === "error" && <small className="wreader-settings-feed-error" title={feed.lastSyncError}>更新异常</small>}</span>
           )}
           {!options.editable && category !== "未分类" && (
             <div className="wreader-settings-row-actions">

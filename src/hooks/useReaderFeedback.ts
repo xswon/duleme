@@ -3,9 +3,12 @@ import type { Feed } from "../types";
 
 export interface RefreshFeedbackState {
   failed: Feed[];
+  total: number;
   successful: number;
   newArticles: number;
   finishedAt?: number;
+  mode?: "refresh" | "retry" | "background";
+  criticalFailure?: boolean;
 }
 
 export function useReaderToast() {
@@ -41,7 +44,7 @@ export function useReaderToast() {
 }
 
 export function useRefreshFeedback(refreshState: RefreshFeedbackState, isRefreshing: boolean) {
-  const [refreshFeedback, setRefreshFeedback] = useState<"success" | "failure" | null>(null);
+  const [refreshFeedback, setRefreshFeedback] = useState<"success" | "partial" | "failure" | "retrying" | null>(null);
   const [isRefreshFailureDetailsOpen, setIsRefreshFailureDetailsOpen] = useState(false);
   const refreshFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,16 +53,35 @@ export function useRefreshFeedback(refreshState: RefreshFeedbackState, isRefresh
   }, []);
 
   useEffect(() => {
-    if (!refreshState.finishedAt || isRefreshing) return;
     if (refreshFeedbackTimer.current) clearTimeout(refreshFeedbackTimer.current);
-    if (refreshState.failed.length > 0) {
-      setRefreshFeedback("failure");
+    if (isRefreshing) {
       setIsRefreshFailureDetailsOpen(false);
+      setRefreshFeedback(refreshState.mode === "retry" ? "retrying" : null);
+      return;
+    }
+    if (!refreshState.finishedAt) return;
+    if (refreshState.mode === "background" && !refreshState.criticalFailure) {
+      setRefreshFeedback(null);
+      return;
+    }
+    if (refreshState.failed.length > 0) {
+      const systemicFailure = refreshState.mode === "refresh"
+        && refreshState.total > 1
+        && refreshState.failed.length === refreshState.total;
+      setRefreshFeedback(refreshState.criticalFailure || systemicFailure ? "failure" : "partial");
+      setIsRefreshFailureDetailsOpen(false);
+      if (!refreshState.criticalFailure && !systemicFailure) {
+        refreshFeedbackTimer.current = setTimeout(() => setRefreshFeedback(null), 5_000);
+      }
       return;
     }
     setRefreshFeedback("success");
     refreshFeedbackTimer.current = setTimeout(() => setRefreshFeedback(null), 3500);
-  }, [isRefreshing, refreshState.failed.length, refreshState.finishedAt]);
+  }, [isRefreshing, refreshState.criticalFailure, refreshState.failed.length, refreshState.finishedAt, refreshState.mode, refreshState.total]);
+
+  useEffect(() => {
+    if (isRefreshFailureDetailsOpen && refreshFeedbackTimer.current) clearTimeout(refreshFeedbackTimer.current);
+  }, [isRefreshFailureDetailsOpen]);
 
   return {
     refreshFeedback,

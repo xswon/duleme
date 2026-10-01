@@ -398,28 +398,82 @@ export function summarizeFeedRefreshResults(
   };
 }
 
-// Fetch single RSS feed from server API
-export async function fetchRssFeed(feedUrl: string): Promise<RssParseResponse> {
+export class RssFeedRequestError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly status: number,
+    readonly retryable: boolean,
+    readonly retryAfterMs?: number,
+  ) {
+    super(message);
+    this.name = "RssFeedRequestError";
+  }
+}
+
+function retryAfterMs(response: Response): number | undefined {
+  const value = response.headers?.get?.("Retry-After")?.trim();
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
+}
+
+export interface FetchRssFeedOptions {
+  timeoutMs?: number;
+}
+
+const RSS_FOREGROUND_TIMEOUT_MS = 15_000;
+
+export async function fetchRssFeed(feedUrl: string, options: FetchRssFeedOptions = {}): Promise<RssParseResponse> {
   const encodeUrl = encodeURIComponent(feedUrl);
-  const response = await backendRequest(`/api/rss/parse?url=${encodeUrl}`);
-  if (!response.ok) {
-    const errJson = await response.json().catch(() => ({}));
-    if (errJson.code === "rss_feed_too_large") {
-      throw new Error("RSS 源文件超过 15 MB，暂时无法订阅。可以尝试该网站提供的精简版 RSS 链接。");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? RSS_FOREGROUND_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await backendRequest(`/api/rss/parse?url=${encodeUrl}`, { signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new RssFeedRequestError("订阅源响应超时，将稍后在后台重试。", "rss_timeout", 504, true);
     }
-    throw new Error(errJson.error || `HTTP ${response.status}: Failed to parse RSS feed`);
+    const message = error instanceof Error ? error.message : "网络连接失败";
+    throw new RssFeedRequestError(`无法连接订阅同步服务：${message}`, "rss_network_error", 0, true);
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!response.ok) {
+    const errJson = await response.json().catch(() => ({})) as Record<string, unknown>;
+    if (errJson.code === "rss_feed_too_large") {
+      throw new RssFeedRequestError(
+        "RSS 源文件超过 15 MB，暂时无法订阅。可以尝试该网站提供的精简版 RSS 链接。",
+        "rss_feed_too_large",
+        response.status,
+        false,
+      );
+    }
+    const retryable = typeof errJson.retryable === "boolean"
+      ? errJson.retryable
+      : response.status === 408 || response.status === 429 || response.status >= 500;
+    throw new RssFeedRequestError(
+      typeof errJson.error === "string" ? errJson.error : `HTTP ${response.status}: Failed to parse RSS feed`,
+      typeof errJson.code === "string" ? errJson.code : "rss_request_failed",
+      response.status,
+      retryable,
+      retryAfterMs(response),
+    );
   }
   let parsed: unknown;
   try {
     parsed = await response.json();
   } catch {
-    throw new Error("RSS 源返回了无效数据，暂时无法订阅。");
+    throw new RssFeedRequestError("RSS 源返回了无效数据，暂时无法订阅。", "rss_invalid_response", response.status, false);
   }
   const items = parsed && typeof parsed === "object" && "items" in parsed
     ? parsed.items
     : undefined;
   if (!Array.isArray(items)) {
-    throw new Error("RSS 源返回了无效数据，暂时无法订阅。");
+    throw new RssFeedRequestError("RSS 源返回了无效数据，暂时无法订阅。", "rss_invalid_response", response.status, false);
   }
   return parsed as RssParseResponse;
 }

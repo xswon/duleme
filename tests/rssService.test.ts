@@ -27,11 +27,37 @@ describe("RSS service refresh feedback", () => {
   it("surfaces server errors instead of returning an empty feed", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
-      status: 502,
-      json: vi.fn().mockResolvedValue({ error: "上游源不可用" }),
+      status: 422,
+      json: vi.fn().mockResolvedValue({ code: "rss_invalid_feed", error: "上游源不可用", retryable: false }),
     }));
 
     await expect(fetchRssFeed("https://example.com/feed.xml")).rejects.toThrow("上游源不可用");
+  });
+
+  it("does not hold the foreground refresh open with repeated transient retries", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: "rss_network_error", error: "temporary", retryable: true }), {
+        status: 502,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ title: "Recovered feed", items: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchRssFeed("https://example.com/feed.xml")).rejects.toThrow("temporary");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a foreground request at its deadline", async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchRssFeed("https://example.com/feed.xml", { timeoutMs: 1 })).rejects.toMatchObject({ code: "rss_timeout", retryable: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a successful response without parsed items", async () => {

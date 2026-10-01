@@ -433,7 +433,7 @@ export default function App() {
     <ReaderFeedbackLayer toast={toast} refreshFeedback={refreshFeedback.refreshFeedback} refreshState={refreshState}
       failureDetailsOpen={refreshFeedback.isRefreshFailureDetailsOpen} onFailureDetailsOpenChange={refreshFeedback.setIsRefreshFailureDetailsOpen}
       onDismissRefresh={() => { refreshFeedback.setRefreshFeedback(null); refreshFeedback.setIsRefreshFailureDetailsOpen(false); }}
-      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id)); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
+      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id), "retry"); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
       generationTask={generationFeedbackTask} generationCount={generation.processingCount}
       onViewGeneration={(task: ArticleGenerationTask) => openGenerationResult(task.articleId, task.kind === "pipeline" || task.stage === "summarizing" ? "overview" : "transcript")}
       onDismissGeneration={generation.dismissTask} />

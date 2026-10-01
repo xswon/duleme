@@ -204,6 +204,9 @@ export interface Feed {
   error?: string;
   lastSyncStatus?: "success" | "error";
   lastSyncError?: string;
+  lastSyncAttemptAt?: string;
+  syncFailureCount?: number;
+  nextSyncRetryAt?: string;
   bidclubFeedUrl?: string;
   bidclubShowSlug?: string;
   enrichmentDisabled?: boolean;

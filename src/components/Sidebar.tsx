@@ -436,6 +436,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <span className={`wreader-nav-name truncate text-slate-800 ${isFeedSelected ? "wreader-nav-selected-label" : ""}`}>
                                   {feed.title}
                                 </span>
+                                {feed.lastSyncStatus === "error" && <span className="wreader-feed-sync-warning" title={feed.lastSyncError || "订阅源更新异常"} aria-label={`${feed.title}更新异常`}>!</span>}
                               </span>
                               {feed.unreadCount > 0 && (
                                 <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500" aria-label={getUnreadCountAriaLabel(feed.unreadCount)} title={getUnreadCountAriaLabel(feed.unreadCount)}>
