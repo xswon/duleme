@@ -1,3 +1,5 @@
+import { AppearanceControls } from "./AppearanceControls";
+import { useAppearancePreferences } from "../hooks/useAppearancePreferences";
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from "react";
 import {
   ExternalLink,
@@ -292,7 +294,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [readerFontSize, setReaderFontSize] = useState<"compact" | "standard" | "large">("standard");
   const [readerLineHeight, setReaderLineHeight] = useState<"compact" | "standard" | "relaxed">("standard");
   const [readerMeasure, setReaderMeasure] = useState<"compact" | "standard" | "wide">("standard");
-  const [readerTheme, setReaderTheme] = useState<"light" | "paper" | "dark">("light");
+  const { preferences: appearance } = useAppearancePreferences();
   const [sessionHighlights, setSessionHighlights] = useState<Array<{
     noteId: string;
     source: DetailTab;
@@ -887,13 +889,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const showAuthor = article.author && article.author !== article.feedTitle;
 
   const tabs = presentation?.tabs || [];
-  const readerDek = (bidclubDek || "").trim();
-  const summaryPreview = (aiSummary || bidclubDek || "").trim();
-  const summaryTargetTab: DetailTab = tabs.some((tab) => tab.key === "overview")
-    ? "overview"
-    : tabs.some((tab) => tab.key === "digest")
-      ? "digest"
-      : "overview";
   const hasOverviewContent = Boolean(
     aiSummary?.trim()
       || bidclubTldrHtml?.trim()
@@ -1157,10 +1152,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       data-reader-font-size={readerFontSize}
       data-reader-line-height={readerLineHeight}
       data-reader-measure={readerMeasure}
-      data-reader-theme={readerTheme}
-      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-white text-slate-900"
+      data-reader-font={appearance.font}
+      data-reader-alignment={appearance.alignment}
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-(--wreader-ui-surface) text-slate-900"
     >
-      <div className="shrink-0 border-b border-slate-200/80 bg-white" aria-label="阅读工具栏">
+      <div className="shrink-0 border-b border-slate-200/80 bg-(--wreader-ui-surface)" aria-label="阅读工具栏">
         <div className="wreader-reader-toolbar-inner mx-auto grid min-h-14 w-full max-w-[760px] grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 sm:px-5" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr" }}>
           <div className="wreader-reader-nav flex shrink-0 items-center gap-1">
           <button
@@ -1220,45 +1216,32 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             >
               <ExternalLink className="h-4 w-4" />
             </a>
-          <details className="reader-more-menu">
-            <summary className="reader-action" title="更多操作" aria-label="更多操作">···</summary>
-            <div className="reader-more-popover">
+            <button
+              type="button"
+              ref={readerSettingsTriggerRef}
+              className="reader-action reader-settings-button"
+              onClick={() => setReaderSettingsOpen((open) => !open)}
+              title="阅读设置"
+              aria-label="阅读设置"
+              aria-expanded={readerSettingsOpen}
+            >Aa</button>
+            {onToggleImmersive && (
               <button
-                ref={readerSettingsTriggerRef}
                 type="button"
-                onClick={(event) => {
-                  setReaderSettingsOpen((open) => !open);
-                  const details = event.currentTarget.closest("details");
-                  if (details) details.open = false;
-                }}
-                aria-label="阅读设置"
-                aria-expanded={readerSettingsOpen}
+                onClick={onToggleImmersive}
+                className="reader-action inline-flex h-9 w-9 min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
+                title={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
+                aria-label={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
+                aria-pressed={isImmersive}
               >
-                <span className="reader-more-leading">Aa</span>
-                阅读设置
+                {isImmersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </button>
-              {onToggleImmersive && (
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    onToggleImmersive();
-                    const details = event.currentTarget.closest("details");
-                    if (details) details.open = false;
-                  }}
-                  aria-label={isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
-                  aria-pressed={isImmersive}
-                >
-                  {isImmersive ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                  {isImmersive ? "退出沉浸模式" : "进入沉浸模式"}
-                </button>
-              )}
-            </div>
-          </details>
+            )}
           </div>
         </div>
         <div className="h-0.5 w-full bg-slate-100" aria-hidden="true">
           <div
-            className="h-full bg-blue-500 transition-[width] duration-150"
+            className="h-full bg-(--wreader-primary-button) transition-[width] duration-150"
             style={{ width: `${Number.isFinite(readingProgress) ? readingProgress * 100 : 0}%` }}
             data-reading-progress
           />
@@ -1271,7 +1254,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           <label>字号 <span><button type="button" className={readerFontSize === "compact" ? "is-selected" : ""} onClick={() => setReaderFontSize("compact")} aria-label="减小字号">A</button><button type="button" className={readerFontSize === "standard" ? "is-selected" : ""} onClick={() => setReaderFontSize("standard")} aria-label="标准字号">A</button><button type="button" className={readerFontSize === "large" ? "is-selected" : ""} onClick={() => setReaderFontSize("large")} aria-label="增大字号">A</button></span></label>
           <label>行距 <span><button type="button" className={readerLineHeight === "compact" ? "is-selected" : ""} onClick={() => setReaderLineHeight("compact")}>1.5</button><button type="button" className={readerLineHeight === "standard" ? "is-selected" : ""} onClick={() => setReaderLineHeight("standard")}>1.8</button><button type="button" className={readerLineHeight === "relaxed" ? "is-selected" : ""} onClick={() => setReaderLineHeight("relaxed")}>2.0</button></span></label>
           <label>版心 <span><button type="button" className={readerMeasure === "compact" ? "is-selected" : ""} onClick={() => setReaderMeasure("compact")}>紧凑</button><button type="button" className={readerMeasure === "standard" ? "is-selected" : ""} onClick={() => setReaderMeasure("standard")}>标准</button><button type="button" className={readerMeasure === "wide" ? "is-selected" : ""} onClick={() => setReaderMeasure("wide")}>宽松</button></span></label>
-          <label>主题 <span className="theme-swatches"><button type="button" className={`theme-light ${readerTheme === "light" ? "is-selected" : ""}`} onClick={() => setReaderTheme("light")} aria-label="浅色" /><button type="button" className={`theme-paper ${readerTheme === "paper" ? "is-selected" : ""}`} onClick={() => setReaderTheme("paper")} aria-label="米黄" /><button type="button" className={`theme-dark ${readerTheme === "dark" ? "is-selected" : ""}`} onClick={() => setReaderTheme("dark")} aria-label="深色" /></span></label>
+          <AppearanceControls typography />
         </div>
       )}
 
@@ -1282,7 +1265,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
           onScroll={handleContentScroll}
         >
           <div className="reader-column w-full max-w-[650px] mx-auto">
-            {/* Source metadata leads; title and dek carry the visual hierarchy. */}
+            <h1 className="text-xl font-bold leading-snug tracking-tight text-slate-900 sm:text-[28px] sm:leading-[1.3]">
+              {article.title}
+            </h1>
             <div className="reader-subtitle min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-1">
               <strong>{article.feedTitle}</strong>
               {showAuthor && (
@@ -1294,27 +1279,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               <span>·</span>
               <span>{timeAgo}</span>
             </div>
-            <h1 className="text-xl font-bold leading-snug tracking-tight text-slate-900 sm:text-[28px] sm:leading-[1.3]">
-              {article.title}
-            </h1>
-            {readerDek && readerDek !== article.title && (
-              <p className="reader-dek">{readerDek}</p>
-            )}
 
             {/* Audio Card (仅真实播客音频) */}
             {hasAudio && <AudioPlayerCard model={{ article, isPlaying, currentTime, duration, playbackRate, audioPlayError, isInPlaylist, onTogglePlaylist, togglePlay: handleTogglePlay, onSeek: seekTo, onRateChange: () => audioPlayer?.cyclePlaybackRate(), onRewind: () => seekTo(currentTime - 15), onForward: () => seekTo(currentTime + 30) }} />}
-
-            {detailTab === "body" && summaryPreview && hasOverviewContent && (
-              <section className="reader-summary-preview" aria-label="AI 摘要">
-                <div className="reader-summary-preview-heading">
-                  <span><AiSummaryIcon className="h-4 w-4" />AI 摘要</span>
-                  {tabs.some((tab) => tab.key === summaryTargetTab) && (
-                    <button type="button" onClick={() => handleDetailTabChange(summaryTargetTab)}>查看完整摘要</button>
-                  )}
-                </div>
-                <p>{summaryPreview}</p>
-              </section>
-            )}
 
             {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
             {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
@@ -1415,7 +1382,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         </div>
         {selectionAction && (
           <div
-            className={`fixed z-[70] -translate-x-1/2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ${selectionAction.placement === "above" ? "-translate-y-full" : ""}`}
+            className={`fixed z-[70] -translate-x-1/2 rounded-xl border border-slate-200 bg-(--wreader-ui-surface) p-1.5 shadow-xl ${selectionAction.placement === "above" ? "-translate-y-full" : ""}`}
             style={{ left: selectionAction.left, top: selectionAction.top }}
             role="toolbar"
             aria-label="文本标注"

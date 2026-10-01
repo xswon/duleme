@@ -41,6 +41,31 @@ const sidebarProps = (overrides: Partial<React.ComponentProps<typeof Sidebar>> =
 });
 
 describe("navigation chrome", () => {
+  it("returns to the default timeline when the brand is clicked", () => {
+    const onNavigate = vi.fn();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => root.render(<Sidebar {...sidebarProps({ activeTab: "notes", onNavigate })} />));
+    const brand = container.querySelector<HTMLButtonElement>('button[aria-label="读了么首页"]');
+
+    expect(brand?.querySelector("img")?.getAttribute("src")).toBe("/brand-icon-navy.svg");
+    act(() => brand?.click());
+    expect(onNavigate).toHaveBeenCalledWith({
+      activeTab: "feeds",
+      filterType: "all",
+      selectedFeedId: null,
+      selectedCategory: null,
+      searchQuery: "",
+      articleId: null,
+      detailTab: undefined,
+      contentType: "all",
+      historyWindowDays: 30,
+    });
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it("keeps an accessible expand action in the collapsed rail", () => {
     const onCollapse = vi.fn();
     const container = document.createElement("div");

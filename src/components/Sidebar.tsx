@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Podcast } from "lucide-react";
 import { ActiveTab, Feed, FilterType } from "../types";
-import type { ReaderRoute } from "../services/router";
+import { DEFAULT_ROUTE_HISTORY_DAYS, type ReaderRoute } from "../services/router";
 import type { SortMode } from "../services/feedSorting";
 import { formatUnreadCount, getUnreadCountAriaLabel } from "../services/unreadCount";
 import { compareNames, orderFeedsInFolder, sortFeeds, type FeedOrderByFolder } from "../services/feedSorting";
@@ -214,6 +214,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsMobileOpen(false);
   };
 
+  const handleBrandHome = () => {
+    if (onNavigate) {
+      onNavigate({
+        activeTab: "feeds",
+        filterType: "all",
+        selectedFeedId: null,
+        selectedCategory: null,
+        searchQuery: "",
+        articleId: null,
+        detailTab: undefined,
+        contentType: "all",
+        historyWindowDays: DEFAULT_ROUTE_HISTORY_DAYS,
+      });
+      return;
+    }
+    setActiveTab("feeds");
+    setSelectedFeedId(null);
+    setSelectedCategory(null);
+    setIsMobileOpen(false);
+  };
+
   const handleSelectScope = (scope: "today" | "starred") => {
     if (onNavigate) {
       onNavigate({
@@ -268,7 +289,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         <div className="wreader-brand flex h-[58px] shrink-0 items-center">
-          <h1 className="wreader-brand-name truncate">读了么</h1>
+          <h1 className="wreader-brand-name">
+            <button type="button" className="wreader-brand-home" aria-label="读了么首页" title="返回首页" onClick={handleBrandHome}>
+              <img src="/brand-icon-navy.svg" alt="" aria-hidden="true" />
+              <span>读了么</span>
+            </button>
+          </h1>
           {!isCollapsed && <button type="button" onClick={() => selectUtilityTab("search")} className={`wreader-sidebar-search wreader-icon-button ${activeTab === "search" ? "is-selected" : ""}`} title="搜索" aria-label="搜索"><PrototypeIcon><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></PrototypeIcon></button>}
           {onCollapse && <button type="button" onClick={onCollapse} className="wreader-sidebar-collapse wreader-icon-button" title={isCollapsed ? "展开侧边栏" : "收起侧边栏"} aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}><PrototypeIcon><path d="M4 4h16v16H4z" /><path d="M9 4v16" /></PrototypeIcon></button>}
         </div>
@@ -465,7 +491,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </aside>
       {isFolderDialogOpen && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/25 p-4" role="presentation" onMouseDown={closeFolderDialog}>
-          <form role="dialog" aria-modal="true" aria-labelledby="folder-dialog-title" className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl" onSubmit={submitFolder} onMouseDown={(event) => event.stopPropagation()}>
+          <form role="dialog" aria-modal="true" aria-labelledby="folder-dialog-title" className="w-full max-w-sm rounded-xl bg-(--wreader-ui-surface) p-5 shadow-xl" onSubmit={submitFolder} onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="folder-dialog-title" className="text-sm font-semibold text-slate-900">添加文件夹</h2>
             <p className="mt-1 text-xs leading-5 text-slate-500">用于整理订阅源，创建后会立即出现在侧栏。</p>
             <input autoFocus value={folderName} onChange={(event) => { setFolderName(event.target.value); setFolderError(null); }} className="mt-4 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="文件夹名称" aria-invalid={Boolean(folderError)} />

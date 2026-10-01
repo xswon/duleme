@@ -130,9 +130,11 @@ export const ArticleThumbnail: React.FC<ArticleThumbnailProps> = ({
 function SourceAvatar({
   src,
   title,
+  unread,
 }: {
   src?: string;
   title: string;
+  unread: boolean;
 }) {
   const [failed, setFailed] = React.useState(false);
   const imageSrc = resolveImageUrl(src);
@@ -151,6 +153,7 @@ function SourceAvatar({
       ) : (
         <span className="wreader-source-avatar wreader-source-avatar-fallback" aria-hidden="true">{fallback}</span>
       )}
+      {unread && <span className="wreader-unread-dot" aria-label="未读" />}
     </span>
   );
 }
@@ -332,11 +335,8 @@ export const ArticleList: React.FC<ArticleListProps> = ({
             >
               <div className="wreader-story-copy">
                 <div className="wreader-story-source-meta">
-                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} />
+                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} unread={!article.read} />
                   <div className="wreader-story-meta-primary">
-                    <span className="wreader-story-unread-slot">
-                      {!article.read && <span className="wreader-unread-dot" aria-label="未读" />}
-                    </span>
                     <span className="wreader-story-feed" title={article.feedTitle}>{article.feedTitle}</span>
                   </div>
                   {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}

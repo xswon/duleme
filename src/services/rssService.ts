@@ -404,6 +404,9 @@ export async function fetchRssFeed(feedUrl: string): Promise<RssParseResponse> {
   const response = await backendRequest(`/api/rss/parse?url=${encodeUrl}`);
   if (!response.ok) {
     const errJson = await response.json().catch(() => ({}));
+    if (errJson.code === "rss_feed_too_large") {
+      throw new Error("RSS 源文件超过 15 MB，暂时无法订阅。可以尝试该网站提供的精简版 RSS 链接。");
+    }
     throw new Error(errJson.error || `HTTP ${response.status}: Failed to parse RSS feed`);
   }
   let parsed: unknown;

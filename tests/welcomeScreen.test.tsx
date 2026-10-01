@@ -74,6 +74,7 @@ describe("WelcomeScreen", () => {
 
   it("keeps the welcome actions separated and shows selectable two-column feed cards", async () => {
     const { container, root } = await renderWelcome();
+    expect(container.querySelector('img[src="/brand-icon-navy.svg"]')?.getAttribute("aria-hidden")).toBe("true");
     const actions = container.querySelector(".mt-8") as HTMLElement;
     expect(actions.className).toContain("gap-3");
 

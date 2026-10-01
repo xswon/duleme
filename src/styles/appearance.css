@@ -1,0 +1,121 @@
+/* Application color contract. Surfaces and foregrounds are shared by body portals. */
+:root {
+  --wreader-sidebar-bg: #f4f5f7;
+  --wreader-list-bg: #fbfcfd;
+  --wreader-ui-bg: #fbfcfd;
+  --wreader-ui-surface: #ffffff;
+  --wreader-ui-border: #e2e8f0;
+  --wreader-ui-text: #202a35;
+  /* #718091 is 3.98:1 on the sidebar; deepen small text to at least 4.5:1. */
+  --wreader-ui-muted: #606e7d;
+  --wreader-ui-accent: #2e75cb;
+  --wreader-accent-text: #2668b6;
+  --wreader-selection: #eaf0f6;
+  --wreader-surface-subtle: #f4f5f7;
+  --wreader-hover: #eaf0f6;
+  --wreader-focus: #2668b6;
+  --wreader-overlay: rgb(15 23 42 / 45%);
+  --wreader-shadow-color: rgb(20 30 42 / 16%);
+  --wreader-tooltip-bg: #202a35;
+  --wreader-tooltip-text: #ffffff;
+  --wreader-on-accent: #ffffff;
+  --wreader-danger: #a33737;
+  --wreader-danger-bg: #fff1f1;
+  --wreader-danger-border: #e9b6b6;
+  --wreader-warning: #805d16;
+  --wreader-warning-bg: #fff7dc;
+  --wreader-success: #28633e;
+  --wreader-primary-button: #2e75cb;
+  --wreader-primary-hover: #2668b6;
+  --wreader-scrollbar: #718091;
+  --wreader-ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+html[data-theme="dark"] {
+  --wreader-sidebar-bg: #16181a;
+  --wreader-list-bg: #1c1f22;
+  --wreader-ui-bg: #1c1f22;
+  --wreader-ui-surface: #1c1f22;
+  --wreader-ui-border: #2c3136;
+  --wreader-ui-text: #e2e8f0;
+  --wreader-ui-muted: #929fac; /* 4.76:1 on selection; original #8a96a3 was 4.27:1. */
+  --wreader-ui-accent: #4b8fe2;
+  --wreader-accent-text: #78b1f5;
+  --wreader-selection: #233346;
+  --wreader-surface-subtle: #23272b;
+  --wreader-hover: #29333e;
+  --wreader-focus: #78b1f5;
+  --wreader-overlay: rgb(0 0 0 / 65%);
+  --wreader-shadow-color: rgb(0 0 0 / 45%);
+  --wreader-tooltip-bg: #e2e8f0;
+  --wreader-tooltip-text: #202a35;
+  --wreader-danger: #ffaaaa;
+  --wreader-danger-bg: #3b2528;
+  --wreader-danger-border: #754349;
+  --wreader-warning: #e9c577;
+  --wreader-warning-bg: #3a3122;
+  --wreader-success: #8dcca3;
+  /* White button labels need a darker fill than the indicator accent. */
+  --wreader-primary-button: #326fbb;
+  --wreader-primary-hover: #2b62a7;
+  --wreader-scrollbar: #637180;
+}
+:root {
+  --color-slate-50: var(--wreader-ui-surface);
+  --color-slate-100: var(--wreader-surface-subtle);
+  --color-slate-200: var(--wreader-ui-border);
+  --color-slate-300: var(--wreader-ui-border);
+  --color-slate-400: var(--wreader-ui-muted);
+  --color-slate-500: var(--wreader-ui-muted);
+  --color-slate-600: var(--wreader-ui-muted);
+  --color-slate-700: var(--wreader-ui-text);
+  --color-slate-800: var(--wreader-ui-text);
+  --color-slate-900: var(--wreader-ui-text);
+  --color-blue-50: var(--wreader-selection);
+  --color-blue-100: var(--wreader-selection);
+  --color-blue-200: var(--wreader-selection);
+  --color-blue-300: var(--wreader-focus);
+  --color-blue-400: var(--wreader-focus);
+  --color-blue-500: var(--wreader-ui-accent);
+  --color-blue-600: var(--wreader-accent-text);
+  --color-blue-700: var(--wreader-accent-text);
+  --color-red-50: var(--wreader-danger-bg);
+  --color-red-100: var(--wreader-danger-bg);
+  --color-red-500: var(--wreader-danger);
+  --color-red-600: var(--wreader-danger);
+  --color-red-700: var(--wreader-danger);
+  --color-amber-50: var(--wreader-warning-bg);
+  --color-amber-100: var(--wreader-warning-bg);
+  --color-amber-600: var(--wreader-warning);
+  --color-amber-700: var(--wreader-warning);
+  --color-amber-800: var(--wreader-warning);
+}
+.appearance-row { min-height: 39px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--wreader-ui-muted); font-size: 12px; }
+.appearance-segment { display: flex; gap: 3px; padding: 2px; border-radius: 8px; background: var(--wreader-surface-subtle); }
+.appearance-segment button { min-height: 28px; padding: 0 8px; border-radius: 6px; color: var(--wreader-ui-muted); font-size: 11px; }
+.appearance-segment button:hover { background: var(--wreader-hover); }
+.appearance-segment button[aria-pressed="true"] { background: var(--wreader-ui-surface); color: var(--wreader-accent-text); box-shadow: inset 0 -2px var(--wreader-ui-accent); font-weight: 700; }
+.appearance-controls { max-width: 390px; }
+:focus-visible { outline: 2px solid var(--wreader-focus); outline-offset: 2px; }
+::selection { background: var(--wreader-selection); color: var(--wreader-ui-text); }
+* { scrollbar-color: var(--wreader-scrollbar) transparent; }
+:root {
+  --color-rose-50: var(--wreader-danger-bg);
+  --color-rose-600: var(--wreader-danger);
+  --color-rose-700: var(--wreader-danger);
+  --color-emerald-50: var(--wreader-surface-subtle);
+  --color-emerald-100: var(--wreader-surface-subtle);
+  --color-emerald-600: var(--wreader-success);
+  --color-emerald-700: var(--wreader-success);
+}
+/* An inset marker survives color-vision differences without changing row dimensions. */
+.wreader-story-row.is-selected { box-shadow: inset 3px 0 var(--wreader-ui-accent); }
+/* Only source article copy inherits reading preferences; chrome and insight tabs keep their fonts. */
+#article-reader[data-reader-font="serif"] .article-copy { font-family: "WReader Reading Serif", "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif; }
+#article-reader .article-copy :is(h1, h2, h3, h4, h5, h6) { font-family: var(--wreader-ui-font); text-align: start; }
+#article-reader .article-copy :is(pre, code) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; text-align: start; }
+#article-reader[data-reader-alignment="justify"] .article-copy p:not(:is(li p, td p, th p, pre p, figcaption p)) { text-align: justify; text-align-last: start; text-justify: inter-ideograph; letter-spacing: normal; }
+#article-reader .article-copy :is(li, td, th, figcaption) { text-align: start; }
+#article-reader .article-copy table { display: block; max-width: 100%; overflow-x: auto; }
+#article-reader .article-copy pre { max-width: 100%; }
+
+#article-reader .article-copy a { word-break: break-all; }

@@ -24,7 +24,7 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/30 backdrop-blur-[1.5px] flex items-center justify-center p-4 animate-fadeIn">
-      <div role="dialog" aria-modal="true" aria-labelledby="keyboard-shortcuts-title" className="bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200/80 text-slate-900 w-full max-w-md p-6 space-y-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="keyboard-shortcuts-title" className="bg-(--wreader-ui-surface) rounded-2xl shadow-2xl ring-1 ring-slate-200/80 text-slate-900 w-full max-w-md p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Keyboard className="w-5 h-5 text-blue-600" />

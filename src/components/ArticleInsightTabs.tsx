@@ -298,7 +298,7 @@ function RetranscriptionConfirmDialog({
         aria-modal="true"
         aria-labelledby="retranscription-dialog-title"
         aria-describedby="retranscription-dialog-description"
-        className="w-full max-w-xs rounded-2xl bg-white p-5 text-left shadow-2xl ring-1 ring-slate-200/80"
+        className="w-full max-w-xs rounded-2xl bg-(--wreader-ui-surface) p-5 text-left shadow-2xl ring-1 ring-slate-200/80"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h3 id="retranscription-dialog-title" className="text-base font-semibold text-slate-900">
@@ -319,7 +319,7 @@ function RetranscriptionConfirmDialog({
             type="button"
             autoFocus
             onClick={onConfirm}
-            className="min-h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-700"
+            className="min-h-10 rounded-lg bg-(--wreader-primary-button) px-4 text-sm font-semibold text-white hover:bg-(--wreader-primary-hover)"
           >
             确认
           </button>
@@ -390,7 +390,7 @@ function PipelineProgressCard({
             </div>
             {transcribing && (
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-full w-1/2 animate-pulse rounded-full bg-blue-500" />
+                <div className="h-full w-1/2 animate-pulse rounded-full bg-(--wreader-primary-button)" />
               </div>
             )}
           </div>
@@ -415,7 +415,7 @@ function PipelineProgressCard({
                 aria-valuemax={100}
                 aria-valuenow={roundedProgress}
               >
-                <div className="h-full rounded-full bg-blue-500 transition-[width] duration-300" style={{ width: `${roundedProgress}%` }} />
+                <div className="h-full rounded-full bg-(--wreader-primary-button) transition-[width] duration-300" style={{ width: `${roundedProgress}%` }} />
               </div>
             )}
           </div>
@@ -668,7 +668,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <div className="reader-service-content">
-          <ContentServiceBar label="摘要服务：读了么官方整理" />
           {hasOverview && <section className="audio-highlight-body">
             <BidclubRichTextContent html={p.overviewHtml} emptyText="暂无短精华" className="bidclub-overview" />
           </section>}
@@ -687,7 +686,6 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
 
   if (p.transcriptHtml?.trim()) return (
     <div className="reader-service-content">
-      <ContentServiceBar label="转录服务：读了么官方转录" />
       <HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" />
       <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
     </div>
@@ -743,7 +741,7 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
               aria-valuenow={transcriptionProgress ?? undefined}
             >
               <div
-                className={`h-full rounded-full bg-blue-500 transition-[width] duration-500 ease-out ${transcriptionProgress === null ? "w-1/2 animate-pulse" : ""}`}
+                className={`h-full rounded-full bg-(--wreader-primary-button) transition-[width] duration-500 ease-out ${transcriptionProgress === null ? "w-1/2 animate-pulse" : ""}`}
                 style={transcriptionProgress === null ? undefined : { width: `${transcriptionProgress}%` }}
               />
             </div>

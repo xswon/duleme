@@ -77,8 +77,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
   if (view === "featured") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-8 text-slate-900">
-        <section className="w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+      <main className="flex min-h-dvh items-start justify-center overflow-hidden bg-slate-50 px-3 py-2 text-slate-900 sm:min-h-screen sm:items-center sm:overflow-visible sm:px-5 sm:py-8">
+        <section className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col rounded-3xl border border-slate-200 bg-(--wreader-ui-surface) p-4 shadow-xl shadow-slate-200/50 sm:max-h-[calc(100vh-4rem)] sm:p-8">
           <button
             type="button"
             onClick={() => setView("welcome")}
@@ -94,7 +94,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </p>
           </div>
 
-          <div className="grid max-h-[54vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-x-6">
+          <div className="grid min-h-0 max-h-[54dvh] flex-1 grid-cols-1 gap-3 overflow-y-auto pr-1 sm:max-h-[54vh] sm:flex-none sm:grid-cols-2 sm:gap-x-6">
             {featuredFeeds.map((feed) => {
               const selected = selectedIds.has(feed.id);
               return (
@@ -106,7 +106,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                   className="wreader-featured-feed-card flex w-full min-w-0 items-center gap-3 rounded-xl text-left transition"
                 >
                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
-                    selected ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-transparent"
+                    selected ? "border-blue-600 bg-(--wreader-primary-button) text-white" : "border-slate-300 bg-(--wreader-ui-surface) text-transparent"
                   }`}>
                     <Check className="h-3.5 w-3.5" />
                   </span>
@@ -127,7 +127,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             })}
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-4 border-t border-slate-100 pt-5">
+          <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 pt-3 sm:mt-6 sm:gap-4 sm:pt-5">
             <span className="text-sm text-slate-500">已选择 {selectedIds.size} 个订阅</span>
             <button
               type="button"
@@ -145,11 +145,14 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-8 text-slate-900">
-      <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 text-center shadow-xl shadow-slate-200/50 sm:p-9">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-          <BookOpen className="h-7 w-7" />
-        </div>
+    <main className="flex min-h-dvh items-center justify-center overflow-y-auto bg-slate-50 px-5 py-8 text-slate-900 sm:min-h-screen">
+      <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-(--wreader-ui-surface) p-7 text-center shadow-xl shadow-slate-200/50 sm:p-9">
+        <img
+          src="/brand-icon-navy.svg"
+          alt=""
+          aria-hidden="true"
+          className="mx-auto h-14 w-14 rounded-2xl shadow-lg shadow-cyan-200/60"
+        />
         <h1 className="mt-5 text-3xl font-bold tracking-tight">读了么</h1>
         <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-slate-500">
           把你真正想看的内容，放在一个安静的地方。

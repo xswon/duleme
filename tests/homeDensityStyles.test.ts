@@ -25,14 +25,14 @@ describe("home density styles", () => {
     const titleRules = styles.slice(titleRuleStart, titleRuleEnd);
 
     expect(titleRules).toContain("font-weight: 600;");
-    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{\s*background: #f5f8fc;/);
+    expect(styles).toMatch(/\.wreader-story-row\.is-selected \{\s*background: var\(--wreader-selection\);/);
     expect(styles).not.toMatch(/\.wreader-story-row\.is-selected \{[\s\S]*?border-left-color:/);
     expect(styles).toMatch(/\.wreader-source-avatar \{[\s\S]*?width: 20px;[\s\S]*?height: 20px;/);
     expect(styles).toMatch(/\.wreader-story-source-meta \{[\s\S]*?grid-template-columns: 20px minmax\(0, 1fr\) auto;/);
     expect(styles).toMatch(/\.wreader-story-duration-row \{[\s\S]*?justify-content: flex-start;/);
     expect(styles).toMatch(/\.wreader-story-duration svg \{[\s\S]*?width: 12px;[\s\S]*?height: 12px;/);
     expect(styles).toMatch(/\.wreader-story-unread-slot \{[\s\S]*?width: 7px;/);
-    expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 7px;[\s\S]*?background: #1f7ae0;/);
+    expect(styles).toMatch(/\.wreader-unread-dot \{[\s\S]*?width: 7px;[\s\S]*?background: var\(--wreader-ui-accent\);/);
     expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row h2 \{[\s\S]*?margin: 0 0 4px;/);
     expect(styles).toMatch(/\.wreader-article-list \.wreader-story-row p \{[\s\S]*?margin: 0;[\s\S]*?-webkit-line-clamp: 2;/);
     expect(styles).toMatch(/\.wreader-story-time \{[\s\S]*?flex: none;[\s\S]*?white-space: nowrap;/);
@@ -43,8 +43,8 @@ describe("home density styles", () => {
   });
 
   it("keeps timeline chrome to the simple three-way type switch", () => {
-    expect(styles).toMatch(/\.wreader-timeline-type-switch \{[\s\S]*?background: #edf1f5;/);
-    expect(styles).toMatch(/\.wreader-timeline-type-switch button\.is-active \{[\s\S]*?background: #fff;/);
+    expect(styles).toMatch(/\.wreader-timeline-type-switch \{[\s\S]*?background: var\(--wreader-surface-subtle\);/);
+    expect(styles).toMatch(/\.wreader-timeline-type-switch button\.is-active \{[\s\S]*?background: var\(--wreader-ui-surface\);/);
     expect(styles).not.toContain(".wreader-timeline-search {");
     expect(styles).not.toContain(".wreader-timeline-source-filter {");
     expect(styles).not.toContain(".wreader-timeline-more-filters {");
@@ -66,11 +66,11 @@ describe("home density styles", () => {
     const headingStart = styles.indexOf(".wreader-nav-section-label {");
     const headingEnd = styles.indexOf("}", headingStart);
     const headingRule = styles.slice(headingStart, headingEnd);
-    expect(headingRule).toContain("color: #687586;");
+    expect(headingRule).toContain("color: var(--wreader-ui-muted);");
     expect(headingRule).toContain("font-size: 11px;");
     expect(styles).toMatch(/\.wreader-feed-avatar \{[\s\S]*?min-width: 16px;[\s\S]*?max-width: 16px;[\s\S]*?border-radius: 5px !important;/);
     expect(navigationStyles).toMatch(/\.wreader-sidebar-search svg \{ width: 16px; height: 16px; \}/);
-    expect(styles).toMatch(/\.wreader-nav-selected-label \{[\s\S]*?color: #1f64ba !important;[\s\S]*?font-weight: 700 !important;/);
+    expect(styles).toMatch(/\.wreader-nav-selected-label \{[\s\S]*?color: var\(--wreader-accent-text\) !important;[\s\S]*?font-weight: 700 !important;/);
     expect(styles).toMatch(/\.wreader-nav-name \{\s*font-size: 12px;\s*\}/);
     expect(styles).toMatch(/\.wreader-nav-primary-label \{\s*font-size: 12px;\s*\}/);
     expect(styles).toMatch(/\.wreader-reading-nav button > span\.wreader-nav-count \{\s*font-size: 11px;\s*font-weight: inherit;\s*\}/);

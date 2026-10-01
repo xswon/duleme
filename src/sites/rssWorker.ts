@@ -7,7 +7,7 @@ import {
 } from "./outboundNetwork";
 
 const RSS_FETCH_TIMEOUT_MS = 20_000;
-const RSS_MAX_BYTES = 5 * 1024 * 1024;
+const RSS_MAX_BYTES = 15 * 1024 * 1024;
 const RSS_MAX_REDIRECTS = 5;
 const RSS_ACCEPT = "application/rss+xml, application/atom+xml, application/xml, text/xml, text/plain;q=0.8, */*;q=0.1";
 

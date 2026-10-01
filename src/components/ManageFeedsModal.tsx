@@ -1,3 +1,4 @@
+import { AppearanceControls } from "./AppearanceControls";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
@@ -15,6 +16,7 @@ import {
   Rss,
   AudioLines,
   Sparkles,
+  SunMoon,
   Trash2,
 } from "lucide-react";
 import { Feed } from "../types";
@@ -33,7 +35,7 @@ const SortControl: React.FC<{ value: SortMode; onChange: (mode: SortMode) => voi
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value as SortMode)}
-      className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      className="rounded-lg border border-slate-200 bg-(--wreader-ui-surface) px-2 py-1.5 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
     >
       <option value="default">自定义拖动</option>
       <option value="alphabetical">名称 A–Z</option>
@@ -53,7 +55,7 @@ const DragHandle: React.FC<{ disabled: boolean; label: string }> = ({ disabled, 
   </span>
 );
 
-const SETTINGS_TABS = ["feeds", "folders", "transcript", "insight", "data", "shortcuts"] as const;
+const SETTINGS_TABS = ["feeds", "folders", "transcript", "insight", "appearance", "data", "shortcuts"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 interface SettingsPageProps {
@@ -366,7 +368,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {feed.favicon ? (
             <img src={feed.favicon} alt="" className="wreader-settings-feed-icon h-4 w-4 shrink-0 rounded object-contain" onError={(e) => { (e.target as HTMLElement).style.display = "none"; }} />
           ) : (
-            <div className="wreader-settings-feed-icon flex h-4 w-4 shrink-0 items-center justify-center rounded bg-blue-500 text-[9px] font-bold text-white">
+            <div className="wreader-settings-feed-icon flex h-4 w-4 shrink-0 items-center justify-center rounded bg-(--wreader-primary-button) text-[9px] font-bold text-white">
               {feed.title.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -423,6 +425,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button type="button" {...tabProps("insight")} className={tabClassName("insight")}><Sparkles /><span>AI 摘要</span></button>
             </div>
             <div className="wreader-settings-nav-standalone">
+              <button type="button" {...tabProps("appearance")} className={tabClassName("appearance")}><SunMoon /><span>外观</span></button>
               <button type="button" {...tabProps("data")} className={tabClassName("data")}><Database /><span>数据与备份</span></button>
               <button type="button" {...tabProps("shortcuts")} className={tabClassName("shortcuts")}><Keyboard /><span>快捷键</span></button>
             </div>
@@ -431,7 +434,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="wreader-settings-main min-w-0">
           <header className="wreader-settings-header flex shrink-0 items-start justify-between">
             <div className="wreader-settings-heading">
-              <h1 id="settings-modal-title">{{ feeds: "订阅源", folders: "文件夹", transcript: "转录", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
+              <h1 id="settings-modal-title">{{ appearance: "外观", feeds: "订阅源", folders: "文件夹", transcript: "转录", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
               {activeDescription && <p>{activeDescription}</p>}
             </div>
             <button type="button" onClick={onBack} aria-label="关闭设置" className="wreader-settings-close"><X /></button>
@@ -439,6 +442,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="wreader-settings-body scrollbar-thin">
             <div className="wreader-settings-page w-full">
               <div className="wreader-settings-content min-w-0">
+          {activeTab === "appearance" && <section id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" className="wreader-settings-panel"><AppearanceControls /><p>主题应用于整个应用，跟随系统时自动切换。</p></section>}
           {activeTab === "feeds" && (
             <section id="settings-panel-feeds" role="tabpanel" aria-labelledby="settings-tab-feeds" className="wreader-settings-panel">
               <div className="wreader-settings-filters">

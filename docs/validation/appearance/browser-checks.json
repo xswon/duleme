@@ -1,0 +1,105 @@
+{
+  "fonts": [
+    {
+      "family": "WReader Reading Serif",
+      "status": "loaded"
+    }
+  ],
+  "scroll": [
+    {
+      "label": "系统黑体",
+      "top": 600
+    },
+    {
+      "label": "左对齐",
+      "top": 600
+    },
+    {
+      "label": "深色",
+      "top": 600
+    },
+    {
+      "label": "思源宋体",
+      "top": 600
+    },
+    {
+      "label": "两端对齐",
+      "top": 600
+    }
+  ],
+  "typography": {
+    "body": {
+      "font": "\"WReader Reading Serif\", \"Songti SC\", STSong, SimSun, \"Noto Serif CJK SC\", serif",
+      "align": "start",
+      "last": "auto",
+      "size": "16px",
+      "line": "28px"
+    },
+    "paragraph": {
+      "font": "\"WReader Reading Serif\", \"Songti SC\", STSong, SimSun, \"Noto Serif CJK SC\", serif",
+      "align": "justify",
+      "last": "start",
+      "size": "16px",
+      "line": "28px"
+    },
+    "heading": {
+      "font": "-apple-system, \"system-ui\", \"Segoe UI\", \"PingFang SC\", \"Hiragino Sans GB\", \"Microsoft YaHei\", sans-serif",
+      "align": "start",
+      "last": "auto",
+      "size": "17px",
+      "line": "25.5px"
+    },
+    "list": {
+      "font": "\"WReader Reading Serif\", \"Songti SC\", STSong, SimSun, \"Noto Serif CJK SC\", serif",
+      "align": "start",
+      "last": "auto",
+      "size": "16px",
+      "line": "28px"
+    },
+    "code": {
+      "font": "ui-monospace, SFMono-Regular, Consolas, monospace",
+      "align": "start",
+      "last": "auto",
+      "size": "14px",
+      "line": "24.5px"
+    },
+    "table": {
+      "font": "\"WReader Reading Serif\", \"Songti SC\", STSong, SimSun, \"Noto Serif CJK SC\", serif",
+      "align": "start",
+      "last": "auto",
+      "size": "16px",
+      "line": "28px"
+    },
+    "chrome": {
+      "font": "-apple-system, \"system-ui\", \"SF Pro Text\", \"PingFang SC\", \"Helvetica Neue\", Arial, sans-serif",
+      "align": "start",
+      "last": "auto",
+      "size": "13px",
+      "line": "normal"
+    }
+  },
+  "composition": {
+    "size": "17px",
+    "line": "34px",
+    "width": "720px"
+  },
+  "reload": {
+    "theme": "dark",
+    "font": "serif",
+    "alignment": "justify",
+    "background": "rgb(28, 31, 34)"
+  },
+  "overflow": {
+    "viewport": 390,
+    "page": 390,
+    "reader": 390,
+    "scroll": 390
+  },
+  "fallback": {
+    "loaded": 0,
+    "height": 3578.234375,
+    "text": 4471
+  },
+  "pageErrors": [],
+  "themeBehavior": "system changes, explicit preference, reload and no-article switching passed"
+}
