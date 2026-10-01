@@ -155,7 +155,7 @@
 }
 
 /* Current prototype playlist layout; player atoms live in prototype-player.css. */
-.playlist-player { margin-bottom:19px; padding:14px; border:1px solid var(--wreader-ui-border); border-radius:14px; background:linear-gradient(155deg,#f7f9fb,#edf2f6); box-shadow:0 4px 14px var(--wreader-shadow-color); }
+.playlist-player { margin-bottom:19px; padding:14px; border:1px solid var(--wreader-ui-border); border-radius:14px; background:var(--wreader-surface-subtle); box-shadow:0 4px 14px var(--wreader-shadow-color); }
 .playlist-player-main { display:flex; align-items:stretch; flex-direction:column; gap:11px; }
 .playlist-player-cover { width:84px; height:84px; display:grid; place-items:center; align-self:center; border-radius:11px; background:linear-gradient(145deg,#8eaac1,#344a61); box-shadow:0 4px 11px var(--wreader-shadow-color); color:var(--wreader-on-accent); font-size:9px; font-weight:750; line-height:1.25; text-align:center; }
 .playlist-player-body { display:contents; }
