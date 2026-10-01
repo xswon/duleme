@@ -111,8 +111,8 @@ html[data-theme="dark"] {
 }
 /* An inset marker survives color-vision differences without changing row dimensions. */
 .wreader-story-row.is-selected { box-shadow: inset 3px 0 var(--wreader-ui-accent); }
-/* Only source article copy inherits reading preferences; chrome and insight tabs keep their fonts. */
-#article-reader[data-reader-font="serif"] :is(.article-copy, .audio-highlight-body, .audio-deep-summary, .audio-transcript-panel) { font-family: "WReader Reading Serif", "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif; }
+/* Reading prose and the article title share the saved reading-font preference. */
+#article-reader[data-reader-font="serif"] :is(.article-copy, .audio-highlight-body, .audio-deep-summary, .audio-transcript-panel, .reader-column > h1) { font-family: "WReader Reading Serif", "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif; }
 #article-reader :is(.article-copy, .audio-highlight-body, .audio-deep-summary, .audio-transcript-panel) :is(h1, h2, h3, h4, h5, h6) { font-family: var(--wreader-ui-font); text-align: start; }
 #article-reader :is(.article-copy, .audio-highlight-body, .audio-deep-summary, .audio-transcript-panel) :is(pre, code, .transcript-time) { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; text-align: start; }
 #article-reader[data-reader-alignment="justify"] .article-copy p:not(:is(li p, td p, th p, pre p, figcaption p)) { text-align: justify; text-align-last: start; text-justify: inter-ideograph; letter-spacing: normal; }
