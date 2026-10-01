@@ -68,7 +68,7 @@ describe("home density styles", () => {
     const headingRule = styles.slice(headingStart, headingEnd);
     expect(headingRule).toContain("color: var(--wreader-ui-muted);");
     expect(headingRule).toContain("font-size: 11px;");
-    expect(styles).toMatch(/\.wreader-feed-avatar \{[\s\S]*?min-width: 16px;[\s\S]*?max-width: 16px;[\s\S]*?border-radius: 5px !important;/);
+    expect(styles).toMatch(/\.wreader-feed-avatar \{[\s\S]*?min-width: 16px;[\s\S]*?max-width: 16px;[\s\S]*?border-radius: 3px !important;/);
     expect(navigationStyles).toMatch(/\.wreader-sidebar-search svg \{ width: 16px; height: 16px; \}/);
     expect(styles).toMatch(/\.wreader-nav-selected-label \{[\s\S]*?color: var\(--wreader-accent-text\) !important;[\s\S]*?font-weight: 700 !important;/);
     expect(styles).toMatch(/\.wreader-nav-name \{\s*font-size: 12px;\s*\}/);

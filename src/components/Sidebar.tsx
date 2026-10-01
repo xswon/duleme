@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Podcast } from "lucide-react";
+import { resolveBackendAssetUrl } from "../services/readerBackend";
 import { ActiveTab, Feed, FilterType } from "../types";
 import { DEFAULT_ROUTE_HISTORY_DAYS, type ReaderRoute } from "../services/router";
 import type { SortMode } from "../services/feedSorting";
@@ -38,6 +39,20 @@ interface SidebarProps {
   isRefreshing?: boolean;
   onCollapse?: () => void;
   isCollapsed?: boolean;
+}
+
+export function FeedAvatar({ feed }: { feed: Feed }) {
+  const [failed, setFailed] = useState(false);
+  const title = (feed.title || "RSS").trim();
+  const label = /少数派(?!播客)/.test(title) ? "36" : title.slice(0, /^[\x00-\x7F]/.test(title) ? 2 : 1).toUpperCase();
+  const palette = ["#39a7c8", "#8d68bb", "#e19643", "#63a478", "#5f8eca"];
+  const colorIndex = Array.from(feed.id || title).reduce((sum, character) => sum + character.charCodeAt(0), 0) % palette.length;
+  const src = resolveBackendAssetUrl("image", feed.favicon);
+  return (
+    <span className="wreader-feed-avatar" style={{ backgroundColor: palette[colorIndex] }} aria-hidden="true">
+      {src && !failed ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} /> : label}
+    </span>
+  );
 }
 
 const PrototypeIcon = ({ children }: { children: React.ReactNode }) => (
@@ -252,18 +267,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsMobileOpen(false);
   };
 
-  const renderFeedAvatar = (feed: Feed) => {
-    const title = (feed.title || "RSS").trim();
-    const label = /少数派(?!播客)/.test(title) ? "36" : title.slice(0, /^[\x00-\x7F]/.test(title) ? 2 : 1).toUpperCase();
-    const palette = ["#39a7c8", "#8d68bb", "#e19643", "#63a478", "#5f8eca"];
-    const colorIndex = Array.from(feed.id || title).reduce((sum, character) => sum + character.charCodeAt(0), 0) % palette.length;
-    return (
-      <span className="wreader-feed-avatar" style={{ backgroundColor: palette[colorIndex] }} aria-hidden="true">
-        {label}
-      </span>
-    );
-  };
-
   const itemClass = (selected: boolean) =>
     `wreader-nav-item flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
       selected
@@ -429,7 +432,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               }`}
                             >
                               <span className="flex min-w-0 items-center gap-2 pr-2">
-                                {renderFeedAvatar(feed)}
+                                <FeedAvatar key={feed.favicon || feed.id} feed={feed} />
                                 <span className={`wreader-nav-name truncate text-slate-800 ${isFeedSelected ? "wreader-nav-selected-label" : ""}`}>
                                   {feed.title}
                                 </span>

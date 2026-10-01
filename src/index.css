@@ -1659,11 +1659,10 @@ body,
 #article-reader > [aria-label="阅读工具栏"] .wreader-reader-actions {
   gap: 4px;
   padding: 3px 6px;
-  border: 1px solid var(--wreader-ui-border);
+  border: 1px solid transparent;
   border-radius: 999px;
   background: var(--wreader-ui-surface);
-  box-shadow: 0 3px 12px var(--wreader-shadow-color), 0 1px 2px var(--wreader-shadow-color);
-  backdrop-filter: blur(10px);
+  box-shadow: none;
   pointer-events: auto;
 }
 
@@ -1814,12 +1813,15 @@ body,
   max-width: 16px;
   flex: 0 0 16px;
   place-items: center;
-  border-radius: 5px !important;
+  border-radius: 3px !important;
+  box-shadow: inset 0 0 0 1px var(--wreader-ui-border);
   color: var(--wreader-on-accent);
   font-size: 8px;
   font-weight: 800;
   line-height: 1;
 }
+
+.wreader-feed-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .wreader-feed-row > span:first-child {
   gap: 8px;

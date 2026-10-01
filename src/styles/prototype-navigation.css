@@ -10,9 +10,10 @@
 .wreader-brand-home { display: flex; width: 100%; min-width: 0; align-items: center; gap: 8px; padding: 0; color: inherit; text-align: left; }
 .wreader-brand-home img { width: 28px; height: 28px; flex: none; }
 .wreader-brand-home span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wreader-brand-home:focus-visible { outline: 2px solid var(--wreader-ui-border); outline-offset: 2px; border-radius: 4px; }
+.wreader-brand-home:focus-visible { outline: 2px solid var(--wreader-focus); outline-offset: 2px; border-radius: 4px; }
 .wreader-sidebar-search,
 .wreader-sidebar-collapse { margin-left: 0; color: var(--wreader-ui-muted); }
+.wreader-sidebar-collapse { background: var(--wreader-surface-subtle); }
 .wreader-sidebar-search { display: none; }
 .wreader-sidebar-search.is-selected { background: var(--wreader-hover); color: var(--wreader-accent-text); }
 @media (max-width: 1039px) {
@@ -28,7 +29,7 @@
 .wreader-sidebar-collapse svg { width: 16px; height: 16px; }
 .wreader-sidebar-search svg { width: 16px; height: 16px; }
 .wreader-sidebar nav { padding: 9px 6px 8px; }
-.wreader-sidebar-footer { height: 59px; padding: 8px 10px 14px; border-top: 1px solid var(--wreader-ui-border); background: var(--wreader-sidebar-bg); }
+.wreader-sidebar-footer { height: 59px; padding: 8px 10px 14px; border-top: 1px solid var(--wreader-separator); background: var(--wreader-sidebar-bg); }
 .wreader-sidebar-footer button { height: 34px; min-height: 36px; }
 .wreader-list-header-main > div:first-child { gap: 10px; }
 .wreader-list-header-main > div:last-child { gap: 2px; }
@@ -51,7 +52,7 @@
 .wreader-story-row > div:last-child > .wreader-story-time { min-height: 14px; margin-top: 2px; gap: 6px; color: var(--wreader-ui-muted); font-size: 11px; }
 .wreader-story-time .story-audio-meta { color: var(--wreader-ui-muted); font-size: 11px; }
 .wreader-story-time .story-audio-meta svg { width: 11.5px; height: 11.5px; flex: 0 0 11.5px; }
-.wreader-article-list .wreader-story-row.is-read h2 { color: var(--wreader-ui-text); font-weight: 650; }
+.wreader-article-list .wreader-story-row.is-read h2 { color: var(--wreader-ui-muted); font-weight: 650; }
 .wreader-article-list .wreader-story-row.is-read p { color: var(--wreader-ui-muted); }
 .wreader-article-list .wreader-story-row.is-read .wreader-story-time { color: var(--wreader-ui-muted); }
 .wreader-story-row.is-read .wreader-story-source-meta { color: var(--wreader-ui-muted); }
@@ -61,7 +62,7 @@
 .wreader-timeline-history-control.is-bottom { padding: 20px 0 3px; }
 .wreader-timeline-history-control button { min-height: 28px; padding: 4px 9px; border-radius: 6px; color: var(--wreader-ui-muted); font-size: 11px; font-weight: 400; }
 .wreader-timeline-history-control button:hover { background: var(--wreader-surface-subtle); color: var(--wreader-ui-muted); }
-.wreader-timeline-history-control button:focus-visible { outline: 2px solid var(--wreader-ui-border); outline-offset: 2px; }
+.wreader-timeline-history-control button:focus-visible { outline: 2px solid var(--wreader-focus); outline-offset: 2px; }
 @media (min-width: 900px) and (max-width: 1039px) {
   :root { --wreader-list: 330px; }
 }
@@ -102,7 +103,7 @@
   .wreader-article-list .wreader-story-row h2,
   .wreader-article-list .wreader-story-row.is-selected:not(.is-read) h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; line-height: 1.3; letter-spacing: normal; }
   .wreader-article-list .wreader-story-row p { color: var(--wreader-ui-muted); font-size: 13px; line-height: 1.4; -webkit-line-clamp: 2; }
-  .wreader-article-list .wreader-story-row.is-read h2 { color: var(--wreader-ui-text); }
+  .wreader-article-list .wreader-story-row.is-read h2 { color: var(--wreader-ui-muted); font-weight: 700; }
   .wreader-article-list .wreader-story-row.is-read p { color: var(--wreader-ui-muted); }
   .wreader-story-row > div:last-child > .wreader-story-time { min-height: 16px; gap: 8px; margin-top: 5px; color: var(--wreader-ui-muted); font-size: 12px; }
 }
@@ -137,6 +138,7 @@
 .wreader-article-list .wreader-story-row > div:last-child > .wreader-story-time { min-height: 16px; gap: 8px; margin-top: 5px; color: var(--wreader-ui-muted); font-size: 12px; }
 }
 .wreader-article-list .wreader-story-row .wreader-story-time { font-size: 10.5px; }
+.wreader-article-list .wreader-story-row:focus-visible { outline: 2px solid var(--wreader-focus); outline-offset: -2px; }
 .wreader-article-list .wreader-story-row:hover { background: var(--wreader-surface-subtle); }
 .wreader-article-list .wreader-story-row.is-selected:hover { background: var(--wreader-selection); }
 .wreader-toast-stack { position: fixed; z-index: 80; top: max(16px, env(safe-area-inset-top)); left: 50%; display: flex; width: min(560px, calc(100vw - 32px)); transform: translateX(-50%); flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }

@@ -5,6 +5,7 @@
   --wreader-ui-bg: #fbfcfd;
   --wreader-ui-surface: #ffffff;
   --wreader-ui-border: #e2e8f0;
+  --wreader-separator: #edf0f3;
   --wreader-ui-text: #202a35;
   /* #718091 is 3.98:1 on the sidebar; deepen small text to at least 4.5:1. */
   --wreader-ui-muted: #606e7d;
@@ -36,6 +37,7 @@ html[data-theme="dark"] {
   --wreader-ui-bg: #1c1f22;
   --wreader-ui-surface: #1c1f22;
   --wreader-ui-border: #2c3136;
+  --wreader-separator: #262b30;
   --wreader-ui-text: #e2e8f0;
   --wreader-ui-muted: #929fac; /* 4.76:1 on selection; original #8a96a3 was 4.27:1. */
   --wreader-ui-accent: #4b8fe2;

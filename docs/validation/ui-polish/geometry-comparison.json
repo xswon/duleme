@@ -1,0 +1,105 @@
+{
+  "baseline": {
+    "columns": [
+      [
+        ".wreader-sidebar",
+        220
+      ],
+      [
+        ".wreader-master",
+        342
+      ],
+      [
+        "#article-reader",
+        878
+      ]
+    ],
+    "rows": [
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      }
+    ],
+    "toolbar": 58
+  },
+  "stage1": {
+    "columns": [
+      [
+        ".wreader-sidebar",
+        220
+      ],
+      [
+        ".wreader-master",
+        342
+      ],
+      [
+        "#article-reader",
+        878
+      ]
+    ],
+    "rows": [
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      },
+      {
+        "height": 88.921875,
+        "title": "650"
+      }
+    ],
+    "toolbar": 58
+  },
+  "identical": true
+}
