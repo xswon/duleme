@@ -45,6 +45,13 @@ describe("feed and folder preference storage", () => {
     expect(getStoredFeeds()).toEqual([]);
   });
 
+  it("preserves 41 local subscriptions independently of the recommendation catalog", () => {
+    const saved = Array.from({ length: 41 }, (_, index) => feed(`saved-${index}`, "已订阅"));
+    localStorage.setItem("inoreader_feeds_v2", JSON.stringify(saved));
+    expect(getStoredFeeds()).toEqual(saved);
+    expect(getStoredFeeds()).toHaveLength(41);
+  });
+
   it("does not append curated feeds to an existing subscription list", () => {
     const custom = feed("custom", "自定义");
     localStorage.setItem("inoreader_feeds_v2", JSON.stringify([custom]));

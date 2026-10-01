@@ -56,3 +56,9 @@ Chrome，桌面 1440×1000、移动端 390×844，使用隔离浏览器与本地
 截图：`desktop-light.png`、`desktop-dark.png`、`mobile-light.png`、`mobile-dark.png`、`mobile-list-dark.png`、`settings-light.png`、`settings-dark.png`、`tooltip-dark.png`、`insight-empty-dark.png`、`transcript-empty-dark.png`、`font-fallback-light.png`。
 
 未执行 Safari/Firefox、真实移动设备或外部 AI/转录服务及真实播客联网播放验收；未部署。现有两条失败测试仍需另行处理。
+
+## 后续更正（UI 精修阶段 0，2026-10-01）
+
+上述两条失败是旧断言，不代表推荐列表或元信息布局缺陷。当前推荐列表为 10 项；完整已知源目录为 42 项（含后来新增的苔藓之火），用户持久化的 41 项本地订阅是独立数据，不由推荐列表数量决定。新版测试分别核验三者，保留新增源 ID、去重和旧源排除断言。
+
+阅读布局以当前产品为准：标题后依次是来源、作者、发布时间。测试改为验证 DOM 顺序和元信息子项顺序，不再要求作者出现在标题之前。最新实测见 `../ui-polish/README.md`；旧记录中的失败和跳过只描述此前检查。

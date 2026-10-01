@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_CURATED_FEEDS,
   CURATED_FEEDS,
   FEATURED_CURATED_FEEDS,
   FEATURED_CURATED_FEED_IDS,
@@ -13,12 +14,16 @@ describe("curated feed catalog", () => {
     expect(new Set(CURATED_FEEDS.map((feed) => feed.feedUrl)).size).toBe(CURATED_FEEDS.length);
   });
 
-  it("matches the current 41-feed subscription catalog and excludes the removed starter feeds", () => {
-    expect(CURATED_FEEDS).toHaveLength(41);
+  it("keeps the full 42-feed known catalog separate from the ten recommendations", () => {
+    expect(ALL_CURATED_FEEDS).toHaveLength(42);
+    expect(new Set(ALL_CURATED_FEEDS.map((feed) => feed.feedUrl)).size).toBe(42);
+    expect(CURATED_FEEDS).toHaveLength(10);
+    expect(CURATED_FEEDS.map((feed) => feed.id)).toEqual([...FEATURED_CURATED_FEED_IDS]);
     expect(CURATED_FEEDS.some((feed) => feed.id === "feed-sspai")).toBe(false);
     expect(CURATED_FEEDS.some((feed) => feed.id.startsWith("curated-"))).toBe(false);
 
     const expectedAddedIds = [
+      "feed-moss-fire",
       "feed-light-the-star",
       "feed-shanghaojin",
       "feed-svvector",
@@ -34,7 +39,7 @@ describe("curated feed catalog", () => {
       "feed-tongjing",
     ];
     expectedAddedIds.forEach((id) => {
-      expect(CURATED_FEEDS.some((feed) => feed.id === id)).toBe(true);
+      expect(ALL_CURATED_FEEDS.some((feed) => feed.id === id)).toBe(true);
     });
     expect(LEGACY_DEFAULT_FEEDS).toHaveLength(28);
   });

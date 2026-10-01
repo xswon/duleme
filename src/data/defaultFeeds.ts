@@ -476,7 +476,8 @@ function asCuratedFeedOption(feed: Feed): CuratedFeedOption {
   };
 }
 
-const ALL_CURATED_FEEDS: CuratedFeedOption[] = [
+// Full known catalog; the public recommendation list below intentionally contains ten feeds.
+export const ALL_CURATED_FEEDS: CuratedFeedOption[] = [
   ...LEGACY_DEFAULT_FEEDS.map(asCuratedFeedOption),
   ...CURRENT_CURATED_FEED_ADDITIONS,
 ];
