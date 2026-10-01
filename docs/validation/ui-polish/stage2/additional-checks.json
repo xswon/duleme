@@ -1,0 +1,114 @@
+{
+  "title-0-浅色": {
+    "text": "中文长文：在明暗之间，让阅读更从容",
+    "width": 650,
+    "scroll": 650,
+    "size": "27px",
+    "line": "33.75px",
+    "spacing": "normal"
+  },
+  "title-1-浅色": {
+    "text": "A quieter reading experience: typography, contrast and a place for every thought",
+    "width": 650,
+    "scroll": 650,
+    "size": "27px",
+    "line": "33.75px",
+    "spacing": "normal"
+  },
+  "title-2-浅色": {
+    "text": "RSS 与 Typography：给中文长标题留一点呼吸空间",
+    "width": 650,
+    "scroll": 650,
+    "size": "27px",
+    "line": "33.75px",
+    "spacing": "normal"
+  },
+  "body-390-浅色": {
+    "width": 390,
+    "scroll": 390
+  },
+  "body-320-浅色": {
+    "width": 320,
+    "scroll": 320
+  },
+  "title-0-深色": {
+    "text": "中文长文：在明暗之间，让阅读更从容",
+    "width": 650,
+    "scroll": 650,
+    "size": "27px",
+    "line": "33.75px",
+    "spacing": "normal"
+  },
+  "title-1-深色": {
+    "text": "A quieter reading experience: typography, contrast and a place for every thought",
+    "width": 650,
+    "scroll": 650,
+    "size": "27px",
+    "line": "33.75px",
+    "spacing": "normal"
+  },
+  "title-2-深色": {
+    "text": "RSS 与 Typography：给中文长标题留一点呼吸空间",
+    "width": 650,
+    "scroll": 650,
+    "size": "27px",
+    "line": "33.75px",
+    "spacing": "normal"
+  },
+  "body-390-深色": {
+    "width": 390,
+    "scroll": 390
+  },
+  "body-320-深色": {
+    "width": 320,
+    "scroll": 320
+  },
+  "readState": [
+    {
+      "label": "标记为已读",
+      "height": 88.921875
+    },
+    {
+      "label": "标记为未读",
+      "height": 88.921875
+    }
+  ],
+  "readingAnchor": [
+    {
+      "label": "增大字号",
+      "paragraph": 7
+    },
+    {
+      "label": "2.0",
+      "paragraph": 7
+    },
+    {
+      "label": "宽松",
+      "paragraph": 7
+    },
+    {
+      "label": "系统黑体",
+      "paragraph": 7
+    },
+    {
+      "label": "思源宋体",
+      "paragraph": 7
+    },
+    {
+      "label": "两端对齐",
+      "paragraph": 7
+    },
+    {
+      "label": "左对齐",
+      "paragraph": 7
+    }
+  ],
+  "audio": {
+    "paused": false,
+    "duration": 10,
+    "time": 0.18534
+  },
+  "subscription": "Single feed filter retained all 8 fixtures",
+  "notes": "Notes navigation rendered",
+  "pageErrors": []
+}

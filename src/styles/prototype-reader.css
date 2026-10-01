@@ -82,12 +82,15 @@
 }
 #article-reader .reader-column { width: 100%; max-width: 650px; margin: 0 auto; }
 #article-reader h1 { margin: 0; color: var(--wreader-ui-text); font-size: 27px; font-weight: 700; letter-spacing: -.045em; line-height: 1.18; }
-#article-reader .reader-subtitle { width: 100%; min-width: 0; display: flex; align-items: center; gap: 6px; margin: 11px auto 0; color: var(--wreader-ui-muted); font-size: 13px; font-weight: 400; }
+#article-reader .reader-column > h1 { letter-spacing: normal; line-height: 1.25; }
+#article-reader .reader-subtitle { width: 100%; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; margin: 11px auto 0; color: var(--wreader-ui-muted); font-size: 13px; font-weight: 400; }
 #article-reader .reader-subtitle strong { color: inherit; font-weight: 400; }
+#article-reader .reader-subtitle > :is(strong, span) { min-width: 0; overflow-wrap: anywhere; }
 #article-reader .reader-column > .mt-2 { margin-top: 7px; color: var(--wreader-ui-muted); font-size: 13px; }
 #article-reader .reader-column > .mt-2 strong { color: var(--wreader-ui-text); }
 #article-reader .reader-content { width: auto; max-width: 650px; height: auto; margin: 0; padding: 0; overflow: visible; font-size: 16px; line-height: 1.75; letter-spacing: 0; color: var(--wreader-ui-text); }
 #article-reader .reader-content p { margin: 0 0 18px; }
+#article-reader .article-copy p { margin-bottom: 1.2em; }
 #article-reader .reader-content h1,
 #article-reader .reader-content h2,
 #article-reader .reader-content h3,
@@ -95,6 +98,12 @@
 #article-reader .reader-content h4 { margin: 27px 0 11px; font-size: 18px; line-height: 1.45; }
 #article-reader .reader-content blockquote { margin: 22px 0; padding: 9px 18px; border-left: 3px solid var(--wreader-ui-border); background: var(--wreader-surface-subtle); color: var(--wreader-ui-muted); font-size: 15px; line-height: 1.7; }
 #article-reader .reader-content img { margin: 1.25em auto; border-radius: 10px; }
+/* Source copy only: insight, transcript and note surfaces keep their own contract. */
+#article-reader .article-copy blockquote { margin: 1.2em 0; padding: 0 0 0 1em; border-left: 2px solid var(--wreader-ui-border); background: transparent; color: var(--wreader-ui-text); font-size: inherit; line-height: inherit; font-style: normal; }
+#article-reader .article-copy blockquote > p:last-child { margin-bottom: 0; }
+#article-reader .article-copy img { max-width: 100%; height: auto; border-radius: 8px; outline: 1px solid var(--wreader-separator); }
+#article-reader .article-copy figure > img { margin: 0 auto; }
+#article-reader .article-copy figcaption { margin-top: .5em; color: var(--wreader-ui-muted); font-size: 13px; line-height: 1.5; font-style: normal; }
 
 #article-reader .wreader-audio-card { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 84px; height: 84px; margin: 18px 0 22px; padding: 10px 12px 10px 10px; overflow: hidden; border-radius: 12px; background: var(--wreader-surface-subtle); color: var(--wreader-ui-text); }
 #article-reader .wreader-audio-cover { width: 62px; height: 62px; border-radius: 8px; }
