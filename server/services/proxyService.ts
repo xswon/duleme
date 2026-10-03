@@ -9,7 +9,21 @@ import {
 
 export const MAX_PROXY_BYTES = DEFAULT_OUTBOUND_MAX_BYTES;
 export const MAX_AUDIO_PROXY_BYTES = 512 * 1024 * 1024;
+export const DEFAULT_PUBLIC_AUDIO_PROXY_MAX_BYTES = 128 * 1024 * 1024;
 export const EXTERNAL_FETCH_TIMEOUT_MS = DEFAULT_OUTBOUND_TIMEOUT_MS;
+
+export function isAudioProxyEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.PUBLIC_DEPLOYMENT !== "true" || env.ALLOW_PUBLIC_AUDIO_PROXY === "true";
+}
+
+export function getAudioProxyMaxBytes(env: NodeJS.ProcessEnv = process.env): number {
+  if (env.PUBLIC_DEPLOYMENT !== "true") return MAX_AUDIO_PROXY_BYTES;
+  const configured = Number(env.PUBLIC_AUDIO_PROXY_MAX_BYTES);
+  if (Number.isFinite(configured) && configured >= 1024 * 1024 && configured <= MAX_AUDIO_PROXY_BYTES) {
+    return Math.floor(configured);
+  }
+  return DEFAULT_PUBLIC_AUDIO_PROXY_MAX_BYTES;
+}
 export { isPublicIpAddress };
 
 export function isSafeExternalUrl(raw: string): boolean {
