@@ -205,6 +205,22 @@ afterEach(() => {
 });
 
 describe("App persistence rollback", () => {
+  it("keeps R refresh working and ignores repeated refresh while syncing", async () => {
+    await replaceFeedsInDB([feed]);
+    const pending = deferred<RssParseResponse>();
+    rss.fetchRssFeed.mockResolvedValueOnce(remoteFeed(article("initial")));
+    const { container, root } = await renderApp();
+    await waitFor(() => container.textContent?.includes("同步完成：已更新 1 个订阅源") === true);
+    rss.fetchRssFeed.mockReturnValueOnce(pending.promise);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "R", bubbles: true })));
+    expect(rss.fetchRssFeed).toHaveBeenCalledTimes(2);
+    await act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "r", bubbles: true })));
+    expect(rss.fetchRssFeed).toHaveBeenCalledTimes(2);
+    await act(async () => pending.resolve(remoteFeed(article("refreshed"))));
+    await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")?.includes("refreshed:") === true);
+    await act(async () => root.unmount());
+  });
+
   it("keeps a primary RSS refresh successful when its optional enrichment feed fails", async () => {
     const feedWithEnrichment = {
       ...feed,

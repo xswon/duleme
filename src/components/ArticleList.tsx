@@ -4,6 +4,7 @@ import { resolveArticlePresentation } from "../services/articlePresentation";
 import { resolveBackendAssetUrl } from "../services/readerBackend";
 import { resolveImageCandidates } from "../services/mediaAssetService";
 import { VirtualWindow } from "./VirtualWindow";
+import { useSwipeableRow } from "../hooks/useSwipeableRow";
 
 function TimelineIcon({ type }: { type: "mail" | "headphones" }) {
   return (
@@ -245,11 +246,103 @@ export function formatArticleRelativeTime(pubDate: string) {
   return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 }
 
+
+interface SwipeableArticleRowProps {
+  article: Article;
+  isSelected: boolean;
+  onSelect: (article: Article) => void;
+  onToggleRead: (articleId: string) => void;
+  onToggleStar: (articleId: string) => void;
+}
+
+const SwipeableArticleRow: React.FC<SwipeableArticleRowProps> = ({
+  article,
+  isSelected,
+  onSelect,
+  onToggleRead,
+  onToggleStar,
+}) => {
+  const timeAgoStr = formatArticleRelativeTime(article.pubDate);
+  const presentation = resolveArticlePresentation(article);
+  const audioDurationLabel = presentation.capabilities.hasAudio
+    ? formatDurationMinutes(article.duration)
+    : undefined;
+  const timelineSummary = resolveTimelineSummary(article);
+
+  const rowRef = useSwipeableRow<HTMLElement>({
+    onSwipeRight: () => onToggleRead(article.id),
+    onSwipeLeft: () => onToggleStar(article.id),
+    resetKey: article.id,
+  });
+
+  return (
+    <div className="wreader-swipe-container">
+      {/* Action indicators revealed as user swipes */}
+      <div className="wreader-swipe-action wreader-swipe-action-left" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <span>{article.read ? "标为未读" : "标为已读"}</span>
+      </div>
+      <div className="wreader-swipe-action wreader-swipe-action-right" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill={article.starred ? "none" : "currentColor"} stroke="currentColor" strokeWidth="2">
+          <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+        </svg>
+        <span>{article.starred ? "取消收藏" : "收藏"}</span>
+      </div>
+
+      {/* Translate the inner row, preserving the virtual window's positioning. */}
+      <article
+        ref={rowRef}
+        data-article-id={article.id}
+        tabIndex={0}
+        aria-current={isSelected ? "true" : undefined}
+        onKeyDown={(event) => {
+          if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onSelect(article);
+          }
+        }}
+        onClick={() => onSelect(article)}
+        className={`wreader-story-row group cursor-pointer ${
+          isSelected ? "is-selected" : ""
+        } ${
+          article.read ? "is-read" : "is-unread"
+        }`}
+      >
+        <div className="wreader-story-copy">
+          <div className="wreader-story-source-meta">
+            <SourceAvatar src={article.feedFavicon} title={article.feedTitle} unread={!article.read} />
+            <div className="wreader-story-meta-primary">
+              <span className="wreader-story-feed" title={article.feedTitle}>{article.feedTitle}</span>
+            </div>
+            {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
+          </div>
+
+          <div className="wreader-story-body">
+            <h2 className="line-clamp-2">{article.title}</h2>
+            {timelineSummary && <p className="line-clamp-2">{timelineSummary}</p>}
+            {audioDurationLabel && (
+              <div className="wreader-story-duration-row">
+                <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
+                  <TimelineIcon type="headphones" />
+                  <span>{audioDurationLabel}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </article>
+    </div>
+  );
+};
+
 export const ArticleList: React.FC<ArticleListProps> = ({
+
   articles,
   onSelectArticle,
-  onToggleStar: _onToggleStar,
-  onToggleRead: _onToggleRead,
+  onToggleStar,
+  onToggleRead,
   onSummarizeAI: _onSummarizeAI,
   playlistIds: _playlistIds = [],
   onTogglePlaylist: _onTogglePlaylist,
@@ -272,7 +365,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
         </div>
         {hasOlderArticles ? (
           <>
-            <h3 className="text-lg font-semibold text-slate-800 mb-1">
+            <h3 className="wreader-timeline-empty-title">
               最近 30 天没有内容，还有 {olderArticleCount} 篇更早内容
             </h3>
             {onShowOlder && (
@@ -287,8 +380,8 @@ export const ArticleList: React.FC<ArticleListProps> = ({
           </>
         ) : (
           <>
-            <h3 className="text-lg font-semibold text-slate-800 mb-1">未找到相关文章</h3>
-            <p className="text-sm text-slate-500 max-w-sm">
+            <h3 className="wreader-timeline-empty-title">未找到相关文章</h3>
+            <p className="wreader-timeline-empty-copy max-w-sm">
               暂无符合条件的订阅文章。尝试点击右上角刷新图标，或切换筛选条件与订阅源。
             </p>
           </>
@@ -316,54 +409,15 @@ export const ArticleList: React.FC<ArticleListProps> = ({
         getItemKey={(index) => articles[index].id}
         renderItem={(index) => {
           const article = articles[index];
-          const timeAgoStr = formatArticleRelativeTime(article.pubDate);
-          const presentation = resolveArticlePresentation(article);
-          const audioDurationLabel = presentation.capabilities.hasAudio
-            ? formatDurationMinutes(article.duration)
-            : undefined;
-          const timelineSummary = resolveTimelineSummary(article);
-
           return (
-            <article
-              data-article-id={article.id}
-              tabIndex={0}
-              aria-current={selectedArticleId === article.id ? "true" : undefined}
-              onKeyDown={(event) => {
-                if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
-                  event.preventDefault();
-                  onSelectArticle(article);
-                }
-              }}
-              onClick={() => onSelectArticle(article)}
-              className={`wreader-story-row group cursor-pointer ${
-                selectedArticleId === article.id ? "is-selected" : ""
-              } ${
-                article.read ? "is-read" : "is-unread"
-              }`}
-            >
-              <div className="wreader-story-copy">
-                <div className="wreader-story-source-meta">
-                  <SourceAvatar src={article.feedFavicon} title={article.feedTitle} unread={!article.read} />
-                  <div className="wreader-story-meta-primary">
-                    <span className="wreader-story-feed" title={article.feedTitle}>{article.feedTitle}</span>
-                  </div>
-                  {timeAgoStr && <time className="wreader-story-time">{timeAgoStr}</time>}
-                </div>
-
-                <div className="wreader-story-body">
-                  <h2 className="line-clamp-2">{article.title}</h2>
-                  {timelineSummary && <p className="line-clamp-2">{timelineSummary}</p>}
-                  {audioDurationLabel && (
-                    <div className="wreader-story-duration-row">
-                      <span className="wreader-story-duration" aria-label={`播客时长 ${audioDurationLabel}`}>
-                        <TimelineIcon type="headphones" />
-                        <span>{audioDurationLabel}</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </article>
+            <SwipeableArticleRow
+              key={article.id}
+              article={article}
+              isSelected={selectedArticleId === article.id}
+              onSelect={onSelectArticle}
+              onToggleRead={onToggleRead}
+              onToggleStar={onToggleStar}
+            />
           );
         }}
       />

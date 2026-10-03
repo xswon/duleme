@@ -35,6 +35,17 @@ function renderList(item: Article) {
 }
 
 describe("ArticleList content capabilities", () => {
+  it("pairs the left read action and right star action with their actual toggle labels", () => {
+    const document = new DOMParser().parseFromString(renderList(article({ read: true, starred: true })), "text/html");
+    const readAction = document.querySelector(".wreader-swipe-action-left")!;
+    const starAction = document.querySelector(".wreader-swipe-action-right")!;
+    expect(readAction.textContent).toBe("标为未读");
+    expect(readAction.querySelector("polyline")).not.toBeNull();
+    expect(starAction.textContent).toBe("取消收藏");
+    expect(starAction.querySelector("path")).not.toBeNull();
+    expect(starAction.querySelector("svg")?.getAttribute("fill")).toBe("none");
+  });
+
   it("exposes source and read state separately from the article heading", () => {
     const unread = renderList(article({ feedTitle: "来源示例" }));
     const read = renderList(article({ read: true }));
@@ -129,7 +140,7 @@ describe("ArticleList content capabilities", () => {
     const metaStart = html.indexOf("wreader-story-source-meta");
     const bodyStart = html.indexOf("wreader-story-body");
     const timeIndex = html.indexOf('<time class="wreader-story-time"');
-    const summaryIndex = html.indexOf("<p");
+    const summaryIndex = html.indexOf("<p class");
     const durationRowIndex = html.indexOf("wreader-story-duration-row");
 
     expect(metaStart).toBeGreaterThanOrEqual(0);

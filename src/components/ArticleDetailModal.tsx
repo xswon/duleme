@@ -21,6 +21,7 @@ import { retryBackendImage } from "../services/mediaAssetService";
 import { summarizeArticleWithAI } from "../services/rssService";
 import { AI_SETTINGS_CHANGED_EVENT, getAiCapability } from "../services/aiSettingsService";
 import { useBidclubEpisode } from "../hooks/useBidclubEpisode";
+import { useEdgeSwipeBack } from "../hooks/useEdgeSwipeBack";
 import type { SharedAudioPlayer } from "../hooks/useAudioPlayer";
 import { useLocalPodcast } from "../hooks/useLocalPodcast";
 import { useCloudTranscription } from "../hooks/useCloudTranscription";
@@ -216,8 +217,6 @@ interface ArticleDetailModalProps {
   onTogglePlaylist?: (articleId: string) => void;
   savedProgress?: { currentTime: number; duration: number };
   audioPlayer?: SharedAudioPlayer;
-  autoPlay?: boolean;
-  onAutoPlayStarted?: () => void;
   onArticlePatch?: (articleId: string, patch: Partial<Article>) => void;
   /** Restores the detail scroller when returning to an article. */
   savedScrollTop?: number;
@@ -247,8 +246,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   onTogglePlaylist,
   savedProgress,
   audioPlayer,
-  autoPlay = false,
-  onAutoPlayStarted,
   onArticlePatch,
   savedScrollTop,
   savedReadingProgress,
@@ -295,6 +292,9 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const [readerLineHeight, setReaderLineHeight] = useState<"compact" | "standard" | "relaxed">("standard");
   const [readerMeasure, setReaderMeasure] = useState<"compact" | "standard" | "wide">("standard");
   const { preferences: appearance } = useAppearancePreferences();
+  const swipeContainerRef = useEdgeSwipeBack<HTMLElement>({
+    onClose, resetKey: article?.id, enabled: Boolean(article) && !selectionAction && !readerSettingsOpen,
+  });
   const [sessionHighlights, setSessionHighlights] = useState<Array<{
     noteId: string;
     source: DetailTab;
@@ -305,7 +305,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const readerSettingsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const readerSettingsPopoverRef = useRef<HTMLDivElement | null>(null);
-  const autoPlayStartedRef = useRef<string | null>(null);
   const appliedOpenTargetRef = useRef<string | null>(null);
   const activeArticleIdRef = useRef<string | null>(null);
 
@@ -385,18 +384,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       window.removeEventListener(TRANSCRIPTION_SETTINGS_CHANGED_EVENT, refreshCapabilities);
     };
   }, [localPodcastRuntimeAvailable, shouldCheckLocalTranscription]);
-
-  useEffect(() => {
-    const articleId = article?.id;
-    const audioUrl = article?.audioUrl;
-    if (!articleId || !audioUrl || !autoPlay || autoPlayStartedRef.current === articleId) return;
-    autoPlayStartedRef.current = articleId;
-    const timer = window.setTimeout(() => {
-      audioPlayer?.playArticle(articleId, audioUrl, savedProgress);
-      onAutoPlayStarted?.();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [article?.id, article?.audioUrl, audioPlayer, autoPlay, onAutoPlayStarted, savedProgress]);
 
   const hasBidclubReference = article?.enrichment?.provider === "bidclub";
   const enrichmentStatus = !hasBidclubReference
@@ -1145,6 +1132,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
 
   return (
     <section
+      ref={swipeContainerRef}
       id="article-reader"
       aria-label="文章阅读"
       data-notes-loaded={notesLoaded}

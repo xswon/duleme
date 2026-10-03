@@ -77,7 +77,7 @@ export function useReaderDerivedState(options: UseReaderDerivedStateOptions) {
     selectedArticle,
     articleMetrics,
     effectiveContentType,
-    showTimelineFilters: activeTab === "feeds" && filterType !== "starred" && !selectedCategory,
+    showTimelineFilters: activeTab === "feeds" && filterType !== "starred" && !selectedFeedId,
     deferredSearchQuery,
     searchResults,
     ...visibleDerivation,

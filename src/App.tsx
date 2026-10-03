@@ -4,6 +4,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { ArticleList } from "./components/ArticleList";
 import { ArticleDetailModal } from "./components/ArticleDetailModal";
+import { AudioPlayerMini } from "./components/AudioPlayerMini";
 import { DetailSelectionEmpty } from "./components/DetailSelectionEmpty";
 import { AddFeedModal } from "./components/AddFeedModal";
 import { SettingsPage } from "./components/ManageFeedsModal";
@@ -30,6 +31,7 @@ import { useArticleMutations } from "./hooks/useArticleMutations";
 import { useLatestRef } from "./hooks/useLatestRef";
 import { useArticleGenerationTasks, type ArticleGenerationTask } from "./hooks/useArticleGenerationTasks";
 import { FEATURED_CURATED_FEEDS } from "./data/defaultFeeds";
+import { resolveArticlePresentation } from "./services/articlePresentation";
 
 type SettingsTab = "feeds" | "folders" | "transcript" | "insight" | "data" | "shortcuts";
 
@@ -50,6 +52,15 @@ export default function App() {
     feedSortMode, setFeedSortMode, folderSortMode, setFolderSortMode, isInitializing,
   } = library;
   const [timelineSortOrder, setTimelineSortOrder] = useState<"newest" | "oldest">("newest");
+  const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= 760);
+  useEffect(() => {
+    const media = window.matchMedia?.("(max-width: 760px)");
+    if (!media) return;
+    const update = () => setIsMobileViewport(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const derived = useReaderDerivedState({
     articles, feeds, activeTab, filterType, contentType, selectedFeedId, selectedCategory,
     selectedArticleId, searchQuery, historyWindowDays, timelineSortOrder,
@@ -65,7 +76,7 @@ export default function App() {
   const {
     playlistIds, setPlaylistIds, playlistIdsRef, playablePlaylistIds, playlistArticles,
     audioProgressMap, setAudioProgressMap, audioProgressMapRef, audioPlayer,
-    autoPlayNextRef, sortOrder: playlistSortOrder, toggleSortOrder: togglePlaylistSort,
+    sortOrder: playlistSortOrder, toggleSortOrder: togglePlaylistSort,
     togglePlaylist, removeFromPlaylist, removeMany: removeManyFromPlaylist,
     clear: clearPlaylist, reorder: reorderPlaylist, commitArticleIdMigration,
   } = playlist;
@@ -357,7 +368,7 @@ export default function App() {
     onNextArticle={nextArticle ? () => setSelectedArticleId(nextArticle.id) : undefined}
     onPrevArticle={previousArticle ? () => setSelectedArticleId(previousArticle.id) : undefined}
     playlistIds={playablePlaylistIds} onTogglePlaylist={togglePlaylist} savedProgress={audioProgressMap[selectedArticle.id]}
-    audioPlayer={audioPlayer} autoPlay={autoPlayNextRef.current === selectedArticle.id} onAutoPlayStarted={() => { autoPlayNextRef.current = null; }}
+    audioPlayer={audioPlayer}
     onArticlePatch={mutations.patchArticle} savedReadingProgress={selectedArticle.readingProgress}
     savedScrollTop={detailScrollPositions.current[selectedArticle.id]}
     onScrollPositionChange={(articleId, scrollTop) => { detailScrollPositions.current[articleId] = scrollTop; }}
@@ -367,6 +378,17 @@ export default function App() {
     onOpenTranscriptionSettings={() => openSettings("transcript")} generation={generation} />
     : invalidArticleId ? <div className="flex h-full items-center justify-center px-6 text-center"><div className="max-w-sm"><h2 className="text-base font-semibold text-slate-700">这篇文章暂时不可用</h2><p className="mt-2 text-sm leading-6 text-slate-500">文章可能已被删除或所属订阅源已取消。</p><button type="button" onClick={closeArticle} className="mt-4 wreader-btn wreader-btn-primary">返回列表</button></div></div>
       : <DetailSelectionEmpty kind={activeTab === "playlist" ? "podcast" : "article"} />;
+
+  const currentAudioArticle = audioPlayer.articleId ? articleLookup.byId.get(audioPlayer.articleId) : undefined;
+  const showMiniPlayer = Boolean(currentAudioArticle && selectedArticle?.id !== currentAudioArticle.id);
+  const showMobileTabs = !isImmersive && !isSettingsOpen && activeTab !== "settings" && !selectedArticle && !invalidArticleId;
+  const openPlayingArticle = () => {
+    if (!currentAudioArticle) return;
+    const scopeKey = `${activeTab}:${selectedFeedId || "all"}:${selectedCategory || "all"}:${searchQuery}`;
+    if (mainScrollRef.current) scrollPositions.current[scopeKey] = mainScrollRef.current.scrollTop;
+    setIsSettingsOpen(false);
+    navigateToRoute({ articleId: currentAudioArticle.id, detailTab: resolveArticlePresentation(currentAudioArticle).capabilities.hasTranscript ? "transcript" : undefined });
+  };
 
   if (isInitializing || !isAppStateReady) {
     return <div className="flex h-screen items-center justify-center text-sm text-slate-500">正在加载本地数据…</div>;
@@ -381,7 +403,7 @@ export default function App() {
     />;
   }
 
-  return <div className={`wreader-app flex h-screen w-screen overflow-hidden bg-slate-100 text-slate-900 font-sans antialiased transition-colors duration-200 ${isSidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
+  return <div data-mini-player-open={showMiniPlayer} data-audio-loaded={Boolean(currentAudioArticle)} data-mobile-tabs-visible={showMobileTabs} className={`wreader-app flex h-screen w-screen overflow-hidden bg-slate-100 text-slate-900 font-sans antialiased transition-colors duration-200 ${isSidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
     <audio ref={audioPlayer.audioRef} className="hidden" onPlay={audioPlayer.handlePlay} onPause={audioPlayer.handlePause}
       onTimeUpdate={audioPlayer.handleTimeUpdate} onLoadedMetadata={audioPlayer.handleLoadedMetadata}
       onEnded={audioPlayer.handleEnded} onError={audioPlayer.handleAudioError} />
@@ -391,11 +413,11 @@ export default function App() {
       playlistCount={0} notesCount={0} onOpenAddFeed={() => setIsAddFeedOpen(true)} onCreateFolder={feedManagement.addCategory}
       onOpenSettings={() => openSettings("feeds")} feedSortMode={feedSortMode} folderSortMode={folderSortMode}
       feedOrderByFolder={feedOrderByFolder} isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen}
-      onNavigate={navigateToRoute} onRefresh={refreshAll} isRefreshing={isRefreshing} isCollapsed={isSidebarCollapsed}
+      onNavigate={navigateToRoute} isCollapsed={isSidebarCollapsed}
       onCollapse={isSettingsOpen ? undefined : () => { setIsSidebarCollapsed((collapsed) => !collapsed); setIsMobileMenuOpen(false); }} />}
     <div className="min-w-0 flex-1 overflow-hidden">
-      {isImmersive ? <main className="h-full bg-(--wreader-ui-surface)">{detailView}</main> : <div className="wreader-workspace-grid h-full" data-detail-open={Boolean(selectedArticle || invalidArticleId)}>
-        <section className="wreader-master flex min-h-0 flex-col bg-(--wreader-list-bg)">
+      <div className="wreader-workspace-grid h-full" data-immersive={isImmersive} data-detail-open={Boolean(selectedArticle || invalidArticleId)}>
+        <section inert={isMobileViewport && Boolean(selectedArticle || invalidArticleId)} aria-hidden={isMobileViewport && Boolean(selectedArticle || invalidArticleId) ? true : undefined} className="wreader-master flex min-h-0 flex-col bg-(--wreader-list-bg)">
           <Header activeTab={activeTab} currentTitle={activeTitle} currentCountLabel={activeCountLabel} filterType={filterType}
             setFilterType={(nextFilter) => navigateToRoute({ activeTab: "feeds", filterType: nextFilter, articleId: null })}
             onRefresh={refreshAll} onMarkAllRead={activeTab === "playlist" ? clearPlaylist : activeTab === "notes" ? notes.clearNotes : activeTab === "feeds" && filterType === "starred" ? mutations.clearFavorites : mutations.markAllRead}
@@ -415,7 +437,7 @@ export default function App() {
           <main ref={mainScrollRef} className="wreader-master-scroll min-h-0 flex-1 overflow-y-auto scrollbar-thin">{masterView}</main>
         </section>
         <section className="wreader-detail min-h-0 overflow-hidden bg-(--wreader-ui-surface)">{detailView}</section>
-      </div>}
+      </div>
     </div>
     {isSettingsOpen && !isImmersive && <SettingsPage feeds={feeds} categories={categories}
       onAddCategory={feedManagement.addCategory} onRenameCategory={feedManagement.renameCategory} onDeleteCategory={feedManagement.deleteCategory}
@@ -423,7 +445,8 @@ export default function App() {
       feedSortMode={feedSortMode} folderSortMode={folderSortMode} onFeedSortModeChange={setFeedSortMode} onFolderSortModeChange={setFolderSortMode}
       feedOrderByFolder={feedOrderByFolder} onReorderFolderFeeds={feedManagement.reorderFolderFeeds} onReorderCategories={feedManagement.reorderCategories}
       onBack={closeSettings} onOpenAddFeed={() => setIsAddFeedOpen(true)} onExportBackup={exportBackup} onImportBackup={importBackup} initialTab={settingsInitialTab} />}
-    {!isImmersive && activeTab !== "settings" && !selectedArticle && !invalidArticleId && <nav className="wreader-mobile-tabs" aria-label="移动端阅读入口">
+    {showMiniPlayer && currentAudioArticle && <AudioPlayerMini article={currentAudioArticle} player={audioPlayer} onOpen={openPlayingArticle} />}
+    {showMobileTabs && <nav className="wreader-mobile-tabs" aria-label="移动端阅读入口">
       <button type="button" className={activeTab === "feeds" && filterType !== "starred" && !selectedFeedId && !selectedCategory ? "is-active" : ""} onClick={() => navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4 12H2M22 12h-2" /></svg><span>时间线</span></button>
       <button type="button" className={activeTab === "search" ? "is-active" : ""} onClick={() => navigateToRoute({ activeTab: "search", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg><span>搜索</span></button>
       <button type="button" className={activeTab === "feeds" && filterType === "starred" ? "is-active" : ""} onClick={() => navigateToRoute({ activeTab: "feeds", filterType: "starred", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.78 5.63 6.22.9-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.92 1.06-6.2L3 9.53l6.22-.9L12 3Z" /></svg><span>收藏</span></button>

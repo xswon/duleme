@@ -48,8 +48,8 @@ html[data-theme="dark"] {
   --wreader-focus: #78b1f5;
   --wreader-overlay: rgb(0 0 0 / 65%);
   --wreader-shadow-color: rgb(0 0 0 / 45%);
-  --wreader-tooltip-bg: #e2e8f0;
-  --wreader-tooltip-text: #202a35;
+  --wreader-tooltip-bg: #2d333b;
+  --wreader-tooltip-text: #f0f6fc;
   --wreader-danger: #ffaaaa;
   --wreader-danger-bg: #3b2528;
   --wreader-danger-border: #754349;
