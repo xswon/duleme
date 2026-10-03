@@ -78,7 +78,7 @@ export default function App() {
     playlistIdsRef, audioProgressMapRef, commitArticleIdMigration, setSelectedArticleId,
     isInitializing, isAppStateReady, showToast,
   });
-  const { isRefreshing, refreshState, refreshAll, retryFeed, queueRefresh, invalidateRefresh } = sync;
+  const { isRefreshing, refreshState, refreshAll, retryFeed, retryFeeds, queueRefresh, queueInitialSync, invalidateRefresh } = sync;
   const refreshFeedback = useRefreshFeedback(refreshState, isRefreshing);
   const notes = useArticleNotes({ articleLookup, showToast });
   const { setNotes: setArticleNotes, visibleNotes: visibleArticleNotes } = notes;
@@ -193,7 +193,7 @@ export default function App() {
     queueRefresh, invalidateRefresh, showToast,
   });
 
-  const startWithFeaturedFeeds = useCallback((feedIds: string[], artworkById: Record<string, string>) => {
+  const startWithFeaturedFeeds = useCallback((feedIds: string[]) => {
     const selectedIds = new Set(feedIds);
     const selectedFeeds: Feed[] = FEATURED_CURATED_FEEDS
       .filter((feed) => selectedIds.has(feed.id))
@@ -202,10 +202,11 @@ export default function App() {
         title: feed.title,
         feedUrl: feed.feedUrl,
         siteUrl: feed.siteUrl || feed.feedUrl,
-        favicon: artworkById[feed.id] || (feed.contentType === "article" ? feed.favicon : undefined),
+        favicon: feed.artwork || feed.favicon,
         category: feed.category,
         description: feed.description,
         unreadCount: 0,
+        initialSyncPending: true,
         bidclubFeedUrl: feed.bidclubFeedUrl,
         bidclubShowSlug: feed.bidclubShowSlug,
       }));
@@ -216,9 +217,9 @@ export default function App() {
       ...selectedFeeds.map((feed) => feed.category || "未分类"),
     ])));
     completeOnboarding();
-    queueRefresh(selectedFeeds.map((feed) => feed.id));
+    queueInitialSync(selectedFeeds.map((feed) => feed.id));
     navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined });
-  }, [completeOnboarding, navigateToRoute, queueRefresh, setCategories, setFeeds]);
+  }, [completeOnboarding, navigateToRoute, queueInitialSync, setCategories, setFeeds]);
 
   const importOpmlFile = feedManagement.importOpmlFile;
   const importWelcomeOpml = useCallback(async (file: File) => {
@@ -433,7 +434,7 @@ export default function App() {
     <ReaderFeedbackLayer toast={toast} refreshFeedback={refreshFeedback.refreshFeedback} refreshState={refreshState}
       failureDetailsOpen={refreshFeedback.isRefreshFailureDetailsOpen} onFailureDetailsOpenChange={refreshFeedback.setIsRefreshFailureDetailsOpen}
       onDismissRefresh={() => { refreshFeedback.setRefreshFeedback(null); refreshFeedback.setIsRefreshFailureDetailsOpen(false); }}
-      onRetryFailed={() => { void refreshAll(refreshState.failed.map((feed) => feed.id), "retry"); }} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
+      onRetryFailed={() => retryFeeds(refreshState.failed.map((feed) => feed.id))} onRetryFeed={(feedId) => { void retryFeed(feedId); }}
       generationTask={generationFeedbackTask} generationCount={generation.processingCount}
       onViewGeneration={(task: ArticleGenerationTask) => openGenerationResult(task.articleId, task.kind === "pipeline" || task.stage === "summarizing" ? "overview" : "transcript")}
       onDismissGeneration={generation.dismissTask} />

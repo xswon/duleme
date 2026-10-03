@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, Podcast, Upload } from "lucide-react";
 import type { CuratedFeedOption } from "../types";
-import { backendRequest } from "../services/readerBackend";
 import { retryBackendImage } from "../services/mediaAssetService";
+import { DEFAULT_FEATURED_FEED_IDS } from "../data/defaultFeeds";
 
 interface WelcomeScreenProps {
   featuredFeeds: CuratedFeedOption[];
-  onUseFeatured: (feedIds: string[], artworkById: Record<string, string>) => void;
+  onUseFeatured: (feedIds: string[]) => void;
   onImportOpml: (file: File) => Promise<boolean>;
   onStartEmpty: () => void;
 }
@@ -33,27 +33,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onStartEmpty,
 }) => {
   const [view, setView] = useState<"welcome" | "featured">("welcome");
-  const [selectedIds, setSelectedIds] = useState(() => new Set(featuredFeeds.map((feed) => feed.id)));
+  const [selectedIds, setSelectedIds] = useState(() => {
+    const availableIds = new Set(featuredFeeds.map((feed) => feed.id));
+    const configured = DEFAULT_FEATURED_FEED_IDS.filter((id) => availableIds.has(id));
+    return new Set(configured.length > 0 ? configured : featuredFeeds.slice(0, 3).map((feed) => feed.id));
+  });
   const [isImporting, setIsImporting] = useState(false);
-  const [artworkById, setArtworkById] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (view !== "featured") return;
-    let active = true;
-    featuredFeeds.filter((feed) => feed.contentType === "podcast").forEach((feed) => {
-      void backendRequest(`/api/rss/parse?url=${encodeURIComponent(feed.feedUrl)}`)
-        .then((response) => response.ok ? response.json() : null)
-        .then((data: { feedImage?: string } | null) => {
-          const image = data?.feedImage;
-          if (active && image && !image.includes("google.com/s2/favicons")) {
-            setArtworkById((current) => ({ ...current, [feed.id]: image }));
-          }
-        })
-        .catch(() => { /* Keep the podcast placeholder when artwork is unavailable. */ });
-    });
-    return () => { active = false; };
-  }, [view, featuredFeeds]);
 
   const toggleFeed = (feedId: string) => {
     setSelectedIds((current) => {
@@ -90,7 +76,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <div className="mb-5">
             <h1 className="text-2xl font-bold tracking-tight">读了么精选</h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              从当前精选库中预选 {featuredFeeds.length} 个订阅。取消不感兴趣的内容后即可开始，之后也能随时调整。
+              建议先选择 2～3 个订阅，后续可随时添加。
             </p>
           </div>
 
@@ -111,8 +97,8 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
                     <Check className="h-3.5 w-3.5" />
                   </span>
                   <FeedArtwork
-                    key={artworkById[feed.id] || feed.favicon}
-                    src={feed.contentType === "article" ? feed.favicon : artworkById[feed.id]}
+                    key={feed.artwork || feed.favicon}
+                    src={feed.artwork || feed.favicon}
                     isPodcast={feed.contentType === "podcast"}
                   />
                   <span className="min-w-0 flex-1">
@@ -132,7 +118,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             <button
               type="button"
               disabled={selectedIds.size === 0}
-              onClick={() => onUseFeatured(featuredFeeds.filter((feed) => selectedIds.has(feed.id)).map((feed) => feed.id), artworkById)}
+              onClick={() => onUseFeatured(featuredFeeds.filter((feed) => selectedIds.has(feed.id)).map((feed) => feed.id))}
               className="wreader-btn wreader-btn-lg wreader-btn-primary"
             >
               开始使用

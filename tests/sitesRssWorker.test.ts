@@ -13,8 +13,9 @@ const atomXml = `<?xml version="1.0"?>
   <entry><id>atom-1</id><title>Atom item</title><link href="https://example.org/1"/><summary>Hello Atom</summary></entry>
 </feed>`;
 
-function requestFor(feedUrl = "https://feeds.example.com/main.xml") {
-  return new Request(`https://reader.example/api/rss/parse?url=${encodeURIComponent(feedUrl)}`);
+function requestFor(feedUrl = "https://feeds.example.com/main.xml", params: Record<string, string> = {}) {
+  const search = new URLSearchParams({ url: feedUrl, ...params });
+  return new Request(`https://reader.example/api/rss/parse?${search.toString()}`);
 }
 
 describe("Sites RSS worker", () => {
@@ -142,6 +143,33 @@ describe("Sites RSS worker", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ code: "rss_unsafe_url" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("applies the shared since, newest-first, and limit semantics", async () => {
+    const xml = `<rss version="2.0"><channel><title>Windowed</title><link>https://example.com</link>
+      <item><title>old</title><guid>old</guid><pubDate>2026-08-01T00:00:00.000Z</pubDate><description>old</description></item>
+      <item><title>middle</title><guid>middle</guid><pubDate>2026-09-20T00:00:00.000Z</pubDate><description>middle</description></item>
+      <item><title>invalid</title><guid>invalid</guid><pubDate>invalid</pubDate><description>invalid</description></item>
+      <item><title>new</title><guid>new</guid><pubDate>2026-09-30T00:00:00.000Z</pubDate><description>new</description></item>
+    </channel></rss>`;
+    const response = await handleSitesRssRequest(requestFor(undefined, {
+      since: "2026-09-04T00:00:00.000Z",
+      limit: "1",
+    }), { fetchImpl: async () => new Response(xml) });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.items.map((item: { id: string }) => item.id)).toEqual(["new"]);
+    expect(payload).toMatchObject({ itemCount: 1, sourceItemCount: 4, returnedItemCount: 1, truncated: true });
+  });
+
+  it.each(["0", "-1", "1.5", "Infinity", "101"])("rejects invalid limit %s before fetching", async (limit) => {
+    const fetchImpl = vi.fn();
+    const response = await handleSitesRssRequest(requestFor(undefined, { limit }), { fetchImpl });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "rss_invalid_limit", retryable: false });
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

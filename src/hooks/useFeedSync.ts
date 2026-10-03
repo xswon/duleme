@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { Article, AudioProgress, Feed } from "../types";
 import { resolveFeedEnrichmentSource } from "../services/feedEnrichment";
+import { DEFAULT_HISTORY_WINDOW_DAYS, getLocalCalendarDayWindow } from "../services/articleVisibility";
 import {
   attachBidclubSelfReferences,
   backfillArticleBidclubReferences,
@@ -44,6 +45,10 @@ interface UseFeedSyncOptions {
 }
 
 type PendingRefreshRequest = { feedIds: string[]; mode: FeedRefreshState["mode"] };
+
+function mergeFeedIds(current: string[], incoming: string[]): string[] {
+  return Array.from(new Set([...current, ...incoming]));
+}
 
 const BACKGROUND_RETRY_DELAYS_MS = [15 * 60_000, 60 * 60_000, 6 * 60 * 60_000, 24 * 60 * 60_000];
 
@@ -94,11 +99,19 @@ export function useFeedSync(options: UseFeedSyncOptions) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshState, setRefreshState] = useState<FeedRefreshState>(EMPTY_REFRESH_STATE);
   const [pendingRefresh, setPendingRefresh] = useState<PendingRefreshRequest | null>(null);
+  const [pendingInitialSync, setPendingInitialSync] = useState<string[]>([]);
   const refreshGeneration = useRef(0);
   const refreshInFlight = useRef(false);
+  const initiallyMatchedFeedIds = useRef(new Set<string>());
 
   const invalidateRefresh = useCallback(() => { refreshGeneration.current += 1; }, []);
-  const queueRefresh = useCallback((feedIds: string[]) => setPendingRefresh({ feedIds, mode: "refresh" }), []);
+  const queueRefresh = useCallback((feedIds: string[]) => setPendingRefresh((current) => ({
+    feedIds: mergeFeedIds(current?.feedIds || [], feedIds),
+    mode: current?.mode === "retry" ? "retry" : "refresh",
+  })), []);
+  const queueInitialSync = useCallback((feedIds: string[]) => {
+    setPendingInitialSync((current) => mergeFeedIds(current, feedIds));
+  }, []);
 
   const refreshAll = useCallback(async (requestedFeedIds?: string[], mode: FeedRefreshState["mode"] = "refresh") => {
     const generation = refreshGeneration.current;
@@ -107,10 +120,25 @@ export function useFeedSync(options: UseFeedSyncOptions) {
     if (sourceFeeds.length === 0) return;
     if (refreshInFlight.current) {
       if (mode === "retry" && requestedIds?.length) {
-        setPendingRefresh({ feedIds: requestedIds, mode });
+        setPendingRefresh((current) => ({ feedIds: mergeFeedIds(current?.feedIds || [], requestedIds), mode }));
         showToast("当前同步完成后将自动重试");
       } else if (mode === "background" && requestedIds?.length) {
-        setPendingRefresh((current) => current ?? { feedIds: requestedIds, mode });
+        setPendingRefresh((current) => current
+          ? { ...current, feedIds: mergeFeedIds(current.feedIds, requestedIds) }
+          : { feedIds: requestedIds, mode });
+      }
+      return;
+    }
+    const initialFeedIds = sourceFeeds.filter((feed) => feed.initialSyncPending).map((feed) => feed.id);
+    if (initialFeedIds.length > 0) {
+      queueInitialSync(initialFeedIds);
+      const initialSet = new Set(initialFeedIds);
+      const regularFeedIds = sourceFeeds.filter((feed) => !initialSet.has(feed.id)).map((feed) => feed.id);
+      if (regularFeedIds.length > 0) {
+        setPendingRefresh((current) => ({
+          feedIds: mergeFeedIds(current?.feedIds || [], regularFeedIds),
+          mode: current?.mode === "retry" ? "retry" : mode,
+        }));
       }
       return;
     }
@@ -215,14 +243,107 @@ export function useFeedSync(options: UseFeedSyncOptions) {
       setIsRefreshing(false);
       setRefreshState((state) => ({ ...state, finishedAt: state.finishedAt || Date.now() }));
     }
-  }, [articlesRef, audioProgressMapRef, commitArticleIdMigration, feedsRef, playlistIdsRef, setArticles, setFeeds, setSelectedArticleId, showToast]);
+  }, [articlesRef, audioProgressMapRef, commitArticleIdMigration, feedsRef, playlistIdsRef, queueInitialSync, setArticles, setFeeds, setSelectedArticleId, showToast]);
+
+  const runInitialSync = useCallback(async (requestedFeedIds: string[]) => {
+    const generation = refreshGeneration.current;
+    const requestedIds = new Set(requestedFeedIds);
+    const sourceFeeds = feedsRef.current.filter((feed) => requestedIds.has(feed.id));
+    if (sourceFeeds.length === 0) return;
+    if (refreshInFlight.current) {
+      setPendingInitialSync((current) => mergeFeedIds(current, requestedFeedIds));
+      return;
+    }
+    const window = getLocalCalendarDayWindow(DEFAULT_HISTORY_WINDOW_DAYS);
+    if (!window) return;
+    const since = new Date(window.start).toISOString();
+    refreshInFlight.current = true;
+    setIsRefreshing(true);
+    setRefreshState({ ...EMPTY_REFRESH_STATE, total: sourceFeeds.length, startedAt: Date.now(), mode: "refresh" });
+    try {
+      for (const feed of sourceFeeds) {
+        try {
+          const parsed = await fetchRssFeed(feed.feedUrl, { since, limit: 30 });
+          const parsedItems = feed.enrichmentDisabled !== true && isBidclubFeedUrl(feed.feedUrl)
+            ? attachBidclubSelfReferences(parsed.items)
+            : parsed.items;
+          const bidclubFeedUrl = resolveFeedEnrichmentSource(feed).bidclubFeedUrl;
+          const bidclubData = bidclubFeedUrl
+            ? await fetchRssFeed(bidclubFeedUrl, { since, limit: 100 }).catch((error) => {
+                console.warn(`Failed to sync BidClub helper feed for ${feed.title}:`, error);
+                return null;
+              })
+            : null;
+          initiallyMatchedFeedIds.current.add(feed.id);
+          const matchResult = bidclubData ? matchBidclubItems(parsedItems, bidclubData.items) : null;
+          if (matchResult) console.info(`BidClub initial sync summary: ${feed.title}`, matchResult.diagnostics);
+          if (refreshGeneration.current !== generation || !feedsRef.current.some((item) => item.id === feed.id)) continue;
+
+          const refreshed = (matchResult?.items || parsedItems || []).map((item) => ({
+            ...item,
+            feedId: feed.id,
+            feedTitle: feed.title,
+            feedFavicon: feed.favicon || parsed.feedImage || parsed.favicon,
+            read: false,
+            starred: false,
+          }));
+          const existingIds = new Set(articlesRef.current.map((article) => article.id));
+          const newArticleCount = refreshed.filter((article) => !existingIds.has(article.id)).length;
+          const refreshedFeedIds = new Set([feed.id]);
+          const merged = mergeFetchedFeedArticles(
+            articlesRef.current,
+            refreshed,
+            refreshedFeedIds,
+            { preserveUnreturned: true },
+          );
+          const nextPlaylistIds = migrateArticleBackrefs(playlistIdsRef.current, merged.articleIdMap);
+          const nextAudioProgressMap = migrateAudioProgressMap(audioProgressMapRef.current, merged.articleIdMap);
+          await replaceStoredArticlesForFeedsAndMigrateReferences(
+            refreshedFeedIds,
+            merged.articles.filter((article) => article.feedId === feed.id),
+            merged.articleIdMap,
+            { playlistIds: nextPlaylistIds },
+          );
+          if (refreshGeneration.current !== generation) continue;
+          commitArticleIdMigration(merged.articleIdMap, nextPlaylistIds, nextAudioProgressMap);
+          articlesRef.current = merged.articles;
+          setArticles(merged.articles);
+          setSelectedArticleId((previous) => previous ? merged.articleIdMap.get(previous) || previous : previous);
+          setFeeds((current) => current.map((item) => item.id === feed.id
+            ? successfulFeed(item, { initialSyncPending: undefined })
+            : item));
+          setRefreshState((state) => ({
+            ...state,
+            completed: state.completed + 1,
+            successful: state.successful + 1,
+            newArticles: state.newArticles + newArticleCount,
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "同步失败";
+          console.warn(`Failed to sync feed ${feed.title}:`, error);
+          if (refreshGeneration.current !== generation) continue;
+          const failed = failedFeed(feed, error, message);
+          setFeeds((current) => current.map((item) => item.id === feed.id ? failed : item));
+          setRefreshState((state) => ({ ...state, completed: state.completed + 1, failed: [...state.failed, failed] }));
+        }
+      }
+    } finally {
+      refreshInFlight.current = false;
+      setIsRefreshing(false);
+      setRefreshState((state) => ({ ...state, finishedAt: state.finishedAt || Date.now() }));
+    }
+  }, [articlesRef, audioProgressMapRef, commitArticleIdMigration, feedsRef, playlistIdsRef, setArticles, setFeeds, setSelectedArticleId]);
 
   const retryFeed = useCallback(async (feedId: string) => {
     const feed = feedsRef.current.find((item) => item.id === feedId);
     const generation = refreshGeneration.current;
     if (!feed) return;
+    if (feed.initialSyncPending) {
+      queueInitialSync([feedId]);
+      return;
+    }
     if (refreshInFlight.current) {
-      setPendingRefresh({ feedIds: [feedId], mode: "retry" });
+      setPendingRefresh((current) => ({ feedIds: mergeFeedIds(current?.feedIds || [], [feedId]), mode: "retry" }));
       showToast("当前同步完成后将自动重试");
       return;
     }
@@ -276,14 +397,31 @@ export function useFeedSync(options: UseFeedSyncOptions) {
       refreshInFlight.current = false;
       setIsRefreshing(false);
     }
-  }, [articlesRef, audioProgressMapRef, commitArticleIdMigration, feedsRef, playlistIdsRef, setArticles, setFeeds, setSelectedArticleId, showToast]);
+  }, [articlesRef, audioProgressMapRef, commitArticleIdMigration, feedsRef, playlistIdsRef, queueInitialSync, setArticles, setFeeds, setSelectedArticleId, showToast]);
+
+  const retryFeeds = useCallback((feedIds: string[]) => {
+    const initialIds = new Set(feedsRef.current.filter((feed) => feed.initialSyncPending).map((feed) => feed.id));
+    const initial = feedIds.filter((feedId) => initialIds.has(feedId));
+    const regular = feedIds.filter((feedId) => !initialIds.has(feedId));
+    if (initial.length > 0) queueInitialSync(initial);
+    if (regular.length > 0) {
+      setPendingRefresh((current) => ({ feedIds: mergeFeedIds(current?.feedIds || [], regular), mode: "retry" }));
+    }
+  }, [feedsRef, queueInitialSync]);
 
   useEffect(() => {
-    if (!pendingRefresh || isRefreshing) return;
+    if (isRefreshing || refreshInFlight.current) return;
+    if (pendingInitialSync.length > 0) {
+      const feedIds = pendingInitialSync;
+      setPendingInitialSync([]);
+      void runInitialSync(feedIds);
+      return;
+    }
+    if (!pendingRefresh) return;
     const request = pendingRefresh;
     setPendingRefresh(null);
     void refreshAll(request.feedIds, request.mode);
-  }, [isRefreshing, pendingRefresh, refreshAll]);
+  }, [isRefreshing, pendingInitialSync, pendingRefresh, refreshAll, runInitialSync]);
 
   useEffect(() => {
     const scheduled = feeds.flatMap((feed) => {
@@ -296,17 +434,29 @@ export function useFeedSync(options: UseFeedSyncOptions) {
     const timer = setTimeout(() => {
       const now = Date.now();
       const dueFeedIds = scheduled.filter((item) => item.retryAt <= now + 1_000).map((item) => item.feedId);
-      if (dueFeedIds.length > 0) void refreshAll(dueFeedIds, "background");
+      const pendingInitialIds = new Set(feedsRef.current.filter((feed) => feed.initialSyncPending).map((feed) => feed.id));
+      const initial = dueFeedIds.filter((feedId) => pendingInitialIds.has(feedId));
+      const regular = dueFeedIds.filter((feedId) => !pendingInitialIds.has(feedId));
+      if (initial.length > 0) queueInitialSync(initial);
+      if (regular.length > 0) void refreshAll(regular, "background");
     }, Math.max(0, earliest - Date.now()));
     return () => clearTimeout(timer);
-  }, [feeds, refreshAll]);
+  }, [feeds, feedsRef, queueInitialSync, refreshAll]);
 
   const hasAutoRefreshed = useRef(false);
   useEffect(() => {
     if (hasAutoRefreshed.current || isInitializing || !isAppStateReady) return;
     hasAutoRefreshed.current = true;
+    const pendingInitialIds = feedsRef.current.filter((feed) => feed.initialSyncPending).map((feed) => feed.id);
+    if (pendingInitialIds.length > 0) {
+      queueInitialSync(pendingInitialIds);
+      const pendingSet = new Set(pendingInitialIds);
+      const regularIds = feedsRef.current.filter((feed) => !pendingSet.has(feed.id)).map((feed) => feed.id);
+      if (regularIds.length > 0) queueRefresh(regularIds);
+      return;
+    }
     void refreshAll();
-  }, [isAppStateReady, isInitializing, refreshAll]);
+  }, [feedsRef, isAppStateReady, isInitializing, queueInitialSync, queueRefresh, refreshAll]);
 
   const bidclubRepairInFlight = useRef("");
   const completedBidclubRepairFingerprint = useRef("");
@@ -321,7 +471,11 @@ export function useFeedSync(options: UseFeedSyncOptions) {
 
   useEffect(() => {
     if (isInitializing || articles.length === 0) return;
-    const repairFeedIds = new Set(feeds.filter((feed) => feed.enrichmentDisabled !== true && (!!resolveFeedEnrichmentSource(feed).bidclubFeedUrl || isBidclubFeedUrl(feed.feedUrl))).map((feed) => feed.id));
+    const repairFeedIds = new Set(feeds.filter((feed) =>
+      !initiallyMatchedFeedIds.current.has(feed.id) &&
+      feed.enrichmentDisabled !== true &&
+      (!!resolveFeedEnrichmentSource(feed).bidclubFeedUrl || isBidclubFeedUrl(feed.feedUrl))
+    ).map((feed) => feed.id));
     const repairableIds = articles.filter((article) => repairFeedIds.has(article.feedId) && article.enrichment?.status !== "available")
       .map((article) => `${article.feedId}:${article.id}`).sort();
     if (repairableIds.length === 0) return;
@@ -365,5 +519,5 @@ export function useFeedSync(options: UseFeedSyncOptions) {
     })();
   }, [articles, articlesRef, bidclubFeedConfigFingerprint, feeds, feedsRef, isInitializing, setArticles, showToast]);
 
-  return { isRefreshing, refreshState, refreshAll, retryFeed, queueRefresh, invalidateRefresh };
+  return { isRefreshing, refreshState, refreshAll, retryFeed, retryFeeds, queueRefresh, queueInitialSync, invalidateRefresh };
 }

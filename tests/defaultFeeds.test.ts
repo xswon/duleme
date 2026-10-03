@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_CURATED_FEEDS,
   CURATED_FEEDS,
+  DEFAULT_FEATURED_FEED_IDS,
   FEATURED_CURATED_FEEDS,
   FEATURED_CURATED_FEED_IDS,
   LEGACY_DEFAULT_FEEDS,
@@ -53,7 +54,10 @@ describe("curated feed catalog", () => {
     FEATURED_CURATED_FEEDS.forEach((feed) => {
       expect(CURATED_FEEDS.some((candidate) => candidate.id === feed.id)).toBe(true);
       expect(feed.contentType).toBe(feed.id === "feed-aihot" ? "article" : "podcast");
+      expect(feed.artwork).toMatch(/^\/featured-artwork\/.+\.svg$/);
     });
+    expect(DEFAULT_FEATURED_FEED_IDS).toHaveLength(3);
+    expect(DEFAULT_FEATURED_FEED_IDS.every((id) => FEATURED_CURATED_FEED_IDS.includes(id))).toBe(true);
   });
 });
 

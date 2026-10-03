@@ -226,6 +226,7 @@ describe("App persistence rollback", () => {
       feedWithEnrichment.feedUrl,
       feedWithEnrichment.bidclubFeedUrl,
     ]);
+    expect(rss.fetchRssFeed.mock.calls.map(([, requestOptions]) => requestOptions)).toEqual([undefined, undefined]);
     expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state"))
       .toContain("main-rss-article:unread:plain");
     expect(container.textContent).not.toContain("订阅源同步失败");
@@ -383,6 +384,84 @@ describe("App persistence rollback", () => {
       await Promise.resolve();
     });
     await waitFor(() => container.querySelector('[data-testid="articles"]')?.getAttribute("data-state") === "a:read:plain|b:unread:plain");
+
+    await act(async () => root.unmount());
+  });
+
+  it("syncs welcome selections one at a time and persists the first feed before starting the second", async () => {
+    const first = deferred<RssParseResponse>();
+    const second = deferred<RssParseResponse>();
+    rss.fetchRssFeed
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+      .mockResolvedValueOnce(remoteFeed(article("helper", {
+        title: "EP 12｜Building Reliable Systems",
+        link: "https://bidclub.ai/e/reliable-systems",
+        duration: "01:01:00",
+      })))
+      .mockResolvedValueOnce(remoteFeed(article("third")));
+
+    const { container, root } = await renderApp();
+    await waitFor(() => container.textContent?.includes("使用精选订阅开始") === true);
+    await act(async () => click(container, "使用精选订阅开始"));
+    await act(async () => click(container, "开始使用"));
+    await waitFor(() => rss.fetchRssFeed.mock.calls.length === 1);
+
+    const firstItem = article("first", { pubDate: new Date().toISOString() });
+    await act(async () => first.resolve(remoteFeed(firstItem)));
+    await waitFor(() => rss.fetchRssFeed.mock.calls.length === 2 && rss.replaceRefreshSnapshot.mock.calls.length === 1);
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")).toContain("first:");
+    expect(rss.fetchRssFeed.mock.calls[0][1]).toMatchObject({ limit: 30, since: expect.stringMatching(/Z$/) });
+    expect(new Date(rss.fetchRssFeed.mock.calls[0][1].since).getHours()).toBe(0);
+    expect(rss.fetchRssFeed.mock.calls[1][1]).toMatchObject({ limit: 30, since: rss.fetchRssFeed.mock.calls[0][1].since });
+
+    await act(async () => second.resolve(remoteFeed(article("second", {
+      title: "Episode 12: Building Reliable Systems",
+      pubDate: "2026-09-23T00:00:00.000Z",
+      duration: "01:00:00",
+    }))));
+    await waitFor(() => rss.fetchRssFeed.mock.calls.length === 4 && rss.replaceRefreshSnapshot.mock.calls.length === 3);
+    expect(rss.fetchRssFeed.mock.calls[2][0]).toContain("bidclub.ai/feeds/valley101.xml");
+    expect(rss.fetchRssFeed.mock.calls[2][1]).toMatchObject({ limit: 100, since: rss.fetchRssFeed.mock.calls[0][1].since });
+    expect(rss.replaceRefreshSnapshot.mock.calls[1][1].find((item: Article) => item.id === "second")?.enrichment)
+      .toMatchObject({ provider: "bidclub", episodeId: "reliable-systems", status: "candidate" });
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")).toContain("third:");
+
+    await act(async () => root.unmount());
+  });
+
+  it("continues the welcome sync queue after one feed fails", async () => {
+    rss.fetchRssFeed
+      .mockRejectedValueOnce(new Error("first failed"))
+      .mockResolvedValueOnce(remoteFeed(article("second", { pubDate: new Date().toISOString() })))
+      .mockResolvedValueOnce({ ...remoteFeed(article("helper")), items: [] })
+      .mockResolvedValueOnce(remoteFeed(article("third", { pubDate: new Date().toISOString() })));
+
+    const { container, root } = await renderApp();
+    await waitFor(() => container.textContent?.includes("使用精选订阅开始") === true);
+    await act(async () => click(container, "使用精选订阅开始"));
+    await act(async () => click(container, "开始使用"));
+    await waitFor(() => rss.fetchRssFeed.mock.calls.length === 4 && rss.replaceRefreshSnapshot.mock.calls.length === 2);
+
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")).toContain("second:");
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")).toContain("third:");
+    expect(container.textContent).toContain("已更新 2 个订阅源");
+    expect(container.textContent).toContain("1 个未能更新");
+
+    await act(async () => root.unmount());
+  });
+
+  it("resumes an interrupted welcome sync with the constrained mode after restart", async () => {
+    await replaceFeedsInDB([{ ...feed, initialSyncPending: true }]);
+    await saveAppStateToDB({ onboardingCompleted: true });
+    rss.fetchRssFeed.mockResolvedValueOnce(remoteFeed(article("resumed", { pubDate: new Date().toISOString() })));
+
+    const { container, root } = await renderApp();
+    await waitFor(() => rss.replaceRefreshSnapshot.mock.calls.length === 1);
+
+    expect(rss.fetchRssFeed).toHaveBeenCalledTimes(1);
+    expect(rss.fetchRssFeed.mock.calls[0][1]).toMatchObject({ limit: 30, since: expect.any(String) });
+    expect(container.querySelector('[data-testid="articles"]')?.getAttribute("data-state")).toContain("resumed:");
 
     await act(async () => root.unmount());
   });

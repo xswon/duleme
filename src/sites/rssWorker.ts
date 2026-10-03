@@ -1,4 +1,4 @@
-import { parseFeedXml } from "../../server/services/rssParser";
+import { parseFeedXml, parseRssQueryOptions, RssQueryError, type ParseFeedOptions } from "../../server/services/rssParser";
 import {
   fetchWithValidatedRedirects,
   publicHttpUrl,
@@ -69,10 +69,10 @@ async function readTextLimited(response: Response, maxBytes: number): Promise<st
   }
 }
 
-function responsePayload(feedUrl: string, xml: string) {
+function responsePayload(feedUrl: string, xml: string, options: ParseFeedOptions) {
   let feed;
   try {
-    feed = parseFeedXml(xml, feedUrl, { strict: true });
+    feed = parseFeedXml(xml, feedUrl, { ...options, strict: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown parse error";
     throw new SitesRssError(`Failed to parse RSS feed: ${message}`, 422, "rss_invalid_feed");
@@ -115,6 +115,16 @@ export async function handleSitesRssRequest(
   }
   const rawFeedUrl = requestUrl.searchParams.get("url")?.trim();
   if (!rawFeedUrl) return jsonError(new SitesRssError("Missing feed URL parameter", 400, "rss_missing_url"));
+  let parseOptions: ParseFeedOptions;
+  try {
+    parseOptions = parseRssQueryOptions({
+      since: requestUrl.searchParams.has("since") ? requestUrl.searchParams.get("since") : undefined,
+      limit: requestUrl.searchParams.has("limit") ? requestUrl.searchParams.get("limit") : undefined,
+    });
+  } catch (error) {
+    if (error instanceof RssQueryError) return jsonError(new SitesRssError(error.message, 400, error.code));
+    throw error;
+  }
 
   const fetchImpl = options.fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => globalThis.fetch(input, init));
   const controller = new AbortController();
@@ -145,7 +155,7 @@ export async function handleSitesRssRequest(
       );
     }
     const xml = await readTextLimited(response, options.maxBytes ?? RSS_MAX_BYTES);
-    return Response.json(responsePayload(feedUrl.toString(), xml), {
+    return Response.json(responsePayload(feedUrl.toString(), xml, parseOptions), {
       headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {

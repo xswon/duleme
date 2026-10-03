@@ -422,17 +422,21 @@ function retryAfterMs(response: Response): number | undefined {
 
 export interface FetchRssFeedOptions {
   timeoutMs?: number;
+  since?: string;
+  limit?: number;
 }
 
 const RSS_FOREGROUND_TIMEOUT_MS = 15_000;
 
 export async function fetchRssFeed(feedUrl: string, options: FetchRssFeedOptions = {}): Promise<RssParseResponse> {
-  const encodeUrl = encodeURIComponent(feedUrl);
+  const search = new URLSearchParams({ url: feedUrl });
+  if (options.since !== undefined) search.set("since", options.since);
+  if (options.limit !== undefined) search.set("limit", String(options.limit));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? RSS_FOREGROUND_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await backendRequest(`/api/rss/parse?url=${encodeUrl}`, { signal: controller.signal });
+    response = await backendRequest(`/api/rss/parse?${search.toString()}`, { signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
       throw new RssFeedRequestError("订阅源响应超时，将稍后在后台重试。", "rss_timeout", 504, true);
@@ -961,7 +965,8 @@ function findIndexedMatchingArticle(
 export function mergeFetchedFeedArticles(
   existingArticles: Article[],
   fetchedArticles: Article[],
-  refreshedFeedIds: Set<string>
+  refreshedFeedIds: Set<string>,
+  options: { preserveUnreturned?: boolean } = {},
 ): { articles: Article[]; articleIdMap: Map<string, string> } {
   const articleIdMap = new Map<string, string>();
   const fetchedByFeedId = new Map<string, Article[]>();
@@ -1033,7 +1038,7 @@ export function mergeFetchedFeedArticles(
     oldForFeed.forEach((old) => {
       if (usedOldIds.has(old.id)) return;
       if (articleIdMap.has(old.id)) return;
-      if (old.starred) mergedRefreshedArticles.push(old);
+      if (old.starred || options.preserveUnreturned) mergedRefreshedArticles.push(old);
     });
   });
 

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { fetchSafeExternal, isSafeExternalUrl, MAX_PROXY_BYTES, readResponseBodyLimited } from "../services/proxyService";
-import { parseFeedXml } from "../services/rssParser";
+import { parseFeedXml, parseRssQueryOptions, RssQueryError } from "../services/rssParser";
 
 const RSS_FETCH_TIMEOUT_MS = 15_000;
 
@@ -18,6 +18,13 @@ export function createRssRouter() {
     const url = String(req.query.url || "");
     if (!url) return res.status(400).json({ code: "rss_missing_url", error: "Missing feed URL parameter", retryable: false });
     if (!isSafeExternalUrl(url)) return res.status(400).json({ code: "rss_unsafe_url", error: "Feed URL must be a public http/https URL", retryable: false });
+    let parseOptions;
+    try {
+      parseOptions = parseRssQueryOptions({ since: req.query.since, limit: req.query.limit });
+    } catch (error) {
+      if (error instanceof RssQueryError) return res.status(400).json({ code: error.code, error: error.message, retryable: false });
+      throw error;
+    }
     let response: Response;
     try {
       response = await fetchSafeExternal(url, {
@@ -57,7 +64,7 @@ export function createRssRouter() {
     }
     let feed;
     try {
-      feed = parseFeedXml(xml, url, { strict: true });
+      feed = parseFeedXml(xml, url, { ...parseOptions, strict: true });
     } catch (error) {
       return res.status(422).json({ code: "rss_invalid_feed", error: `Failed to parse RSS feed: ${errorMessage(error)}`, retryable: false });
     }
