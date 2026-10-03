@@ -451,6 +451,25 @@ export const FEATURED_CURATED_FEED_IDS = [
   "feed-zhankaijiangjiang",
 ] as const;
 
+export const DEFAULT_FEATURED_FEED_IDS = [
+  "feed-moss-fire",
+  "feed-sv101",
+  "feed-qianliang",
+] as const;
+
+const FEATURED_ARTWORK_BY_ID: Record<(typeof FEATURED_CURATED_FEED_IDS)[number], string> = {
+  "feed-moss-fire": "/featured-artwork/moss-fire.svg",
+  "feed-zhangxiaojun": "/featured-artwork/zhangxiaojun.svg",
+  "feed-kuaguo": "/featured-artwork/kuaguo.svg",
+  "feed-crossing": "/featured-artwork/crossing.svg",
+  "feed-42": "/featured-artwork/42.svg",
+  "feed-sv101": "/featured-artwork/sv101.svg",
+  "feed-acquired": "/featured-artwork/acquired.svg",
+  "feed-dwarkesh": "/featured-artwork/dwarkesh.svg",
+  "feed-qianliang": "/featured-artwork/qianliang.svg",
+  "feed-zhankaijiangjiang": "/featured-artwork/zhankaijiangjiang.svg",
+};
+
 const featuredCuratedFeedIds = new Set<string>(FEATURED_CURATED_FEED_IDS);
 
 function fallbackFavicon(feed: Pick<Feed, "siteUrl" | "feedUrl">): string {
@@ -504,7 +523,12 @@ const RECOMMENDED_FEED_DETAILS: Record<string, Pick<CuratedFeedOption, "title" |
 export const CURATED_FEEDS: CuratedFeedOption[] = FEATURED_CURATED_FEED_IDS.flatMap((id) => {
   const feed = ALL_CURATED_FEEDS.find((candidate) => candidate.id === id);
   if (!feed) return [];
-  return [{ ...feed, ...RECOMMENDED_FEED_DETAILS[id], featured: featuredCuratedFeedIds.has(id) }];
+  return [{
+    ...feed,
+    ...RECOMMENDED_FEED_DETAILS[id],
+    artwork: FEATURED_ARTWORK_BY_ID[id],
+    featured: featuredCuratedFeedIds.has(id),
+  }];
 });
 
 function normalizedFeedUrl(feedUrl: string): string | undefined {

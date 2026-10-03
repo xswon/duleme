@@ -69,6 +69,22 @@ describe("RSS service refresh feedback", () => {
     await expect(fetchRssFeed("https://example.com/feed.xml")).rejects.toThrow("无效数据");
   });
 
+  it("only adds since and limit when explicitly requested", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ title: "Feed", items: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchRssFeed("https://example.com/feed.xml");
+    await fetchRssFeed("https://example.com/feed.xml", { since: "2026-09-04T00:00:00.000Z", limit: 30 });
+
+    expect(String(fetchMock.mock.calls[0][0])).toBe("/api/rss/parse?url=https%3A%2F%2Fexample.com%2Ffeed.xml");
+    const constrained = new URL(String(fetchMock.mock.calls[1][0]), "https://reader.example");
+    expect(constrained.searchParams.get("since")).toBe("2026-09-04T00:00:00.000Z");
+    expect(constrained.searchParams.get("limit")).toBe("30");
+  });
+
   it("summarizes successful, failed, and newly fetched articles", () => {
     const feeds = [feed("one"), feed("two"), feed("three")];
     const summary = summarizeFeedRefreshResults(

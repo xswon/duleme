@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 
-const SKIP_TOOLTIP = ".wreader-nav-item, .wreader-sidebar-footer button, .wreader-story-row, .wreader-mobile-story, .playlist-open, .wreader-nav-count";
+const SKIP_TOOLTIP = ".wreader-nav-item, .wreader-sidebar-footer button, .wreader-story-row, .wreader-mobile-story, .playlist-open, .wreader-nav-count, .wreader-menu-button, .wreader-mobile-tabs button, .wreader-timeline-type-switch button";
+
+const isTouchDevice = () =>
+  typeof window !== "undefined" &&
+  (window.innerWidth <= 760 || !!window.matchMedia?.("(hover: none) and (pointer: coarse)")?.matches);
 
 /** Page-drawn hints from the prototype; fixed positioning prevents scroller clipping. */
 export function PrototypeTooltipLayer() {
@@ -44,6 +48,7 @@ export function PrototypeTooltipLayer() {
     };
     const find = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLElement>("[data-tip]") : null;
     const show = (element: HTMLElement) => {
+      if (isTouchDevice()) return hide();
       const text = element.dataset.tip;
       if (!text) return hide();
       anchor = element;
@@ -51,9 +56,9 @@ export function PrototypeTooltipLayer() {
       tooltip.classList.add("is-visible");
       place(element);
     };
-    const onMouseOver = (event: MouseEvent) => { const element = find(event.target); if (element && element !== anchor) show(element); else if (!element) hide(); };
+    const onMouseOver = (event: MouseEvent) => { if (isTouchDevice()) return; const element = find(event.target); if (element && element !== anchor) show(element); else if (!element) hide(); };
     const onMouseOut = (event: MouseEvent) => { const element = find(event.target); if (!element || (event.relatedTarget instanceof Node && element.contains(event.relatedTarget))) return; hide(); };
-    const onFocusIn = (event: FocusEvent) => { const element = find(event.target); if (element) show(element); };
+    const onFocusIn = (event: FocusEvent) => { if (isTouchDevice()) return; const element = find(event.target); if (element) show(element); };
     const observer = new MutationObserver(() => migrateTitles());
     migrateTitles();
     observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["title", "class"] });
@@ -62,6 +67,7 @@ export function PrototypeTooltipLayer() {
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", hide);
     document.addEventListener("click", hide);
+    window.addEventListener("touchstart", hide, { passive: true });
     window.addEventListener("scroll", hide, true);
     return () => {
       observer.disconnect();
@@ -70,6 +76,7 @@ export function PrototypeTooltipLayer() {
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", hide);
       document.removeEventListener("click", hide);
+      window.removeEventListener("touchstart", hide);
       window.removeEventListener("scroll", hide, true);
       tooltip.remove();
     };

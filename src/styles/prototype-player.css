@@ -33,3 +33,44 @@
   .audio-controls-compact .player-icon-btn { width: 29px; height: 29px; min-width: 29px; }
   .audio-controls-compact .player-toggle { width: 33px; height: 33px; }
 }
+
+/* The mini surface only controls the application's existing audio element. */
+.wreader-app { --mini-player-height: 48px; --mini-player-bottom: 16px; }
+.wreader-mini-player {
+  position: fixed; z-index: 40; right: 16px; bottom: var(--mini-player-bottom);
+  display: flex; align-items: center; width: min(340px, calc(100vw - 32px)); height: var(--mini-player-height);
+  padding: 2px 6px; gap: 2px; border: 1px solid var(--wreader-ui-border); border-radius: 24px;
+  background: var(--wreader-ui-surface); color: var(--wreader-ui-text); box-shadow: var(--wreader-ui-shadow);
+}
+@supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
+  .wreader-mini-player { background: color-mix(in srgb, var(--wreader-ui-surface) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+}
+.wreader-mini-open { display: flex; align-items: center; min-width: 0; flex: 1; height: 44px; gap: 8px; border-radius: 18px; text-align: left; }
+.wreader-mini-cover { position: relative; display: grid; flex: none; place-items: center; width: 32px; height: 32px; overflow: hidden; border-radius: 4px; background: var(--wreader-hover); color: var(--player-icon); }
+.wreader-mini-cover > svg { width: 18px; height: 18px; }
+.wreader-mini-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.wreader-mini-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.wreader-mini-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; line-height: 15px; }
+.wreader-mini-progress { display: block; height: 2px; overflow: hidden; border-radius: 2px; background: var(--player-track); }
+.wreader-mini-progress i { display: block; height: 100%; background: var(--player-accent); }
+.wreader-mini-time { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--player-time); font-size: 10px; line-height: 12px; font-variant-numeric: tabular-nums; }
+.wreader-mini-controls { display: flex; align-items: center; flex: none; }
+.wreader-mini-controls .player-icon-btn, .wreader-mini-controls .player-toggle { width: 44px; min-width: 44px; height: 44px; }
+.wreader-mini-controls .player-toggle { background: transparent; color: var(--player-accent); box-shadow: none; }
+.wreader-mini-controls .player-toggle:hover, .wreader-mini-controls .player-toggle:focus-visible { background: var(--player-icon-hover-bg); }
+.wreader-mini-controls svg { width: 18px; height: 18px; }
+.wreader-mini-open:focus-visible { outline: 2px solid var(--player-accent); outline-offset: 1px; }
+.wreader-mini-wave { position: absolute; right: 2px; bottom: 2px; display: flex; align-items: center; gap: 2px; height: 12px; padding: 2px; border-radius: 3px; background: rgb(0 0 0 / 45%); }
+.wreader-mini-wave i { width: 2px; height: 8px; background: white; transform-origin: center; animation: mini-wave 900ms ease-in-out infinite alternate; }
+.wreader-mini-wave i:nth-child(2) { animation-delay: -300ms; }
+.wreader-mini-wave i:nth-child(3) { animation-delay: -600ms; }
+@keyframes mini-wave { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
+.wreader-app[data-mini-player-open="true"] #article-reader .reader-scroll { padding-bottom: calc(var(--mini-player-height) + 48px); }
+@media (max-width: 760px) {
+  .wreader-app { --mini-player-height: 44px; --mini-player-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  .wreader-app[data-mobile-tabs-visible="true"] { --mini-player-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .wreader-mini-player { right: 8px; left: 8px; width: auto; padding: 0 6px; border-radius: 12px; }
+  .wreader-app[data-audio-loaded="true"] .wreader-master-scroll { padding-bottom: calc(82px + env(safe-area-inset-bottom) + var(--mini-player-height)); }
+  .wreader-app[data-mini-player-open="true"] #article-reader .reader-scroll { padding-bottom: calc(var(--mini-player-bottom) + var(--mini-player-height) + 24px); }
+}
+@media (prefers-reduced-motion: reduce) { .wreader-mini-wave i { animation: none; } }

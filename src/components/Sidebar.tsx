@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Podcast } from "lucide-react";
+import { ActionMenu } from "./ActionMenu";
 import { resolveBackendAssetUrl } from "../services/readerBackend";
 import { ActiveTab, Feed, FilterType } from "../types";
 import { DEFAULT_ROUTE_HISTORY_DAYS, type ReaderRoute } from "../services/router";
@@ -35,8 +36,6 @@ interface SidebarProps {
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
   onNavigate?: (route: Partial<ReaderRoute>) => void;
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
   onCollapse?: () => void;
   isCollapsed?: boolean;
 }
@@ -83,8 +82,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   setIsMobileOpen,
   onNavigate,
-  onRefresh,
-  isRefreshing = false,
   onCollapse,
   isCollapsed = false,
 }) => {
@@ -119,7 +116,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     Object.fromEntries(allCategoryNames.map((category) => [category, category === selectedExpansionCategory]))
   );
   const expansionInitializedRef = useRef(allCategoryNames.length > 0);
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [folderError, setFolderError] = useState<string | null>(null);
@@ -298,7 +294,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>读了么</span>
             </button>
           </h1>
-          {!isCollapsed && <button type="button" onClick={() => selectUtilityTab("search")} className={`wreader-sidebar-search wreader-icon-button ${activeTab === "search" ? "is-selected" : ""}`} title="搜索" aria-label="搜索"><PrototypeIcon><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></PrototypeIcon></button>}
           {onCollapse && <button type="button" onClick={onCollapse} className="wreader-sidebar-collapse wreader-icon-button" title={isCollapsed ? "展开侧边栏" : "收起侧边栏"} aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}><PrototypeIcon><path d="M4 4h16v16H4z" /><path d="M9 4v16" /></PrototypeIcon></button>}
         </div>
 
@@ -343,12 +338,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               {notesCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500">{notesCount}</span>}
             </button>
-            {isCollapsed && <button id="nav-tab-search" aria-label="搜索" onClick={() => selectUtilityTab("search")} className={itemClass(activeTab === "search")}>
+            <button id="nav-tab-search" aria-label="搜索" onClick={() => selectUtilityTab("search")} className={itemClass(activeTab === "search")}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="wreader-nav-leading"><PrototypeIcon><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></PrototypeIcon></span>
-                <span className="wreader-nav-label truncate text-xs">搜索</span>
+                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">搜索</span>
               </div>
-            </button>}
+            </button>
           </section>
           <section
             aria-label="订阅树"
@@ -356,7 +351,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="wreader-nav-section-label wreader-subscription-heading relative flex shrink-0 items-center">
               <span>我的订阅</span>
-              {onRefresh && <button type="button" onClick={onRefresh} disabled={isRefreshing} className="wreader-sidebar-refresh wreader-icon-button" title={isRefreshing ? "正在刷新" : "刷新订阅源"} aria-label={isRefreshing ? "正在刷新" : "刷新订阅源"}><PrototypeIcon><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5" /></PrototypeIcon></button>}
+              <ActionMenu key={`${isCollapsed}-${isMobileOpen}`} label="添加订阅或文件夹" buttonClassName="wreader-subscription-add"
+                icon={<PrototypeIcon><path d="M12 5v14M5 12h14" /></PrototypeIcon>}
+                items={[
+                  { label: "添加订阅源", onSelect: () => { onOpenAddFeed(); setIsMobileOpen(false); } },
+                  { label: "添加文件夹", onSelect: () => setIsFolderDialogOpen(true) },
+                ]} />
             </div>
             <div
               id="subscription-tree-scroll"
@@ -456,15 +456,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   暂无订阅源
                 </p>
               )}
-              <div className="wreader-tree-add-row">
-                <button type="button" onClick={() => setIsAddMenuOpen((open) => !open)} className="wreader-subscription-add wreader-tree-add" aria-label="添加订阅或文件夹" aria-expanded={isAddMenuOpen}><PrototypeIcon><path d="M12 5v14M5 12h14" /></PrototypeIcon><span>添加</span></button>
-                {isAddMenuOpen && (
-                  <div className="wreader-subscription-add-menu" role="menu">
-                    <button type="button" role="menuitem" onClick={() => { setIsAddMenuOpen(false); onOpenAddFeed(); setIsMobileOpen(false); }}>添加订阅源</button>
-                    <button type="button" role="menuitem" onClick={() => { setIsAddMenuOpen(false); setIsFolderDialogOpen(true); }}>添加文件夹</button>
-                  </div>
-                )}
-              </div>
             </div>
           </section>
 

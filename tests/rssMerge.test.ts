@@ -67,4 +67,13 @@ describe("indexed refresh merge", () => {
     expect(result.articles.find((item) => item.id === "fresh")?.read).toBe(false);
     expect(result.articles).toContain(other);
   });
+
+  it("can merge a limited first-sync response without deleting unreturned history", () => {
+    const old = article("old-history", { read: true, starred: false, readingProgress: 0.6 });
+    const fresh = article("fresh");
+    const result = mergeFetchedFeedArticles([old], [fresh], new Set(["feed-1"]), { preserveUnreturned: true });
+
+    expect(result.articles).toContain(old);
+    expect(result.articles).toContain(fresh);
+  });
 });

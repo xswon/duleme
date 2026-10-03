@@ -98,7 +98,7 @@ describe("navigation chrome", () => {
     expect(html).toContain("我的订阅");
     expect(html).not.toContain("搜索全文");
     expect(html).toContain('aria-label="添加订阅或文件夹"');
-    expect(html).toContain('class="wreader-sidebar-search wreader-icon-button');
+    expect(html).not.toContain('wreader-sidebar-search');
     expect(html).toContain(">设置<");
     expect(html).toContain("科技");
     expect(html).not.toContain("空文件夹");
@@ -109,14 +109,14 @@ describe("navigation chrome", () => {
     expect(html.indexOf("播客")).toBeLessThan(html.indexOf("笔记"));
     expect(html.indexOf("笔记")).toBeLessThan(html.indexOf("科技"));
     expect(html.indexOf("搜索")).toBeLessThan(html.indexOf("科技"));
-    expect(html.indexOf("添加")).toBeGreaterThan(html.lastIndexOf("科技"));
+    expect(html.indexOf("添加")).toBeLessThan(html.lastIndexOf("科技"));
 
-    const quickEntryOrder = ["时间线", "收藏", "播客", "笔记"].map((label) =>
+    const quickEntryOrder = ["时间线", "收藏", "播客", "笔记", "搜索"].map((label) =>
       html.indexOf(label)
     );
     expect(quickEntryOrder).toEqual([...quickEntryOrder].sort((a, b) => a - b));
     expect(html).toContain('id="nav-tab-notes"');
-    expect((html.match(/wreader-nav-primary-label/g) || []).length).toBe(5);
+    expect((html.match(/wreader-nav-primary-label/g) || []).length).toBe(6);
     expect(html).toContain('d="M12.22 2h-.44');
     expect(html).toContain('d="M12 2v2M12 20v2');
     expect(html).not.toContain(">未读<");
@@ -129,7 +129,7 @@ describe("navigation chrome", () => {
 
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">播客</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>');
-    expect(html).toContain('class="wreader-nav-label truncate text-xs">搜索</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">搜索</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">设置</span>');
   });
 
@@ -144,14 +144,17 @@ describe("navigation chrome", () => {
     expect(readingNavHtml).not.toContain("wreader-nav-count");
   });
 
-  it("keeps search and collapse in the brand row and refresh beside subscriptions", () => {
-    const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ onRefresh: vi.fn(), onCollapse: vi.fn() })} />);
-    expect((html.match(/aria-label="搜索"/g) || []).length).toBe(1);
-    expect(html).toContain('aria-label="收起侧边栏"');
-    expect(html.indexOf('aria-label="搜索"')).toBeLessThan(html.indexOf('aria-label="收起侧边栏"'));
-    expect(html.indexOf('aria-label="刷新订阅源"')).toBeGreaterThan(html.indexOf("我的订阅"));
-    expect(html.indexOf('aria-label="添加订阅或文件夹"')).toBeGreaterThan(html.lastIndexOf("我的订阅"));
-    expect(html).toContain('class="wreader-tree-add-row"');
+  it("keeps only collapse in the brand row and adding beside subscriptions", () => {
+    const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ onCollapse: vi.fn() })} />);
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    expect(container.querySelectorAll('[aria-label="搜索"]')).toHaveLength(1);
+    expect(container.querySelector('.wreader-brand [aria-label="搜索"]')).toBeNull();
+    expect(container.querySelector('.wreader-brand [aria-label="收起侧边栏"]')).not.toBeNull();
+    expect(container.querySelector('.wreader-subscription-heading [aria-label="添加订阅或文件夹"]')).not.toBeNull();
+    expect(container.querySelector('.wreader-subscription-tree [aria-label="添加订阅或文件夹"]')).toBeNull();
+    expect(html).not.toContain("刷新订阅源");
+    expect(html).not.toContain("wreader-tree-add-row");
   });
 
   it("uses one selected label class for folders and feeds", () => {
@@ -662,7 +665,7 @@ describe("navigation chrome", () => {
     container.remove();
   });
 
-  it("keeps the list header focused on title, mark-read, sort, and refresh", () => {
+  it("keeps only sort and more in the subscription list header", () => {
     const html = renderToStaticMarkup(
       <Header
         activeTab="feeds"
@@ -682,11 +685,13 @@ describe("navigation chrome", () => {
 
     expect(html).not.toContain('aria-label="8 篇未读"');
     expect(html).toContain("全部订阅");
-    expect(html).toContain('aria-label="全部标为已读"');
+    expect(html).not.toContain('aria-label="全部标为已读"');
     expect(html).toContain('aria-label="排序：从新至旧"');
-    expect(html).toContain('aria-label="刷新订阅源"');
+    expect(html).not.toContain('wreader-header-refresh');
     expect(html).not.toContain('aria-label="搜索"');
-    expect(html).not.toContain("更多操作");
+    expect(html).toContain('aria-label="更多操作"');
+    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).toContain('aria-expanded="false"');
   });
 
   it("keeps auxiliary counts out of list header titles", () => {

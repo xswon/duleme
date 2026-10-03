@@ -1,7 +1,52 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 
-export type ParsedFeed = { title: string; description: string; link: string; feedImage: string; items: Array<Record<string, unknown>> };
-export interface ParseFeedOptions { strict?: boolean }
+export type ParsedFeed = {
+  title: string;
+  description: string;
+  link: string;
+  feedImage: string;
+  items: Array<Record<string, unknown>>;
+  sourceItemCount: number;
+  returnedItemCount: number;
+  truncated: boolean;
+};
+export interface ParseFeedOptions {
+  strict?: boolean;
+  since?: number;
+  limit?: number;
+  now?: number;
+}
+export const MAX_RSS_ITEM_LIMIT = 100;
+
+export class RssQueryError extends Error {
+  constructor(message: string, readonly code: string) {
+    super(message);
+    this.name = "RssQueryError";
+  }
+}
+
+export function parseRssQueryOptions(values: { since?: unknown; limit?: unknown }): ParseFeedOptions {
+  const options: ParseFeedOptions = {};
+  if (values.since !== undefined) {
+    if (typeof values.since !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(values.since)) {
+      throw new RssQueryError("since must be a valid ISO date-time", "rss_invalid_since");
+    }
+    const since = Date.parse(values.since);
+    if (!Number.isFinite(since)) throw new RssQueryError("since must be a valid ISO date-time", "rss_invalid_since");
+    options.since = since;
+  }
+  if (values.limit !== undefined) {
+    if (typeof values.limit !== "string" || !/^[1-9]\d*$/.test(values.limit)) {
+      throw new RssQueryError("limit must be a positive integer", "rss_invalid_limit");
+    }
+    const limit = Number(values.limit);
+    if (!Number.isSafeInteger(limit) || limit > MAX_RSS_ITEM_LIMIT) {
+      throw new RssQueryError(`limit must be between 1 and ${MAX_RSS_ITEM_LIMIT}`, "rss_invalid_limit");
+    }
+    options.limit = limit;
+  }
+  return options;
+}
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_", textNodeName: "#text", parseAttributeValue: true, trimValues: true });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- XML parser leaf values are runtime-narrowed in this helper.
 const value = (v: any, fallback = ""): string => typeof v === "string" || typeof v === "number" ? String(v) : v && typeof v === "object" && v["#text"] !== null && v["#text"] !== undefined ? String(v["#text"]) : fallback;
@@ -48,13 +93,43 @@ export function parseFeedXml(xml: string, feedUrl: string, options: ParseFeedOpt
   const parsed = parser.parse(xml) as any; const atom = parsed.feed; const channel = parsed.rss?.channel || parsed["rdf:RDF"]?.channel; const source = channel || atom;
   if (!source) {
     if (options.strict) throw new Error("Document is not a supported RSS, Atom, or RDF feed");
-    return { title: "Untitled Feed", description: "", link: feedUrl, feedImage: feedImage({}, feedUrl), items: [] };
+    return { title: "Untitled Feed", description: "", link: feedUrl, feedImage: feedImage({}, feedUrl), items: [], sourceItemCount: 0, returnedItemCount: 0, truncated: false };
   }
   const isAtom = !!atom; const raw = isAtom ? atom.entry : (channel?.item || parsed["rdf:RDF"]?.item); const list = raw ? (Array.isArray(raw) ? raw : [raw]) : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Atom link variants are selected from the untyped parsed tree.
   const link = isAtom ? (Array.isArray(atom.link) ? (atom.link.find((x: any) => x?.["@_rel"] === "alternate") || atom.link[0])?.["@_href"] : atom.link?.["@_href"]) || feedUrl : value(channel?.link, feedUrl);
+  const constrained = options.since !== undefined || options.limit !== undefined;
+  const now = options.now ?? Date.now();
+  const selected = list
+    // Read dates before building content/snippet/image fields so constrained requests
+    // do not construct article objects that will never be returned.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSS and Atom dates live on different untyped fields.
+    .map((item: any, index: number) => {
+      const rawDate = value(isAtom ? (item.published ?? item.updated) : (item.pubDate ?? item["dc:date"]));
+      const timestamp = rawDate ? Date.parse(rawDate) : Number.NaN;
+      return { item, index, rawDate, timestamp };
+    })
+    .filter(({ timestamp }) => options.since === undefined || (Number.isFinite(timestamp) && timestamp >= options.since && timestamp <= now))
+    .sort((a, b) => {
+      if (!constrained) return a.index - b.index;
+      const aValid = Number.isFinite(a.timestamp);
+      const bValid = Number.isFinite(b.timestamp);
+      if (aValid && bValid) return b.timestamp - a.timestamp || a.index - b.index;
+      if (aValid !== bValid) return aValid ? -1 : 1;
+      return a.index - b.index;
+    });
+  const returned = options.limit === undefined ? selected : selected.slice(0, options.limit);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Parsed item fields differ between RSS and Atom and are normalized into the local article shape.
-  const items = list.map((item: any, i: number) => { const itemLink = isAtom ? (Array.isArray(item.link) ? (item.link.find((x: any) => x?.["@_rel"] === "alternate") || item.link[0])?.["@_href"] : item.link?.["@_href"]) || feedUrl : value(item.link, feedUrl); const rawContent = isAtom ? (item.content ?? item.summary) : (item["content:encoded"] ?? item.description); const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent ?? ""); const id = value(isAtom ? item.id : (item.guid ?? itemLink), `${feedUrl}-${i}`); return { id: String(id), title: strip(item.title) || "Untitled Article", link: String(itemLink), content, snippet: strip(content).slice(0, 240), pubDate: value(isAtom ? (item.published ?? item.updated) : (item.pubDate ?? item["dc:date"]), new Date().toISOString()), author: value(isAtom ? item.author?.name : (item["dc:creator"] ?? item.author), strip(source.title) || "Unknown"), thumbnail: itemImage(item, content, source, feedUrl), ...itemAudio(item, content), read: false, starred: false }; });
-  return { title: strip(source.title) || "Untitled Feed", description: strip(isAtom ? source.subtitle : source.description), link, feedImage: feedImage(source, feedUrl), items };
+  const items = returned.map(({ item, index, rawDate }: { item: any; index: number; rawDate: string }) => { const itemLink = isAtom ? (Array.isArray(item.link) ? (item.link.find((x: any) => x?.["@_rel"] === "alternate") || item.link[0])?.["@_href"] : item.link?.["@_href"]) || feedUrl : value(item.link, feedUrl); const rawContent = isAtom ? (item.content ?? item.summary) : (item["content:encoded"] ?? item.description); const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent ?? ""); const id = value(isAtom ? item.id : (item.guid ?? itemLink), `${feedUrl}-${index}`); return { id: String(id), title: strip(item.title) || "Untitled Article", link: String(itemLink), content, snippet: strip(content).slice(0, 240), pubDate: rawDate || new Date().toISOString(), author: value(isAtom ? item.author?.name : (item["dc:creator"] ?? item.author), strip(source.title) || "Unknown"), thumbnail: itemImage(item, content, source, feedUrl), ...itemAudio(item, content), read: false, starred: false }; });
+  return {
+    title: strip(source.title) || "Untitled Feed",
+    description: strip(isAtom ? source.subtitle : source.description),
+    link,
+    feedImage: feedImage(source, feedUrl),
+    items,
+    sourceItemCount: list.length,
+    returnedItemCount: items.length,
+    truncated: selected.length > items.length,
+  };
 }
 export { parser as rssXmlParser };

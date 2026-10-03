@@ -207,6 +207,7 @@ export interface Feed {
   lastSyncAttemptAt?: string;
   syncFailureCount?: number;
   nextSyncRetryAt?: string;
+  initialSyncPending?: boolean;
   bidclubFeedUrl?: string;
   bidclubShowSlug?: string;
   enrichmentDisabled?: boolean;
@@ -226,6 +227,9 @@ export interface RssParseResponse {
   favicon: string;
   feedImage?: string;
   itemCount: number;
+  sourceItemCount?: number;
+  returnedItemCount?: number;
+  truncated?: boolean;
   items: Array<{
     id: string;
     title: string;
@@ -249,6 +253,7 @@ export interface CuratedFeedOption {
   category: string;
   description: string;
   favicon: string;
+  artwork?: string;
   featured?: boolean;
   contentType?: ContentType;
   bidclubFeedUrl?: string;

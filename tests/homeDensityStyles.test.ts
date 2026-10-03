@@ -50,6 +50,14 @@ describe("home density styles", () => {
     expect(styles).not.toContain(".wreader-timeline-more-filters {");
   });
 
+  it("keeps the subscription heading visible and exposes mobile sort beside more", () => {
+    expect(styles).toMatch(/\.wreader-subscription-heading \{\s*position: sticky;\s*top: 0;/);
+    expect(styles).toContain(".wreader-list-header:has(.wreader-action-menu) .wreader-timeline-sort {");
+    expect(styles).not.toContain(".wreader-header-refresh");
+    expect(navigationStyles).not.toContain(".wreader-sidebar-search");
+    expect(navigationStyles).not.toContain("#nav-tab-search { display: none;");
+  });
+
   it("only bolds selected sidebar navigation items", () => {
     expect(styles).toMatch(/\.wreader-sidebar nav button \{\s*font-weight: 400;/);
     expect(styles).toMatch(/\.wreader-sidebar nav button\.bg-slate-200\\\/80,[\s\S]*?font-weight: 700;/);
@@ -69,12 +77,22 @@ describe("home density styles", () => {
     expect(headingRule).toContain("color: var(--wreader-ui-muted);");
     expect(headingRule).toContain("font-size: 11px;");
     expect(styles).toMatch(/\.wreader-feed-avatar \{[\s\S]*?min-width: 16px;[\s\S]*?max-width: 16px;[\s\S]*?border-radius: 3px !important;/);
-    expect(navigationStyles).toMatch(/\.wreader-sidebar-search svg \{ width: 16px; height: 16px; \}/);
+    expect(navigationStyles).toContain(".wreader-nav-leading svg { width: 16px; height: 16px; }");
+    expect(navigationStyles).toContain(".wreader-subscription-add svg { width: 1rem; height: 1rem; }");
     expect(styles).toMatch(/\.wreader-nav-selected-label \{[\s\S]*?color: var\(--wreader-accent-text\) !important;[\s\S]*?font-weight: 700 !important;/);
-    expect(styles).toMatch(/\.wreader-nav-name \{\s*font-size: 12px;\s*\}/);
-    expect(styles).toMatch(/\.wreader-nav-primary-label \{\s*font-size: 12px;\s*\}/);
-    expect(styles).toMatch(/\.wreader-reading-nav button > span\.wreader-nav-count \{\s*font-size: 11px;\s*font-weight: inherit;\s*\}/);
+    expect(styles).toMatch(/\.wreader-nav-name \{\s*font-size: 13px;\s*\}/);
+    expect(styles).toMatch(/\.wreader-nav-primary-label \{\s*font-size: 13px;\s*\}/);
+    expect(styles).toMatch(/\.wreader-reading-nav button > span\.wreader-nav-count \{\s*font-size: 12px;\s*font-weight: inherit;\s*\}/);
     expect(styles).not.toContain(".wreader-reading-nav button > span:last-child");
+  });
+
+  it("uses readable timeline type sizes without changing the compact list structure", () => {
+    expect(navigationStyles).toContain("font-size: 15px; font-weight: 600; line-height: 1.4;");
+    expect(navigationStyles).toContain("font-size: 13px; line-height: 1.5; -webkit-line-clamp: 2;");
+    expect(navigationStyles).toContain(".wreader-story-duration { color: var(--wreader-ui-muted); font-size: 12px;");
+    expect(navigationStyles).toContain("@media (max-width: 767px)");
+    expect(navigationStyles).toContain("font-size: 16px; font-weight: 600; line-height: 1.4;");
+    expect(navigationStyles).toContain(".wreader-mobile-tabs button span { font-size: 11px;");
   });
 
   it("indents feeds beneath their folders", () => {

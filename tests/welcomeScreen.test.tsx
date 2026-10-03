@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CuratedFeedOption } from "../src/types";
 import { WelcomeScreen } from "../src/components/WelcomeScreen";
+import { DEFAULT_FEATURED_FEED_IDS, FEATURED_CURATED_FEEDS } from "../src/data/defaultFeeds";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -14,6 +15,7 @@ const feeds: CuratedFeedOption[] = [
     category: "科技 | 商业",
     description: "A",
     favicon: "https://a.example/favicon.ico",
+    artwork: "/featured-artwork/a.svg",
     featured: true,
     contentType: "podcast",
   },
@@ -67,7 +69,7 @@ describe("WelcomeScreen", () => {
     expect(container.textContent).toContain("已选择 1 个订阅");
 
     await act(async () => click(container, "开始使用"));
-    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-b"], {});
+    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-b"]);
 
     await act(async () => root.unmount());
   });
@@ -87,29 +89,40 @@ describe("WelcomeScreen", () => {
     expect(cards[0].parentElement?.className).toContain("sm:grid-cols-2");
     expect(cards[0].parentElement?.className).toContain("sm:gap-x-6");
     expect(cards[0].className).toContain("wreader-featured-feed-card");
-    expect(cards[0].querySelector("img")).toBeNull();
+    expect(cards[0].querySelector("img")?.getAttribute("src")).toBe("/featured-artwork/a.svg");
 
     await act(async () => root.unmount());
   });
 
-  it("uses original RSS artwork for selected podcast feeds", async () => {
-    const { container, root, props } = await renderWelcome();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ feedImage: "https://a.example/show-cover.jpg" }),
-    }));
+  it("shows all ten feeds, preselects the configured three, and never parses RSS for artwork", async () => {
+    const { container, root, props } = await renderWelcome({ featuredFeeds: FEATURED_CURATED_FEEDS });
 
-    await act(async () => {
-      click(container, "使用精选订阅开始");
-      await Promise.resolve();
-    });
+    await act(async () => click(container, "使用精选订阅开始"));
 
-    const podcastCard = container.querySelector('button[aria-pressed]') as HTMLButtonElement;
-    expect(podcastCard.querySelector("img")?.src).toBe("https://a.example/show-cover.jpg");
+    const cards = Array.from(container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]'));
+    expect(cards).toHaveLength(10);
+    expect(cards.filter((card) => card.getAttribute("aria-pressed") === "true")).toHaveLength(3);
+    expect(container.textContent).toContain("建议先选择 2～3 个订阅，后续可随时添加。");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
     await act(async () => click(container, "开始使用"));
-    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-a", "feed-b"], {
-      "feed-a": "https://a.example/show-cover.jpg",
-    });
+    expect(props.onUseFeatured).toHaveBeenCalledWith([...DEFAULT_FEATURED_FEED_IDS]);
+
+    await act(async () => root.unmount());
+  });
+
+  it("lets the user clear and reselect feeds while disabling an empty submission", async () => {
+    const { container, root, props } = await renderWelcome();
+    await act(async () => click(container, "使用精选订阅开始"));
+    await act(async () => click(container, "Feed A"));
+    await act(async () => click(container, "Feed B"));
+
+    const submit = Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.includes("开始使用"))!;
+    expect(submit.disabled).toBe(true);
+    await act(async () => click(container, "Feed A"));
+    expect(submit.disabled).toBe(false);
+    await act(async () => click(container, "开始使用"));
+    expect(props.onUseFeatured).toHaveBeenCalledWith(["feed-a"]);
 
     await act(async () => root.unmount());
   });

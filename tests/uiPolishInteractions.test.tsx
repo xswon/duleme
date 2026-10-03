@@ -44,4 +44,49 @@ describe("UI polish interactions", () => {
     expect(container.textContent).toBe("中");
     await act(() => root.unmount());
   });
+
+  it("suppresses tooltips on mobile/touch screens and skips mobile menu buttons", async () => {
+    const { PrototypeTooltipLayer } = await import("../src/components/PrototypeTooltipLayer");
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(() => root.render(
+      <>
+        <PrototypeTooltipLayer />
+        <button type="button" className="desktop-btn" title="刷新列表">刷新</button>
+        <button type="button" className="wreader-menu-button" aria-label="打开导航菜单">菜单</button>
+      </>
+    ));
+
+    const tooltip = document.querySelector<HTMLElement>(".app-tooltip")!;
+    expect(tooltip).not.toBeNull();
+    expect(tooltip.classList.contains("is-visible")).toBe(false);
+
+    const desktopBtn = container.querySelector<HTMLButtonElement>(".desktop-btn")!;
+    const menuBtn = container.querySelector<HTMLButtonElement>(".wreader-menu-button")!;
+
+    // Menu button should not have data-tip migrated
+    expect(menuBtn.dataset.tip).toBeUndefined();
+
+    // On mobile viewport (<= 760), hovering desktop button should NOT show tooltip
+    const originalWidth = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 390 });
+    await act(() => desktopBtn.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(tooltip.classList.contains("is-visible")).toBe(false);
+
+    // On desktop viewport (> 760), hovering desktop button shows tooltip
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: 1280 });
+    await act(() => desktopBtn.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(tooltip.classList.contains("is-visible")).toBe(true);
+    expect(tooltip.textContent).toBe("刷新列表");
+
+    // Touchstart should immediately dismiss tooltip
+    await act(() => window.dispatchEvent(new Event("touchstart")));
+    expect(tooltip.classList.contains("is-visible")).toBe(false);
+
+    // Restore window.innerWidth
+    Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: originalWidth });
+    await act(() => root.unmount());
+    container.remove();
+  });
 });

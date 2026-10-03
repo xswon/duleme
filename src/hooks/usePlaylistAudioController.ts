@@ -46,7 +46,6 @@ export function usePlaylistAudioController({
   const audioProgressMapRef = useLatestRef(audioProgressMap);
   const playlistUndoRef = useRef<string[] | null>(null);
   const playlistUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoPlayNextRef = useRef<string | null>(null);
   const audioPlayerRef = useRef<SharedAudioPlayer | null>(null);
 
   const playablePlaylist = useMemo(
@@ -73,10 +72,10 @@ export function usePlaylistAudioController({
       showToast("本集播放完毕，已到播放列表末尾");
       return;
     }
-    if (!articleLookup.byId.has(nextId)) return;
-    autoPlayNextRef.current = nextId;
-    setSelectedArticleId(nextId);
-  }, [articleLookup, playablePlaylistIds, setSelectedArticleId, showToast]);
+    const nextArticle = articleLookup.byId.get(nextId);
+    if (!nextArticle?.audioUrl) return;
+    audioPlayerRef.current?.playArticle(nextId, nextArticle.audioUrl, audioProgressMapRef.current[nextId]);
+  }, [articleLookup, audioProgressMapRef, playablePlaylistIds, showToast]);
 
   const audioPlayer = useSharedAudioPlayer(updateAudioProgress, handleAudioEnded);
   audioPlayerRef.current = audioPlayer;
@@ -92,8 +91,7 @@ export function usePlaylistAudioController({
       audioPlayerRef.current.stop();
       if (nextArticle?.audioUrl) audioPlayerRef.current.loadArticle(nextArticle.id, nextArticle.audioUrl, audioProgressMapRef.current[nextArticle.id]);
     }
-    autoPlayNextRef.current = null;
-    setSelectedArticleId(nextId || null);
+    if (selectedArticleId === articleId) setSelectedArticleId(nextId || null);
   }, [articleLookup, audioProgressMapRef, playablePlaylistIds, selectedArticleId, setSelectedArticleId]);
 
   const togglePlaylist = useCallback((articleId: string) => {
@@ -136,11 +134,11 @@ export function usePlaylistAudioController({
     setPlaylistIds([]);
     if (audioPlayerRef.current?.articleId && playlistIds.includes(audioPlayerRef.current.articleId)) {
       audioPlayerRef.current.stop();
-      setSelectedArticleId(null);
+      if (selectedArticleId && playlistIds.includes(selectedArticleId)) setSelectedArticleId(null);
     }
     showToastWithAction(`已清空播放列表（${playlistIds.length} 集）`, { label: "撤销", run: undoClear });
     playlistUndoTimer.current = setTimeout(() => { playlistUndoRef.current = null; }, 5000);
-  }, [playlistIds, setSelectedArticleId, showToastWithAction, undoClear]);
+  }, [playlistIds, selectedArticleId, setSelectedArticleId, showToastWithAction, undoClear]);
 
   const reorder = useCallback((nextIds: string[]) => {
     setPlaylistIds((current) => {
@@ -184,7 +182,6 @@ export function usePlaylistAudioController({
     audioProgressMapRef,
     audioPlayer,
     audioPlayerRef,
-    autoPlayNextRef,
     sortOrder,
     toggleSortOrder,
     togglePlaylist,
