@@ -85,6 +85,8 @@ describe("ArticleDetailModal", () => {
     expect(html).not.toContain("text-amber-500");
     expect(html).toContain("text-blue-600");
     expect(html).toContain("text-slate-600");
+    expect(html).toContain('data-starred="true"');
+    expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("focus-visible:ring-2");
   });
 
@@ -188,6 +190,8 @@ describe("ArticleDetailModal", () => {
 
     expect((html.match(/aria-label="收藏文章"/g) || []).length).toBe(1);
     expect(html).toContain("lucide-star");
+    expect(html).toContain('data-starred="false"');
+    expect(html).toContain('aria-pressed="false"');
     expect(html).not.toContain("lucide-bookmark");
     expect((html.match(/aria-label="标记为已读"/g) || []).length).toBe(1);
     expect((html.match(/aria-label="打开原文"/g) || []).length).toBe(1);

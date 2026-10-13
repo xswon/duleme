@@ -20,11 +20,11 @@ export function resolveDurationLabel(mediaDuration: number, declaredDuration?: s
   return Number.isFinite(seconds) && seconds > 0 ? formatAudioTime(seconds) : "--:--";
 }
 
-export function AudioPlayerCard({ model: p }: { model: AudioPlayerModel }) {
+export const AudioPlayerCard = React.forwardRef<HTMLElement, { model: AudioPlayerModel }>(function AudioPlayerCard({ model: p }, ref) {
   const { article } = p;
   const duration = resolveDurationLabel(p.duration, article.duration);
   const progress = p.duration > 0 ? Math.min(100, (p.currentTime / p.duration) * 100) : 0;
-  return <section className="wreader-audio-card" aria-label="音频播放器">
+  return <section ref={ref} className="wreader-audio-card" aria-label="音频播放器">
     <div className="wreader-audio-cover" aria-hidden="true">
       {article.thumbnail ? <img src={resolveImageUrl(article.thumbnail)} alt="" referrerPolicy="no-referrer" onError={(event) => {
         if (!retryBackendImage(event.currentTarget, article.thumbnail)) event.currentTarget.style.display = "none";
@@ -49,4 +49,4 @@ export function AudioPlayerCard({ model: p }: { model: AudioPlayerModel }) {
     </div>
     {p.audioPlayError && <p className="wreader-audio-error" role="status">{p.audioPlayError}<a href={article.audioUrl} target="_blank" rel="noopener noreferrer">打开音频</a></p>}
   </section>;
-}
+});

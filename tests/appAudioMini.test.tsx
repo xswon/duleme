@@ -10,10 +10,13 @@ import { usePlaylistAudioController } from "../src/hooks/usePlaylistAudioControl
 
 vi.mock("../src/components/ArticleDetailModal", () => ({
   // Exercise App's real navigation/audio lifetime without unrelated transcription services.
-  ArticleDetailModal: ({ article, audioPlayer, onClose, initialDetailTab }: {
+  ArticleDetailModal: ({ article, audioPlayer, onClose, initialDetailTab, onAudioPlayerVisibilityChange }: {
     article: Article; audioPlayer: SharedAudioPlayer; onClose: () => void; initialDetailTab?: string;
+    onAudioPlayerVisibilityChange?: (articleId: string, visible: boolean) => void;
   }) => <div data-testid="detail" data-id={article.id} data-tab={initialDetailTab}>
     <button aria-label="开始伴听" onClick={() => audioPlayer.toggleArticle(article.id, article.audioUrl!)}>play</button>
+    <button aria-label="模拟播放器滚出视口" onClick={() => onAudioPlayerVisibilityChange?.(article.id, false)}>leave player</button>
+    <button aria-label="模拟播放器进入视口" onClick={() => onAudioPlayerVisibilityChange?.(article.id, true)}>enter player</button>
     <button aria-label="返回列表" onClick={onClose}>back</button>
   </div>,
 }));
@@ -136,6 +139,19 @@ describe("global mini player", () => {
     expect(mini()).toBeNull();
     expect(audio.getAttribute("src")).toBeNull();
     expect((await getAudioProgressMapFromDB())["episode-a"].currentTime).toBe(735);
+  });
+
+  it("shows the mini player after the current episode's inline player leaves view", async () => {
+    await renderApp();
+    await click('[data-article-id="episode-a"]');
+    await click('[aria-label="开始伴听"]');
+    expect(mini()).toBeNull();
+
+    await click('[aria-label="模拟播放器滚出视口"]');
+    expect(mini()).not.toBeNull();
+
+    await click('[aria-label="模拟播放器进入视口"]');
+    expect(mini()).toBeNull();
   });
 
   it("continues the queue while keeping the current news detail and shows ended state at the end", async () => {
