@@ -87,8 +87,8 @@ button {
 
 /* Keep the selected passage visible while the annotation toolbar is open. */
 #article_dialog_wrapper ::selection {
-  background-color: var(--color-blue-200);
-  color: var(--color-slate-900);
+  background-color: var(--wreader-text-selection);
+  color: var(--wreader-ui-text);
 }
 
 .wreader-selection-preview {

@@ -313,7 +313,7 @@ describe("navigation chrome", () => {
       Array.from(container.querySelectorAll("button")).find((button) => button.textContent?.trim() === "逐字稿")?.click();
     });
 
-    expect(container.querySelector("#settings-modal-title")?.textContent).toBe("转录");
+    expect(container.querySelector("#settings-modal-title")?.textContent).toBe("逐字稿");
     expect(container.querySelector(".wreader-settings-heading p")?.textContent).toBe("可选增强功能。不配置也不影响 RSS 阅读和播客播放。");
     expect(Array.from(container.querySelectorAll("#settings-panel-transcript h3")).map((heading) => heading.textContent)).toEqual(["转录设置"]);
 
