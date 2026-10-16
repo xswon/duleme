@@ -87,8 +87,8 @@ button {
 
 /* Keep the selected passage visible while the annotation toolbar is open. */
 #article_dialog_wrapper ::selection {
-  background-color: var(--color-blue-200);
-  color: var(--color-slate-900);
+  background-color: var(--wreader-text-selection);
+  color: var(--wreader-ui-text);
 }
 
 .wreader-selection-preview {
@@ -339,7 +339,7 @@ button {
   --wreader-selected: var(--wreader-selection);
   color: var(--wreader-ui-text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 svg {
@@ -1899,7 +1899,7 @@ body,
 .wreader-settings-sidebar-title {
   padding: 0 12px 14px;
   color: var(--wreader-ui-muted);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 

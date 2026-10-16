@@ -74,9 +74,11 @@
 .wreader-settings-modal { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 24px; }
 .wreader-settings-backdrop { position: absolute; inset: 0; border: 0; background: var(--wreader-overlay); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
 .wreader-settings-card { position: relative; width: min(960px, calc(100vw - 48px)); height: min(720px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); overflow: hidden; border: 0; border-radius: 16px; background: var(--wreader-surface-subtle); box-shadow: 0 24px 70px var(--wreader-shadow-color); }
-.wreader-settings-header { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 20px 0 26px; background: transparent; }
+/* Titles stay top-aligned at a fixed offset so tabs carrying a description line keep the same heading position. */
+.wreader-settings-header { min-height: 60px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 19px 20px 0 26px; background: transparent; }
 .wreader-settings-header h1 { margin: 0; color: var(--wreader-ui-text); font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
 .wreader-settings-close { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; color: var(--wreader-ui-muted); }
+.wreader-settings-header .wreader-settings-close { align-self: center; }
 .wreader-settings-close:hover,
 .wreader-settings-close:focus-visible { background: var(--wreader-hover); color: var(--wreader-accent-text); }
 .wreader-settings-close svg { width: 17px; height: 17px; }
@@ -141,7 +143,7 @@
 @media (max-width: 760px) {
   .wreader-settings-modal { padding: 10px; }
   .wreader-settings-card { width: calc(100vw - 20px); height: calc(100dvh - 20px); min-height: 0; max-height: calc(100dvh - 20px); border-radius: 12px; }
-  .wreader-settings-header { min-height: 54px; padding: 0 14px 0 18px; }
+  .wreader-settings-header { min-height: 54px; padding: 16px 14px 0 18px; }
   .wreader-settings-body { max-height: none; overflow: auto; padding: 0 14px; }
   .wreader-settings-page { display: block; padding: 10px 0 32px; }
   .wreader-settings-tabs { flex-direction: row; gap: 4px; overflow-x: auto; padding: 0; background: transparent; }

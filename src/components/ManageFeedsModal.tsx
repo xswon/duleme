@@ -435,7 +435,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="wreader-settings-main min-w-0">
           <header className="wreader-settings-header flex shrink-0 items-start justify-between">
             <div className="wreader-settings-heading">
-              <h1 id="settings-modal-title">{{ appearance: "外观", feeds: "订阅源", folders: "文件夹", transcript: "转录", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
+              <h1 id="settings-modal-title">{{ appearance: "外观", feeds: "订阅源", folders: "文件夹", transcript: "逐字稿", insight: "AI 摘要", data: "数据与备份", shortcuts: "快捷键" }[activeTab]}</h1>
               {activeDescription && <p>{activeDescription}</p>}
             </div>
             <button type="button" onClick={onBack} aria-label="关闭设置" className="wreader-settings-close"><X /></button>
@@ -443,7 +443,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div className="wreader-settings-body scrollbar-thin">
             <div className="wreader-settings-page w-full">
               <div className="wreader-settings-content min-w-0">
-          {activeTab === "appearance" && <section id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" className="wreader-settings-panel"><AppearanceControls /><p>主题应用于整个应用，跟随系统时自动切换。</p></section>}
+          {activeTab === "appearance" && <section id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" className="wreader-settings-panel"><AppearanceControls /></section>}
           {activeTab === "feeds" && (
             <section id="settings-panel-feeds" role="tabpanel" aria-labelledby="settings-tab-feeds" className="wreader-settings-panel">
               <div className="wreader-settings-filters">
