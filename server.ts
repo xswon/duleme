@@ -9,13 +9,13 @@ import { createBidclubRouter } from "./server/routes/bidclub";
 import { createAiRouter } from "./server/routes/ai";
 import { createLocalPodcastRouter } from "./server/routes/localPodcast";
 import { createTranscriptionRouter } from "./server/routes/transcription";
-import { requireLocalAccess, resolveListenHost } from "./server/middleware/localAccess";
+import { requireAppAccess, resolveListenHost } from "./server/middleware/localAccess";
 
 export function createApp() {
   const app = express();
   app.use(express.json({ limit: "5mb" }));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
-  app.use("/api", requireLocalAccess);
+  app.use("/api", requireAppAccess);
   app.use("/api/rss", createRssRouter());
   app.use("/api/proxy", createProxyRouter());
   app.use("/api", (req, _res, next) => {

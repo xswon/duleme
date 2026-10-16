@@ -5,12 +5,14 @@ vi.mock("node:dns/promises", () => ({
   default: { lookup: lookupMock },
   lookup: lookupMock,
 }));
-import { requireLocalAccess, resolveListenHost } from "../server/middleware/localAccess";
-import { createChatCompletion } from "../server/services/aiService";
+import { requireAppAccess, requireLocalAccess, resolveListenHost } from "../server/middleware/localAccess";
+import { createChatCompletion, getResolvedAiConfig } from "../server/services/aiService";
 import { outboundTransport } from "../server/services/outboundNetwork";
 import {
   assertSafeExternalUrl,
   fetchSafeExternal,
+  getAudioProxyMaxBytes,
+  isAudioProxyEnabled,
   isPublicIpAddress,
   isSafeExternalUrl,
   readResponseBodyLimited,
@@ -18,6 +20,13 @@ import {
 
 const originalSyntheticDnsSetting = process.env.ALLOW_PROXY_SYNTHETIC_DNS;
 const originalOutboundProxy = process.env.OUTBOUND_PROXY_URL;
+const originalPublicDeployment = process.env.PUBLIC_DEPLOYMENT;
+const originalSharedAiDefaults = process.env.ALLOW_SHARED_AI_DEFAULTS;
+const originalAiBaseUrl = process.env.AI_BASE_URL;
+const originalAiApiKey = process.env.AI_API_KEY;
+const originalAiModel = process.env.AI_MODEL;
+const originalPublicAudioProxy = process.env.ALLOW_PUBLIC_AUDIO_PROXY;
+const originalPublicAudioProxyMaxBytes = process.env.PUBLIC_AUDIO_PROXY_MAX_BYTES;
 
 function errorCauseCodes(error: unknown): Array<string | undefined> {
   const codes: Array<string | undefined> = [];
@@ -34,12 +43,27 @@ afterEach(() => {
   else process.env.ALLOW_PROXY_SYNTHETIC_DNS = originalSyntheticDnsSetting;
   if (originalOutboundProxy === undefined) delete process.env.OUTBOUND_PROXY_URL;
   else process.env.OUTBOUND_PROXY_URL = originalOutboundProxy;
+  if (originalPublicDeployment === undefined) delete process.env.PUBLIC_DEPLOYMENT;
+  else process.env.PUBLIC_DEPLOYMENT = originalPublicDeployment;
+  if (originalSharedAiDefaults === undefined) delete process.env.ALLOW_SHARED_AI_DEFAULTS;
+  else process.env.ALLOW_SHARED_AI_DEFAULTS = originalSharedAiDefaults;
+  if (originalAiBaseUrl === undefined) delete process.env.AI_BASE_URL;
+  else process.env.AI_BASE_URL = originalAiBaseUrl;
+  if (originalAiApiKey === undefined) delete process.env.AI_API_KEY;
+  else process.env.AI_API_KEY = originalAiApiKey;
+  if (originalAiModel === undefined) delete process.env.AI_MODEL;
+  else process.env.AI_MODEL = originalAiModel;
+  if (originalPublicAudioProxy === undefined) delete process.env.ALLOW_PUBLIC_AUDIO_PROXY;
+  else process.env.ALLOW_PUBLIC_AUDIO_PROXY = originalPublicAudioProxy;
+  if (originalPublicAudioProxyMaxBytes === undefined) delete process.env.PUBLIC_AUDIO_PROXY_MAX_BYTES;
+  else process.env.PUBLIC_AUDIO_PROXY_MAX_BYTES = originalPublicAudioProxyMaxBytes;
 });
 
 describe("server local-only boundary", () => {
   it("binds native runs to loopback and Docker to its loopback-published bridge", () => {
     expect(resolveListenHost({} as NodeJS.ProcessEnv)).toBe("127.0.0.1");
     expect(resolveListenHost({ DOCKER: "true" } as NodeJS.ProcessEnv)).toBe("0.0.0.0");
+    expect(resolveListenHost({ PUBLIC_DEPLOYMENT: "true" } as NodeJS.ProcessEnv)).toBe("0.0.0.0");
   });
 
   it("rejects non-loopback callers and cross-site browser requests", () => {
@@ -59,6 +83,95 @@ describe("server local-only boundary", () => {
 
     requireLocalAccess(request("::1", { origin: "http://127.0.0.1:4387" }) as never, response as never, next);
     expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows only same-origin browser API requests in public deployment mode", () => {
+    process.env.PUBLIC_DEPLOYMENT = "true";
+    const response = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    const request = (headers: Record<string, string> = {}) => ({
+      protocol: "https",
+      socket: { remoteAddress: "10.0.0.12" },
+      get: (name: string) => headers[name.toLowerCase()],
+    });
+
+    const allowed = vi.fn();
+    requireAppAccess(request({
+      host: "reader.example",
+      origin: "https://reader.example",
+      "sec-fetch-site": "same-origin",
+    }) as never, response as never, allowed);
+    expect(allowed).toHaveBeenCalledOnce();
+
+    const crossSite = vi.fn();
+    requireAppAccess(request({
+      host: "reader.example",
+      origin: "https://evil.example",
+      "sec-fetch-site": "cross-site",
+    }) as never, response as never, crossSite);
+    expect(response.status).toHaveBeenCalledWith(403);
+    expect(crossSite).not.toHaveBeenCalled();
+
+    const sameSiteOnly = vi.fn();
+    requireAppAccess(request({
+      host: "reader.example",
+      "sec-fetch-site": "same-site",
+    }) as never, response as never, sameSiteOnly);
+    expect(sameSiteOnly).not.toHaveBeenCalled();
+
+    const headerless = vi.fn();
+    requireAppAccess(request({ host: "reader.example" }) as never, response as never, headerless);
+    expect(headerless).not.toHaveBeenCalled();
+  });
+
+  it("does not expose site-owner AI defaults in public mode unless explicitly enabled", () => {
+    process.env.PUBLIC_DEPLOYMENT = "true";
+    process.env.AI_BASE_URL = "https://api.example.com/v1";
+    process.env.AI_API_KEY = "owner-secret";
+    process.env.AI_MODEL = "owner-model";
+
+    expect(() => getResolvedAiConfig()).toThrow("AI service is not configured.");
+
+    process.env.ALLOW_SHARED_AI_DEFAULTS = "true";
+    expect(getResolvedAiConfig()).toMatchObject({
+      baseURL: "https://api.example.com/v1",
+      apiKey: "owner-secret",
+      model: "owner-model",
+    });
+
+    process.env.ALLOW_SHARED_AI_DEFAULTS = "false";
+    expect(getResolvedAiConfig({
+      baseURL: "https://user.example.com/v1",
+      apiKey: "user-secret",
+      model: "user-model",
+    })).toMatchObject({
+      baseURL: "https://user.example.com/v1",
+      apiKey: "user-secret",
+      model: "user-model",
+    });
+  });
+});
+
+describe("public audio proxy policy", () => {
+  it("keeps local audio proxy behavior and requires explicit public opt-in", () => {
+    expect(isAudioProxyEnabled({} as NodeJS.ProcessEnv)).toBe(true);
+    expect(isAudioProxyEnabled({ PUBLIC_DEPLOYMENT: "true" } as NodeJS.ProcessEnv)).toBe(false);
+    expect(isAudioProxyEnabled({
+      PUBLIC_DEPLOYMENT: "true",
+      ALLOW_PUBLIC_AUDIO_PROXY: "true",
+    } as NodeJS.ProcessEnv)).toBe(true);
+  });
+
+  it("uses a smaller bounded byte cap for an explicitly enabled public proxy", () => {
+    expect(getAudioProxyMaxBytes({} as NodeJS.ProcessEnv)).toBe(512 * 1024 * 1024);
+    expect(getAudioProxyMaxBytes({ PUBLIC_DEPLOYMENT: "true" } as NodeJS.ProcessEnv)).toBe(128 * 1024 * 1024);
+    expect(getAudioProxyMaxBytes({
+      PUBLIC_DEPLOYMENT: "true",
+      PUBLIC_AUDIO_PROXY_MAX_BYTES: String(64 * 1024 * 1024),
+    } as NodeJS.ProcessEnv)).toBe(64 * 1024 * 1024);
+    expect(getAudioProxyMaxBytes({
+      PUBLIC_DEPLOYMENT: "true",
+      PUBLIC_AUDIO_PROXY_MAX_BYTES: String(1024 * 1024 * 1024),
+    } as NodeJS.ProcessEnv)).toBe(128 * 1024 * 1024);
   });
 });
 
