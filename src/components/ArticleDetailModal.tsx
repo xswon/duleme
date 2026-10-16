@@ -217,6 +217,7 @@ interface ArticleDetailModalProps {
   onTogglePlaylist?: (articleId: string) => void;
   savedProgress?: { currentTime: number; duration: number };
   audioPlayer?: SharedAudioPlayer;
+  onAudioPlayerVisibilityChange?: (articleId: string, visible: boolean) => void;
   onArticlePatch?: (articleId: string, patch: Partial<Article>) => void;
   /** Restores the detail scroller when returning to an article. */
   savedScrollTop?: number;
@@ -246,6 +247,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   onTogglePlaylist,
   savedProgress,
   audioPlayer,
+  onAudioPlayerVisibilityChange,
   onArticlePatch,
   savedScrollTop,
   savedReadingProgress,
@@ -303,6 +305,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   }>>([]);
   const selectableContentRef = useRef<HTMLDivElement | null>(null);
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  const [audioCardElement, setAudioCardElement] = useState<HTMLElement | null>(null);
+  const setAudioCardRef = useCallback((node: HTMLElement | null) => setAudioCardElement(node), []);
   const readerSettingsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const readerSettingsPopoverRef = useRef<HTMLDivElement | null>(null);
   const appliedOpenTargetRef = useRef<string | null>(null);
@@ -815,6 +819,22 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     return () => popover?.removeEventListener("keydown", trapFocus);
   }, [readerSettingsOpen]);
 
+  const hasAudio = !!presentation?.capabilities.hasAudio;
+
+  useEffect(() => {
+    if (!onAudioPlayerVisibilityChange || !article || !hasAudio || !audioCardElement) return;
+    const root = contentScrollRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") {
+      onAudioPlayerVisibilityChange(article.id, true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      onAudioPlayerVisibilityChange(article.id, entry.isIntersecting);
+    }, { root, threshold: 0 });
+    observer.observe(audioCardElement);
+    return () => observer.disconnect();
+  }, [article, audioCardElement, hasAudio, onAudioPlayerVisibilityChange]);
+
   if (!article) return null;
 
   const effectiveArtifacts = generationArtifacts || (localPodcastRuntimeAvailable ? localPodcast.artifacts : null);
@@ -836,9 +856,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const effectiveTranscriptionProgress = generationTask?.stage === "transcribing" && typeof generationTask.progress === "number"
     ? generationTask.progress
     : localPodcast.progress;
-
-  // Only show the player when the article has a real audio enclosure
-  const hasAudio = !!presentation?.capabilities.hasAudio;
 
   const handleSummarize = async () => {
     if (!presentation?.capabilities.canGenerateOverview || aiSummary || effectiveSummarizing) return;
@@ -1188,11 +1205,13 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             <button
               type="button"
               onClick={() => onToggleStar(article.id)}
-              className={`reader-action inline-flex h-9 w-9 min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10 ${article.starred ? "bg-blue-50 text-blue-600" : ""}`}
+              className="reader-action inline-flex h-9 w-9 min-h-9 min-w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 cursor-pointer sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10"
               title={article.starred ? "取消收藏" : "收藏文章"}
               aria-label={article.starred ? "取消收藏" : "收藏文章"}
+              aria-pressed={article.starred}
+              data-starred={article.starred}
             >
-              <Star className={`h-4 w-4 ${article.starred ? "fill-blue-600" : ""}`} />
+              <Star className="h-4 w-4" />
             </button>
             <a
               href={article.link}
@@ -1269,7 +1288,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             </div>
 
             {/* Audio Card (仅真实播客音频) */}
-            {hasAudio && <AudioPlayerCard model={{ article, isPlaying, currentTime, duration, playbackRate, audioPlayError, isInPlaylist, onTogglePlaylist, togglePlay: handleTogglePlay, onSeek: seekTo, onRateChange: () => audioPlayer?.cyclePlaybackRate(), onRewind: () => seekTo(currentTime - 15), onForward: () => seekTo(currentTime + 30) }} />}
+            {hasAudio && <AudioPlayerCard ref={setAudioCardRef} model={{ article, isPlaying, currentTime, duration, playbackRate, audioPlayError, isInPlaylist, onTogglePlaylist, togglePlay: handleTogglePlay, onSeek: seekTo, onRateChange: () => audioPlayer?.cyclePlaybackRate(), onRewind: () => seekTo(currentTime - 15), onForward: () => seekTo(currentTime + 30) }} />}
 
             {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
             {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">

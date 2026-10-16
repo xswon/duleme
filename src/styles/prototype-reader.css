@@ -51,6 +51,9 @@
 #article-reader .reader-action svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
 #article-reader .reader-action.bg-blue-50 { background: var(--wreader-surface-subtle); color: var(--wreader-ui-text); }
 #article-reader .reader-action.text-blue-600 svg { color: var(--wreader-ui-text); }
+#article-reader .reader-action[data-starred="true"] { background: var(--wreader-primary-button); color: var(--wreader-on-accent); }
+#article-reader .reader-action[data-starred="true"]:hover { background: var(--wreader-primary-hover); color: var(--wreader-on-accent); }
+#article-reader .reader-action[data-starred="true"] svg { fill: currentColor; stroke: currentColor; }
 #article-reader .reader-settings-button { font-size: 11px; font-weight: 750; letter-spacing: -.04em; }
 
 #article-reader .reader-settings-popover {
@@ -104,6 +107,17 @@
 #article-reader .article-copy img { max-width: 100%; height: auto; border-radius: 8px; outline: 1px solid var(--wreader-separator); }
 #article-reader .article-copy figure > img { margin: 0 auto; }
 #article-reader .article-copy figcaption { margin-top: .5em; color: var(--wreader-ui-muted); font-size: 13px; line-height: 1.5; font-style: normal; }
+/* Authored inline colors are authored for a light page and become unreadable on the dark reading surface. */
+html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color: inherit !important; }
+/* Authored inline typography is authored for another page: it beats the reader's font, size and
+   line-height settings, so the same feed renders unlike the rest. Unlike the color override this
+   applies to both themes, because the mismatch is visible on either surface. Headings, code and
+   captions keep the dedicated contracts above. */
+#article-reader .article-copy :is([style*="font-size" i], [style*="font-family" i], [style*="line-height" i]):not(:is(h1, h2, h3, h4, h5, h6, pre, code, figcaption)) {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
 
 #article-reader .wreader-audio-card { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 84px; height: 84px; margin: 18px 0 22px; padding: 10px 12px 10px 10px; overflow: hidden; border-radius: 12px; background: var(--wreader-surface-subtle); color: var(--wreader-ui-text); }
 #article-reader .wreader-audio-cover { width: 62px; height: 62px; border-radius: 8px; }

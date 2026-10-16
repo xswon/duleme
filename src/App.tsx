@@ -52,6 +52,7 @@ export default function App() {
     feedSortMode, setFeedSortMode, folderSortMode, setFolderSortMode, isInitializing,
   } = library;
   const [timelineSortOrder, setTimelineSortOrder] = useState<"newest" | "oldest">("newest");
+  const [isCurrentAudioCardVisible, setIsCurrentAudioCardVisible] = useState(true);
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.innerWidth <= 760);
   useEffect(() => {
     const media = window.matchMedia?.("(max-width: 760px)");
@@ -80,6 +81,9 @@ export default function App() {
     togglePlaylist, removeFromPlaylist, removeMany: removeManyFromPlaylist,
     clear: clearPlaylist, reorder: reorderPlaylist, commitArticleIdMigration,
   } = playlist;
+  const handleAudioPlayerVisibilityChange = useCallback((articleId: string, visible: boolean) => {
+    if (audioPlayer.articleId === articleId) setIsCurrentAudioCardVisible(visible);
+  }, [audioPlayer.articleId]);
   const { isAppStateReady, isOnboardingComplete, completeOnboarding } = useReaderPersistence({
     feeds, setFeeds, categories, setCategories, feedOrderByFolder, setFeedOrderByFolder,
     playlistIds, setPlaylistIds, audioProgressMap, setAudioProgressMap, showToast,
@@ -368,7 +372,7 @@ export default function App() {
     onNextArticle={nextArticle ? () => setSelectedArticleId(nextArticle.id) : undefined}
     onPrevArticle={previousArticle ? () => setSelectedArticleId(previousArticle.id) : undefined}
     playlistIds={playablePlaylistIds} onTogglePlaylist={togglePlaylist} savedProgress={audioProgressMap[selectedArticle.id]}
-    audioPlayer={audioPlayer}
+    audioPlayer={audioPlayer} onAudioPlayerVisibilityChange={handleAudioPlayerVisibilityChange}
     onArticlePatch={mutations.patchArticle} savedReadingProgress={selectedArticle.readingProgress}
     savedScrollTop={detailScrollPositions.current[selectedArticle.id]}
     onScrollPositionChange={(articleId, scrollTop) => { detailScrollPositions.current[articleId] = scrollTop; }}
@@ -380,7 +384,9 @@ export default function App() {
       : <DetailSelectionEmpty kind={activeTab === "playlist" ? "podcast" : "article"} />;
 
   const currentAudioArticle = audioPlayer.articleId ? articleLookup.byId.get(audioPlayer.articleId) : undefined;
-  const showMiniPlayer = Boolean(currentAudioArticle && selectedArticle?.id !== currentAudioArticle.id);
+  const isCurrentAudioDetail = selectedArticle?.id === currentAudioArticle?.id;
+  useEffect(() => setIsCurrentAudioCardVisible(true), [selectedArticle?.id, audioPlayer.articleId]);
+  const showMiniPlayer = Boolean(currentAudioArticle && (!isCurrentAudioDetail || !isCurrentAudioCardVisible));
   const showMobileTabs = !isImmersive && !isSettingsOpen && activeTab !== "settings" && !selectedArticle && !invalidArticleId;
   const openPlayingArticle = () => {
     if (!currentAudioArticle) return;
