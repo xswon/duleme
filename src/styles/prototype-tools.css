@@ -79,6 +79,8 @@
 
 /* Settings modal and settings page */
 .wreader-settings-modal { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 24px; }
+.wreader-add-feed-folder-select { font-size: 13px; }
+.wreader-add-feed-curated-button { font-size: 12px; }
 .wreader-settings-backdrop { position: absolute; inset: 0; border: 0; background: var(--wreader-overlay); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
 .wreader-settings-card { position: relative; width: min(960px, calc(100vw - 48px)); height: min(720px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); overflow: hidden; border: 0; border-radius: 16px; background: var(--wreader-surface-subtle); box-shadow: 0 24px 70px var(--wreader-shadow-color); }
 /* Titles stay top-aligned at a fixed offset so tabs carrying a description line keep the same heading position. */

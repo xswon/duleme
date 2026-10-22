@@ -332,7 +332,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                 <select
                   value={categoryInput}
                   onChange={(e) => setCategoryInput(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
+                  className="wreader-add-feed-folder-select w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                 >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>
@@ -470,7 +470,7 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                         <button
                           onClick={() => handleSubscribeCurated(curated)}
                           disabled={isSubscribed || isLoading}
-                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                          className={`wreader-add-feed-curated-button px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
                             isSubscribed
                               ? "bg-emerald-100 text-emerald-700"
                               : "bg-(--wreader-primary-button) hover:bg-(--wreader-primary-hover) text-white"
