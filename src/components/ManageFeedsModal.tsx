@@ -130,13 +130,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     const dialog = settingsDialogRef.current;
     if (!dialog) return undefined;
     const getFocusable = () => {
-      const scope = dialog.querySelector<HTMLElement>(".wreader-feed-edit-card") || dialog;
+      const scope = dialog.querySelector<HTMLElement>(".wreader-model-modal-card, .wreader-feed-edit-card") || dialog;
       return Array.from(scope.querySelectorAll<HTMLElement>(
         "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
       ));
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (dialog.querySelector(".wreader-model-modal")) return;
         event.preventDefault();
         const nestedClose = dialog.querySelector<HTMLButtonElement>('.wreader-feed-edit-card button[aria-label="关闭编辑订阅源"]');
         if (nestedClose) nestedClose.click();
@@ -403,7 +404,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   return (
     <div ref={settingsDialogRef} className="wreader-settings-modal fixed inset-0 z-[70] grid place-items-center p-6" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
-      <button type="button" className="wreader-settings-backdrop absolute inset-0" onClick={onBack} aria-label="关闭设置" />
+      <button type="button" className="wreader-settings-backdrop absolute inset-0" onClick={onBack} aria-label="设置背景，点击关闭" tabIndex={-1} />
       <section className="wreader-settings-card relative flex w-full overflow-hidden">
         <aside className="wreader-settings-sidebar">
           <div className="wreader-settings-sidebar-title">设置</div>
@@ -526,7 +527,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <div className="wreader-settings-data-grid">
                 <button type="button" onClick={() => exportOpml(feeds)} className="wreader-settings-action-card"><Download /><strong>导出 OPML</strong><span>仅导出订阅源和文件夹，适合迁移到其他阅读器。</span></button>
                 <button type="button" onClick={onOpenAddFeed} className="wreader-settings-action-card"><Upload /><strong>导入 OPML</strong><span>打开添加订阅流程，并报告新增、重复和无效数量。</span></button>
-                {onExportBackup && <button type="button" onClick={onExportBackup} className="wreader-settings-action-card"><Database /><strong>导出完整备份</strong><span>包含订阅、文章、状态、笔记、播放列表和进度。</span></button>}
+                {onExportBackup && <button type="button" onClick={onExportBackup} className="wreader-settings-action-card"><Database /><strong>导出完整备份</strong><span>包含订阅、文章、状态、笔记、待播和播放进度。</span></button>}
                 {onImportBackup && <label className="wreader-settings-action-card cursor-pointer"><Upload /><strong>恢复完整备份</strong><span>恢复会替换当前本地业务数据，请先导出当前备份。</span><input type="file" accept="application/json,.json" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onImportBackup(file); event.currentTarget.value = ""; }} /></label>}
               </div>
             </section>

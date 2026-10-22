@@ -42,7 +42,7 @@ html[data-theme="dark"] {
   --wreader-ui-border: #2c3136;
   --wreader-separator: #262b30;
   --wreader-ui-text: #e2e8f0;
-  --wreader-ui-muted: #929fac; /* 4.76:1 on selection; original #8a96a3 was 4.27:1. */
+  --wreader-ui-muted: #aab6c2;
   --wreader-ui-accent: #4b8fe2;
   --wreader-accent-text: #78b1f5;
   --wreader-selection: #233346;

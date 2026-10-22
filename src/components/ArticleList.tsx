@@ -294,6 +294,8 @@ const SwipeableArticleRow: React.FC<SwipeableArticleRowProps> = ({
       {/* Translate the inner row, preserving the virtual window's positioning. */}
       <article
         ref={rowRef}
+        role="button"
+        aria-label={`打开${presentation.capabilities.hasAudio ? "播客" : "文章"}：${article.title}`}
         data-article-id={article.id}
         tabIndex={0}
         aria-current={isSelected ? "true" : undefined}
@@ -423,7 +425,7 @@ export const ArticleList: React.FC<ArticleListProps> = ({
       />
       {hasOlderArticles && onShowOlder && (
         <HistoryWindowControl
-          label="继续加载 30 天"
+          label="加载更多"
           position="bottom"
           onClick={onShowOlder}
         />

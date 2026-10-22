@@ -48,6 +48,7 @@ export function useReaderNavigation() {
 
   const navigateToRoute = useCallback((next: Partial<ReaderRoute>, replace = false) => {
     const route = currentRoute(next);
+    if (!route.articleId) route.detailTab = undefined;
     const url = buildReaderUrl(route);
     if (typeof window !== "undefined" && window.location.pathname + window.location.search !== url) {
       if (replace) window.history.replaceState({}, "", url);

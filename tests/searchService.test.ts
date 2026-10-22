@@ -52,6 +52,12 @@ describe("searchService", () => {
     ]);
   });
 
+  it("ranks a title match above a body-only match regardless of source order", () => {
+    const body = article({ id: "body", title: "Other", content: "An Agent in the paragraph" });
+    const title = article({ id: "title", title: "Agent interviews", content: "Elsewhere" });
+    expect(searchArticles([body, title], "Agent").map(({ article: item }) => item.id)).toEqual(["title", "body"]);
+  });
+
   it("strips markup and decodes entities without leaving executable HTML", () => {
     expect(stripHtml('<script>alert("x")</script><p>Hello &amp; welcome<br>reader</p>')).toBe("Hello & welcome reader");
     expect(getSearchableFields(article({ content: "<img src=x onerror=alert(1)>Safe" })).content).toBe("Safe");

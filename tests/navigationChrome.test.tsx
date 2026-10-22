@@ -105,13 +105,13 @@ describe("navigation chrome", () => {
     expect(html).toContain("overflow-y-auto");
     expect(html).toContain('id="subscription-tree-scroll"');
     expect(html).not.toContain(">工具<");
-    expect(html.indexOf("收藏")).toBeLessThan(html.indexOf("播客"));
-    expect(html.indexOf("播客")).toBeLessThan(html.indexOf("笔记"));
+    expect(html.indexOf("收藏")).toBeLessThan(html.indexOf("待播"));
+    expect(html.indexOf("待播")).toBeLessThan(html.indexOf("笔记"));
     expect(html.indexOf("笔记")).toBeLessThan(html.indexOf("科技"));
     expect(html.indexOf("搜索")).toBeLessThan(html.indexOf("科技"));
     expect(html.indexOf("添加")).toBeLessThan(html.lastIndexOf("科技"));
 
-    const quickEntryOrder = ["时间线", "收藏", "播客", "笔记", "搜索"].map((label) =>
+    const quickEntryOrder = ["时间线", "收藏", "待播", "笔记", "搜索"].map((label) =>
       html.indexOf(label)
     );
     expect(quickEntryOrder).toEqual([...quickEntryOrder].sort((a, b) => a - b));
@@ -127,7 +127,7 @@ describe("navigation chrome", () => {
   it("marks every utility label for the collapsed rail", () => {
     const html = renderToStaticMarkup(<Sidebar {...sidebarProps({ isCollapsed: true })} />);
 
-    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">播客</span>');
+    expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">待播</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">搜索</span>');
     expect(html).toContain('class="wreader-nav-label wreader-nav-primary-label truncate text-xs">设置</span>');
@@ -657,7 +657,7 @@ describe("navigation chrome", () => {
     });
 
     await act(async () => {
-      container.querySelectorAll<HTMLButtonElement>('button[aria-label="关闭设置"]')[1]?.click();
+      container.querySelectorAll<HTMLButtonElement>('button[aria-label="关闭设置"]')[0]?.click();
     });
     expect(onBack).toHaveBeenCalledTimes(1);
 
@@ -839,9 +839,9 @@ describe("navigation chrome", () => {
 
     expect(notesHtml).toContain('aria-label="删除全部笔记"');
     expect(notesHtml).toContain('d="M10 11v6M14 11v6');
-    expect(audioHtml).toContain('aria-label="清空播放列表"');
+    expect(audioHtml).toContain('aria-label="清空待播"');
     expect(audioHtml).toContain('d="M21 21H8a2 2 0 0 1-1.42-.587');
-    expect(audioHtml).toContain('data-tip="清空播放列表"');
+    expect(audioHtml).toContain('data-tip="清空待播"');
     expect(audioHtml).not.toContain('title="删除全部音频"');
     expect(favoritesHtml).toContain('aria-label="清空收藏"');
     expect(favoritesHtml).not.toContain('aria-label="全部标为已读"');

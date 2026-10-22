@@ -1,4 +1,5 @@
 import { Article } from "../types";
+import { displayAuthor } from "./authorDisplay";
 
 export type SearchField = "title" | "content" | "summary" | "source" | "author";
 
@@ -94,7 +95,7 @@ export function getSearchableFields(article: Article): Record<SearchField, strin
     content: stripHtml(article.content),
     summary: [article.snippet, article.aiSummary].filter(Boolean).map((value) => stripHtml(value)).join(" "),
     source: stripHtml(article.feedTitle),
-    author: stripHtml(article.author),
+    author: stripHtml(displayAuthor(article.author, article.feedTitle)),
   };
 }
 
@@ -169,6 +170,25 @@ export function searchArticles(
         : [],
     });
   });
+  if (preparedQuery.terms.length) {
+    const score = (result: SearchResult) => {
+      const fields = getPreparedSearchDocument(result.article).fields;
+      const title = normalize(fields.title);
+      const summary = normalize(fields.summary);
+      const source = normalize(fields.source);
+      const author = normalize(fields.author);
+      const content = normalize(fields.content);
+      const allIn = (field: string) => preparedQuery.terms.every((term) => field.includes(term));
+      return (allIn(title) ? 100 : 0) + (allIn(summary) ? 30 : 0)
+        + (allIn(source) ? 20 : 0) + (allIn(author) ? 12 : 0)
+        + (allIn(content) ? 5 : 0)
+        + preparedQuery.terms.filter((term) => title.includes(term)).length * 8;
+    };
+    return results.map((result) => ({ result, score: score(result) }))
+      .sort((a, b) => b.score - a.score ||
+        (Date.parse(b.result.article.pubDate) || 0) - (Date.parse(a.result.article.pubDate) || 0))
+      .map(({ result }) => result);
+  }
   return results;
 }
 

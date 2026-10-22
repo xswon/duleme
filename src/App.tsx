@@ -334,7 +334,7 @@ export default function App() {
   const totalUnread = articleMetrics.totalRecentUnread;
   const totalSaved = articleMetrics.totalSaved;
   const activeTitle = useMemo(() => {
-    if (activeTab === "playlist") return "播客";
+    if (activeTab === "playlist") return "待播";
     if (activeTab === "notes") return "笔记";
     if (activeTab === "saved") return "收藏文章";
     if (activeTab === "search") return "搜索";
@@ -350,7 +350,12 @@ export default function App() {
         : undefined;
 
   const isFavoritesView = activeTab === "feeds" && filterType === "starred";
-  const articleListView = <ArticleList articles={visibleArticles} onSelectArticle={handleSelectArticle}
+  const articleListView = feeds.length === 0 && activeTab === "feeds" ? <div className="wreader-empty-library">
+    <h2>从你喜欢的内容开始</h2>
+    <p>导入已有订阅，或先添加几档精选节目与文章。</p>
+    <div><button type="button" className="wreader-btn wreader-btn-primary" onClick={() => setIsAddFeedOpen(true)}>导入 OPML / 添加订阅</button>
+      <button type="button" className="wreader-btn wreader-btn-ghost" onClick={() => startWithFeaturedFeeds(FEATURED_CURATED_FEEDS.slice(0, 3).map((feed) => feed.id))}>加入 3 个精选订阅</button></div>
+  </div> : <ArticleList articles={visibleArticles} onSelectArticle={handleSelectArticle}
     onToggleStar={mutations.toggleStar} onToggleRead={handleToggleRead} onSummarizeAI={handleSelectArticle}
     playlistIds={playablePlaylistIds} onTogglePlaylist={togglePlaylist} olderArticleCount={isFavoritesView ? 0 : olderArticleCount}
     historyWindowDays={historyWindowDays} historyWindowStepDays={HISTORY_WINDOW_STEP_DAYS}
@@ -359,9 +364,10 @@ export default function App() {
 
   const masterView = activeTab === "playlist" ? <PlaylistView articles={playlistArticles} audioProgressMap={audioProgressMap}
     audioPlayer={audioPlayer} onSelectArticle={handleSelectArticle} onRemoveFromPlaylist={removeFromPlaylist}
+    onToggleListened={(article) => mutations.patchArticle(article.id, { listened: !article.listened })}
     onClearPlaylist={clearPlaylist} onReorder={reorderPlaylist} onRemoveMany={removeManyFromPlaylist}
-    isLoading={isInitializing} onNavigateFeeds={() => navigateToRoute({ activeTab: "feeds", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })} />
-    : activeTab === "notes" ? <NotesView notes={visibleArticleNotes} articles={articles} onOpen={openNote} onUpdate={notes.updateNote} onDelete={notes.deleteNote} />
+    isLoading={isInitializing} onNavigateFeeds={() => navigateToRoute({ activeTab: "feeds", filterType: "all", contentType: "podcast", selectedFeedId: null, selectedCategory: null, articleId: null, detailTab: undefined })} />
+    : activeTab === "notes" ? <NotesView notes={visibleArticleNotes} articles={articles} onOpen={openNote} onUpdate={notes.updateNote} onDelete={notes.deleteNote} onNavigateFeeds={() => navigateToRoute({ activeTab: "feeds", articleId: null, detailTab: undefined })} />
       : activeTab === "search" ? <SearchView results={searchResults} feeds={feeds} searchQuery={searchQuery}
         resultQuery={deferredSearchQuery} setSearchQuery={(query) => { setSearchQuery(query); navigateToRoute({ activeTab: "search", searchQuery: query, articleId: selectedArticleId }, true); }}
         onSelectArticle={handleSelectArticle} onToggleStar={mutations.toggleStar} onToggleRead={handleToggleRead}
@@ -381,7 +387,7 @@ export default function App() {
     onToggleImmersive={() => setIsImmersive((immersive) => !immersive)} onOpenAiSettings={() => openSettings("insight")}
     onOpenTranscriptionSettings={() => openSettings("transcript")} generation={generation} />
     : invalidArticleId ? <div className="flex h-full items-center justify-center px-6 text-center"><div className="max-w-sm"><h2 className="text-base font-semibold text-slate-700">这篇文章暂时不可用</h2><p className="mt-2 text-sm leading-6 text-slate-500">文章可能已被删除或所属订阅源已取消。</p><button type="button" onClick={closeArticle} className="mt-4 wreader-btn wreader-btn-primary">返回列表</button></div></div>
-      : <DetailSelectionEmpty kind={activeTab === "playlist" ? "podcast" : "article"} />;
+      : <DetailSelectionEmpty kind={activeTab === "playlist" ? "podcast" : activeTab === "notes" ? "notes" : "article"} />;
 
   const currentAudioArticle = audioPlayer.articleId ? articleLookup.byId.get(audioPlayer.articleId) : undefined;
   const isCurrentAudioDetail = selectedArticle?.id === currentAudioArticle?.id;
@@ -412,11 +418,11 @@ export default function App() {
   return <div data-mini-player-open={showMiniPlayer} data-audio-loaded={Boolean(currentAudioArticle)} data-mobile-tabs-visible={showMobileTabs} className={`wreader-app flex h-screen w-screen overflow-hidden bg-slate-100 text-slate-900 font-sans antialiased transition-colors duration-200 ${isSidebarCollapsed ? "is-sidebar-collapsed" : ""}`}>
     <audio ref={audioPlayer.audioRef} className="hidden" onPlay={audioPlayer.handlePlay} onPause={audioPlayer.handlePause}
       onTimeUpdate={audioPlayer.handleTimeUpdate} onLoadedMetadata={audioPlayer.handleLoadedMetadata}
-      onEnded={audioPlayer.handleEnded} onError={audioPlayer.handleAudioError} />
+      onEnded={() => { if (audioPlayer.articleId) mutations.patchArticle(audioPlayer.articleId, { listened: true }); audioPlayer.handleEnded(); }} onError={audioPlayer.handleAudioError} />
     {!isImmersive && <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} filterType={filterType}
       feeds={feeds} categories={categories} selectedFeedId={selectedFeedId} setSelectedFeedId={setSelectedFeedId}
       selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} totalUnread={totalUnread} totalSaved={totalSaved}
-      playlistCount={0} notesCount={0} onOpenAddFeed={() => setIsAddFeedOpen(true)} onCreateFolder={feedManagement.addCategory}
+      playlistCount={playlistArticles.length} notesCount={visibleArticleNotes.length} onOpenAddFeed={() => setIsAddFeedOpen(true)} onCreateFolder={feedManagement.addCategory}
       onOpenSettings={() => openSettings("feeds")} feedSortMode={feedSortMode} folderSortMode={folderSortMode}
       feedOrderByFolder={feedOrderByFolder} isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen}
       onNavigate={navigateToRoute} isCollapsed={isSidebarCollapsed}

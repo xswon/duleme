@@ -39,7 +39,7 @@ describe("large-list virtualization", () => {
     );
     expect((html.match(/data-article-id=/g) || []).length).toBeLessThan(200);
     expect(html).toContain('data-virtual-count="50000"');
-    expect(html).toContain("继续加载 30 天");
+    expect(html).toContain("加载更多");
   });
 
   it("bounds search rows while preserving mounted-row highlighting", () => {

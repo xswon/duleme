@@ -35,6 +35,11 @@ describe("rssParser format compatibility", () => {
     });
   });
 
+  it("removes contact email addresses from podcast authors while keeping the show name", () => {
+    const xml = `<rss version="2.0"><channel><title>硅谷101</title><item><title>Episode</title><guid>one</guid><author>liuhj60@gmail.com (硅谷101)</author></item></channel></rss>`;
+    expect(parseFeedXml(xml, "https://example.com/rss").items[0].author).toBe("硅谷101");
+  });
+
   it("rejects malformed XML and non-feed documents", () => {
     expect(() => parseFeedXml("<rss><channel></rss>", "https://example.com/broken.xml", { strict: true }))
       .toThrow(/Invalid feed XML/);

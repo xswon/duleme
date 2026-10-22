@@ -89,7 +89,7 @@ describe("PlaylistView", () => {
   it("removes an episode from its row action", () => {
     const onRemoveFromPlaylist = vi.fn();
     const { container, root } = renderView({ ...baseProps(), onRemoveFromPlaylist });
-    const remove = container.querySelector('button[aria-label="从播放列表删除 one"]') as HTMLButtonElement;
+    const remove = container.querySelector('button[aria-label="从待播移除 one"]') as HTMLButtonElement;
     act(() => remove.click());
     expect(onRemoveFromPlaylist).toHaveBeenCalledWith("one");
     act(() => root.unmount());

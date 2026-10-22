@@ -72,7 +72,7 @@ describe("reader action menus", () => {
 
   it.each([
     { activeTab: "feeds" as const, filterType: "starred" as const, action: "清空收藏" },
-    { activeTab: "playlist" as const, action: "清空播放列表" },
+    { activeTab: "playlist" as const, action: "清空待播" },
     { activeTab: "notes" as const, action: "删除全部笔记" },
     { activeTab: "search" as const, action: null },
   ])("keeps $activeTab operations separate", async ({ action, ...props }) => {
@@ -89,7 +89,7 @@ describe("reader action menus", () => {
     await render(<Sidebar {...sidebarProps} isCollapsed={isCollapsed} activeTab="search" onNavigate={onNavigate} />);
     expect(container.querySelectorAll('[aria-label="搜索"]')).toHaveLength(1);
     const tools = container.querySelector('[aria-label="快捷入口"]')!;
-    expect(Array.from(tools.querySelectorAll("button")).map((item) => item.getAttribute("aria-label"))).toEqual(["播客", "笔记", "搜索"]);
+    expect(Array.from(tools.querySelectorAll("button")).map((item) => item.getAttribute("aria-label"))).toEqual(["待播，0 条", "笔记，0 条", "搜索"]);
     expect(button("搜索").classList.contains("text-blue-700")).toBe(true);
     await click("搜索");
     expect(onNavigate).toHaveBeenCalledWith({ activeTab: "search", filterType: "all", selectedFeedId: null, selectedCategory: null, articleId: null });

@@ -78,4 +78,15 @@ describe("SearchView", () => {
     expect(html).toContain('class="wreader-search-result is-selected"');
     expect(html).not.toContain("lucide-bookmark");
   });
+
+  it("shows context, count, content-type controls and a podcast icon", () => {
+    const podcast = { ...article, id: "podcast", audioUrl: "https://example.com/a.mp3" };
+    const html = renderToStaticMarkup(<SearchView results={searchArticles([podcast], "needle")} feeds={[feed]}
+      searchQuery="needle" setSearchQuery={vi.fn()} onSelectArticle={vi.fn()} onToggleStar={vi.fn()}
+      onToggleRead={vi.fn()} onSummarizeAI={vi.fn()} />);
+    expect(html).toContain("1 条结果");
+    expect(html).toContain("lucide-headphones");
+    expect(html).toContain("containing ");
+    expect(html).toContain(">播客</button>");
+  });
 });

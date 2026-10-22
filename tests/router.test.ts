@@ -26,6 +26,12 @@ describe("reader URL routing", () => {
     expect(buildReaderUrl(route)).toBe("/search?q=local+first&article=a1");
   });
 
+  it("drops detail tabs when the article is closed or the destination is a tool", () => {
+    const stale = parseReaderRoute({ pathname: "/playlist", search: "?tab=transcript" });
+    expect(stale.detailTab).toBeUndefined();
+    expect(buildReaderUrl({ ...stale, detailTab: "transcript" })).toBe("/playlist");
+  });
+
   it("keeps search queries inside timeline routes", () => {
     const route = parseReaderRoute({ pathname: "/today", search: "?q=agent&unread=1" });
     expect(route).toMatchObject({ activeTab: "feeds", searchQuery: "agent", filterType: "unread" });

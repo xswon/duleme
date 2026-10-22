@@ -14,10 +14,13 @@ import {
   OverviewPanelState,
   OverviewPipelineStage,
   TranscriptPanelState,
+  TranscriptSegment,
 } from "../types";
 import { renderBidclubRichText } from "../services/bidclubRichText";
 import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
 import { sanitizeHtml } from "../utils/sanitizeHtml";
+import { summaryProvenanceLabel } from "../services/summaryProvenance";
+import { ReaderHelp } from "./ReaderHelp";
 
 export interface InsightModel {
   article: Article;
@@ -42,7 +45,6 @@ export interface InsightModel {
   onConfigureTranscription?: () => void;
   summarizing: boolean;
   summaryProgress?: number;
-  summaryServiceLabel?: string;
   summaryError: string | null;
   localArtifacts?: LocalPodcastArtifacts | null;
   localProgress?: number;
@@ -54,6 +56,7 @@ export interface InsightModel {
   onRetryTranscription?: () => void;
   onCreateInsight?: () => void;
   onSeekTranscript?: (seconds: number) => void;
+  currentAudioTime?: number;
 }
 
 function LoadingContent() {
@@ -113,6 +116,35 @@ function formatMinuteTimestamp(startMs: number): string {
   return hours > 0
     ? `${hours}:${minuteLabel}:${secondLabel}`
     : `${minuteLabel}:${secondLabel}`;
+}
+
+function TimedTranscript({ segments, currentTime = 0, onSeek }: {
+  segments: TranscriptSegment[];
+  currentTime?: number;
+  onSeek?: (seconds: number) => void;
+}) {
+  const currentMs = currentTime * 1000;
+  return <div className="audio-tab-panel audio-transcript-panel" aria-label="可跳转的逐字稿">
+    {segments.map((segment, index) => {
+      const nextStart = segments[index + 1]?.startMs ?? Infinity;
+      const end = segment.endMs && segment.endMs > segment.startMs
+        ? Math.min(segment.endMs, nextStart) : nextStart;
+      const active = currentMs >= segment.startMs && currentMs < end;
+      const seek = () => onSeek?.(segment.startMs / 1000);
+      return <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs} className={active ? "is-current" : undefined}>
+        <button type="button" onClick={seek} className="transcript-time" aria-label={`跳至 ${formatMinuteTimestamp(segment.startMs)}`}>
+          {formatMinuteTimestamp(segment.startMs)}
+        </button>
+        <span className="transcript-sentence" role="button" tabIndex={0} onClick={() => {
+          if (!window.getSelection()?.toString().trim()) seek();
+        }} onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); seek(); }
+        }} aria-label={`跳至 ${formatMinuteTimestamp(segment.startMs)}：${segment.text}`}>
+          {segment.speaker && <small className="mr-2">{segment.speaker}</small>}{segment.text}
+        </span>
+      </p>;
+    })}
+  </div>;
 }
 
 function splitGeneratedPodcastSummary(summary: string): { overview: string; deepSummary: string } {
@@ -511,12 +543,12 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <div className="reader-service-content">
-          <ContentServiceBar
-            label={`摘要模型：${p.summaryServiceLabel || "用户配置模型"}`}
-            actionLabel="重新生成"
-            onAction={p.onRegenerateSummary}
-          />
           <section className="audio-highlight-body">
+            <ContentServiceBar
+              label={summaryProvenanceLabel(p.article.aiSummaryProvenance)}
+              actionLabel="重新生成"
+              onAction={p.onRegenerateSummary}
+            />
             <BidclubRichTextContent html={generatedSummary.overview} emptyText="暂无摘要" className="bidclub-overview" />
           </section>
         </div>
@@ -638,8 +670,8 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <div className="reader-service-content">
-          <ContentServiceBar label="摘要模型：本地 AI" actionLabel="重新生成" onAction={p.onCreateInsight} />
           <section className="audio-highlight-body">
+            <ContentServiceBar label="摘要模型：本地 AI" actionLabel="重新生成" onAction={p.onCreateInsight} />
             <div className="reader-content bidclub-overview">
             {oneSentenceText && <p>{oneSentenceText}</p>}
             {renderList(localDigest.key_insights)}
@@ -668,9 +700,15 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
     return (
       <div className="audio-insight-layout wreader-ai-summary-layout">
         <div className="reader-service-content">
-          {hasOverview && <section className="audio-highlight-body">
-            <BidclubRichTextContent html={p.overviewHtml} emptyText="暂无短精华" className="bidclub-overview" />
-          </section>}
+          <section className="audio-highlight-body">
+            <div className="reader-service-bar">
+              <span data-testid="enrichment-attribution">来源 · {p.bidclubEpisodeUrl
+                ? <a href={p.bidclubEpisodeUrl} target="_blank" rel="noreferrer">BidClub</a>
+                : "BidClub"}</span>
+              <ReaderHelp label="摘要来源说明">摘要由 BidClub 提供，无需配置个人 AI Key。</ReaderHelp>
+            </div>
+            {hasOverview && <BidclubRichTextContent html={p.overviewHtml} emptyText="暂无短精华" className="bidclub-overview" />}
+          </section>
         </div>
         {hasDigest && <>
           {deepSummaryToggle}
@@ -679,21 +717,14 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
             {p.digestHtml && <BidclubRichTextContent html={p.digestHtml} emptyText="暂无深度精华" className="bidclub-digest" />}
           </section>
         </>}
-        <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
       </div>
     );
   }
 
-  if (p.transcriptHtml?.trim()) return (
-    <div className="reader-service-content">
-      <HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" />
-      <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
-    </div>
-  );
   if (cloudTask?.segments?.length) return (
     <div className="reader-service-content">
       <ContentServiceBar label="转录服务：阿里云百炼" />
-      <div className="audio-tab-panel audio-transcript-panel">{cloudTask.segments.map((segment, index) => <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}><button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button><span>{segment.speaker && <small className="mr-2 text-slate-400">{segment.speaker}</small>}{segment.text}</span></p>)}</div>
+      <TimedTranscript segments={cloudTask.segments} currentTime={p.currentAudioTime} onSeek={p.onSeekTranscript} />
     </div>
   );
   if (p.localArtifacts?.transcript?.length) return (
@@ -704,17 +735,16 @@ export function ArticleInsightTabs({ model: p }: { model: InsightModel }) {
           actionLabel="重新转录"
           onAction={p.onRegenerateTranscript ? () => setRetranscriptionConfirmOpen(true) : undefined}
         />
-        <div className="audio-tab-panel audio-transcript-panel">
-          {p.localArtifacts.transcript.map((segment, index) => (
-            <p key={`${segment.startMs}-${index}`} data-transcript-start-ms={segment.startMs}>
-              <button type="button" onClick={() => p.onSeekTranscript?.(segment.startMs / 1000)} className="transcript-time">{formatMinuteTimestamp(segment.startMs)}</button>
-              <span>{segment.text}</span>
-            </p>
-          ))}
-        </div>
+        <TimedTranscript segments={p.localArtifacts.transcript} currentTime={p.currentAudioTime} onSeek={p.onSeekTranscript} />
       </div>
       {retranscriptionDialog}
     </>
+  );
+  if (p.transcriptHtml?.trim()) return (
+    <div className="reader-service-content">
+      <HtmlContent html={p.transcriptHtml} emptyText="暂无逐字稿" className="audio-tab-panel audio-transcript-panel" />
+      <EnrichmentAttribution episodeUrl={p.bidclubEpisodeUrl} />
+    </div>
   );
   switch (p.transcriptState) {
     case "ready":

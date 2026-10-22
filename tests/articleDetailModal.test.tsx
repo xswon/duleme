@@ -30,7 +30,7 @@ describe("ArticleDetailModal", () => {
     expect(unreadHtml).toContain('aria-label="标记为已读"');
     expect(unreadHtml).toContain('title="标记为已读"');
     expect(unreadHtml).toContain("lucide-mail-open");
-    expect(unreadHtml).not.toContain("lucide-circle");
+    expect(unreadHtml).not.toMatch(/lucide-circle(?:\s|")/);
 
     const readHtml = renderToStaticMarkup(
       <ArticleDetailModal
@@ -43,7 +43,7 @@ describe("ArticleDetailModal", () => {
     expect(readHtml).toContain('aria-label="标记为未读"');
     expect(readHtml).toContain('title="标记为未读"');
     expect(readHtml).toContain("lucide-mail");
-    expect(readHtml).not.toContain("lucide-circle");
+    expect(readHtml).not.toMatch(/lucide-circle(?:\s|")/);
   });
 
   it("renders a coverless article with its body and reorganized actions intact", () => {
@@ -58,6 +58,9 @@ describe("ArticleDetailModal", () => {
 
     expect(html).toContain("Article without a cover");
     expect(html).toContain("Readable body");
+    expect(html).toContain('aria-label="阅读帮助"');
+    expect(html).not.toContain("选中文字可高亮或写笔记。");
+    expect(html).not.toContain("跳转音频");
     expect(html).toContain('title="打开原文"');
     expect(html).toContain('aria-label="打开原文"');
     expect(html).toContain('aria-label="阅读设置"');
@@ -113,10 +116,8 @@ describe("ArticleDetailModal", () => {
     expect(html).toContain("lucide-file-text");
     expect(html).toContain('data-insight-icon="ai-summary"');
     expect(html).toContain('data-insight-icon="transcript"');
-    expect(html.indexOf("author@example.com")).toBeGreaterThan(html.indexOf("Example"));
-    // The relative-time formatter switches to a localized calendar date after
-    // 30 days; retain the metadata ordering assertion without coupling to it.
-    expect(html).toMatch(/author@example\.com<\/span><span>·<\/span><span>/);
+    expect(html).not.toContain("author@example.com");
+    expect(html).toContain("Example");
     const markup = document.createElement("div");
     markup.innerHTML = html;
     const column = markup.querySelector(".reader-column")!;
@@ -124,8 +125,8 @@ describe("ArticleDetailModal", () => {
     const metadata = column.querySelector(".reader-subtitle")!;
     expect(heading.textContent).toBe(article.title);
     expect(heading.compareDocumentPosition(metadata) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect([...metadata.children].map((element) => element.textContent).slice(0, 4))
-      .toEqual(["Example", "·", "author@example.com", "·"]);
+    expect([...metadata.children].map((element) => element.textContent).slice(0, 2))
+      .toEqual(["Example", "·"]);
     expect(metadata.lastElementChild?.textContent).toBeTruthy();
     expect(html).not.toContain("已整理");
 

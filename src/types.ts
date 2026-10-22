@@ -170,10 +170,12 @@ export interface Article {
   thumbnail?: string;
   read: boolean;
   starred: boolean;
+  listened?: boolean;
   savedAt?: string;
   aiSummary?: string;
   /** Identifies whether a generated summary came from article text or a completed transcript. */
   aiSummarySource?: "article" | "transcript";
+  aiSummaryProvenance?: { provider: string; model: string; keySource: "personal" | "server" | "local" | "unknown" };
   /** Generated results that have not yet been opened in their corresponding detail tab. */
   insightUnread?: {
     transcript?: boolean;

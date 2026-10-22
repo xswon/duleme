@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {activeTab === "playlist" ? <>
-          <button type="button" onClick={onMarkAllRead} disabled={playlistEmpty} data-tip="清空播放列表" aria-label="清空播放列表" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
+          <button type="button" onClick={onMarkAllRead} disabled={playlistEmpty} data-tip="清空待播" aria-label="清空待播" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="eraser" className="h-4 w-4" /></button>
           {onToggleTimelineSort && <button type="button" onClick={onToggleTimelineSort} title={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} aria-label={timelineSortOrder === "newest" ? "排序：按加入顺序" : "排序：按反向加入顺序"} className="wreader-timeline-sort wreader-icon-button"><PrototypeIcon type="sort" className="h-4 w-4" /></button>}
         </> : activeTab === "notes" ? <>
           <button type="button" onClick={onMarkAllRead} disabled={notesEmpty} data-tip="删除全部笔记" aria-label="删除全部笔记" className="wreader-mark-read wreader-icon-button"><PrototypeIcon type="trash" className="h-4 w-4" /></button>

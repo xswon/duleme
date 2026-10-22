@@ -8,6 +8,7 @@ interface NotesViewProps {
   onOpen: (note: ArticleNote) => void;
   onUpdate: (note: ArticleNote, text: string) => void;
   onDelete: (note: ArticleNote) => void;
+  onNavigateFeeds?: () => void;
 }
 
 function noteTime(updatedAt: number) {
@@ -23,7 +24,7 @@ function NoteIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5" /></svg>;
 }
 
-export function NotesView({ notes, articles, onOpen, onUpdate, onDelete }: NotesViewProps) {
+export function NotesView({ notes, articles, onOpen, onUpdate, onDelete, onNavigateFeeds }: NotesViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -35,7 +36,7 @@ export function NotesView({ notes, articles, onOpen, onUpdate, onDelete }: Notes
   return (
     <div className="wreader-tool-view wreader-notes-view" aria-label="全部笔记">
       {visibleNotes.length === 0 ? (
-        <div className="wreader-notes-empty"><strong>暂无笔记</strong></div>
+        <div className="wreader-notes-empty"><strong>暂无笔记</strong><p>打开文章或逐字稿，选中一段文字即可保存摘录。</p>{onNavigateFeeds && <button type="button" className="wreader-btn wreader-btn-primary" onClick={onNavigateFeeds}>浏览时间线</button>}</div>
       ) : (
         <div className="wreader-notes-list">
           {visibleNotes.map((note) => {

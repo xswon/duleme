@@ -69,7 +69,7 @@ export function usePlaylistAudioController({
     const currentIndex = playablePlaylistIds.indexOf(articleId);
     const nextId = currentIndex >= 0 ? playablePlaylistIds[currentIndex + 1] : undefined;
     if (!nextId) {
-      showToast("本集播放完毕，已到播放列表末尾");
+      showToast("本集播放完毕，已到待播末尾");
       return;
     }
     const nextArticle = articleLookup.byId.get(nextId);
@@ -97,14 +97,14 @@ export function usePlaylistAudioController({
   const togglePlaylist = useCallback((articleId: string) => {
     const removing = playlistIds.includes(articleId);
     setPlaylistIds((current) => removing ? current.filter((id) => id !== articleId) : [...current, articleId]);
-    showToast(removing ? "已从播放列表中移除" : "已加入音频播放列表");
+    showToast(removing ? "已从待播移除" : "已加入待播");
     if (removing) selectAfterRemoval(articleId);
   }, [playlistIds, selectAfterRemoval, showToast]);
 
   const removeFromPlaylist = useCallback((articleId: string) => {
     setPlaylistIds((current) => current.filter((id) => id !== articleId));
     selectAfterRemoval(articleId);
-    showToast("已从播放列表中移除");
+    showToast("已从待播移除");
   }, [selectAfterRemoval, showToast]);
 
   const undoClear = useCallback(() => {
@@ -112,7 +112,7 @@ export function usePlaylistAudioController({
     setPlaylistIds(playlistUndoRef.current);
     playlistUndoRef.current = null;
     if (playlistUndoTimer.current) clearTimeout(playlistUndoTimer.current);
-    showToast("已恢复播放列表");
+    showToast("已恢复待播");
   }, [showToast]);
 
   const removeMany = useCallback((articleIds: string[]) => {
@@ -123,7 +123,7 @@ export function usePlaylistAudioController({
     setPlaylistIds((current) => current.filter((id) => !ids.has(id)));
     const currentAudioId = audioPlayerRef.current?.articleId;
     if (currentAudioId && ids.has(currentAudioId)) selectAfterRemoval(currentAudioId, ids);
-    showToastWithAction(`已从播放列表移除 ${articleIds.length} 集`, { label: "撤销", run: undoClear });
+    showToastWithAction(`已从待播移除 ${articleIds.length} 集`, { label: "撤销", run: undoClear });
     playlistUndoTimer.current = setTimeout(() => { playlistUndoRef.current = null; }, 5000);
   }, [playlistIds, selectAfterRemoval, showToastWithAction, undoClear]);
 
@@ -136,7 +136,7 @@ export function usePlaylistAudioController({
       audioPlayerRef.current.stop();
       if (selectedArticleId && playlistIds.includes(selectedArticleId)) setSelectedArticleId(null);
     }
-    showToastWithAction(`已清空播放列表（${playlistIds.length} 集）`, { label: "撤销", run: undoClear });
+    showToastWithAction(`已清空待播（${playlistIds.length} 集）`, { label: "撤销", run: undoClear });
     playlistUndoTimer.current = setTimeout(() => { playlistUndoRef.current = null; }, 5000);
   }, [playlistIds, selectedArticleId, setSelectedArticleId, showToastWithAction, undoClear]);
 

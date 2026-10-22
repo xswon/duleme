@@ -236,9 +236,9 @@ describe("ArticleList content capabilities", () => {
     });
 
     expect(container.textContent).not.toContain("更早内容");
-    expect(container.textContent).toContain("继续加载 30 天");
+    expect(container.textContent).toContain("加载更多");
     const button = Array.from(container.querySelectorAll("button")).find(
-      (candidate) => candidate.textContent === "继续加载 30 天"
+      (candidate) => candidate.textContent === "加载更多"
     );
     act(() => button?.click());
     expect(onShowOlder).toHaveBeenCalledTimes(1);
@@ -281,7 +281,7 @@ describe("ArticleList content capabilities", () => {
     );
 
     expect(html).toContain("收起至最近 30 天");
-    expect(html).toContain("继续加载 30 天");
+    expect(html).toContain("加载更多");
     expect(html).not.toContain("正在显示最近 60 天");
     expect((html.match(/wreader-timeline-history-control/g) || []).length).toBe(2);
   });

@@ -1,4 +1,5 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
+import { displayAuthor } from "../../src/services/authorDisplay";
 
 export type ParsedFeed = {
   title: string;
@@ -120,7 +121,7 @@ export function parseFeedXml(xml: string, feedUrl: string, options: ParseFeedOpt
     });
   const returned = options.limit === undefined ? selected : selected.slice(0, options.limit);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Parsed item fields differ between RSS and Atom and are normalized into the local article shape.
-  const items = returned.map(({ item, index, rawDate }: { item: any; index: number; rawDate: string }) => { const itemLink = isAtom ? (Array.isArray(item.link) ? (item.link.find((x: any) => x?.["@_rel"] === "alternate") || item.link[0])?.["@_href"] : item.link?.["@_href"]) || feedUrl : value(item.link, feedUrl); const rawContent = isAtom ? (item.content ?? item.summary) : (item["content:encoded"] ?? item.description); const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent ?? ""); const id = value(isAtom ? item.id : (item.guid ?? itemLink), `${feedUrl}-${index}`); return { id: String(id), title: strip(item.title) || "Untitled Article", link: String(itemLink), content, snippet: strip(content).slice(0, 240), pubDate: rawDate || new Date().toISOString(), author: value(isAtom ? item.author?.name : (item["dc:creator"] ?? item.author), strip(source.title) || "Unknown"), thumbnail: itemImage(item, content, source, feedUrl), ...itemAudio(item, content), read: false, starred: false }; });
+  const items = returned.map(({ item, index, rawDate }: { item: any; index: number; rawDate: string }) => { const itemLink = isAtom ? (Array.isArray(item.link) ? (item.link.find((x: any) => x?.["@_rel"] === "alternate") || item.link[0])?.["@_href"] : item.link?.["@_href"]) || feedUrl : value(item.link, feedUrl); const rawContent = isAtom ? (item.content ?? item.summary) : (item["content:encoded"] ?? item.description); const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent ?? ""); const id = value(isAtom ? item.id : (item.guid ?? itemLink), `${feedUrl}-${index}`); return { id: String(id), title: strip(item.title) || "Untitled Article", link: String(itemLink), content, snippet: strip(content).slice(0, 240), pubDate: rawDate || new Date().toISOString(), author: displayAuthor(value(isAtom ? item.author?.name : (item["dc:creator"] ?? item.author), strip(source.title) || "Unknown")) || strip(source.title) || "Unknown", thumbnail: itemImage(item, content, source, feedUrl), ...itemAudio(item, content), read: false, starred: false }; });
   return {
     title: strip(source.title) || "Untitled Feed",
     description: strip(isAtom ? source.subtitle : source.description),

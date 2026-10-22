@@ -158,6 +158,7 @@ function ModelConfigModal({
   onSave,
   saveLabel = "保存",
   saving = false,
+  canSave = true,
   notice,
 }: {
   title: string;
@@ -166,8 +167,15 @@ function ModelConfigModal({
   onSave: () => void;
   saveLabel?: string;
   saving?: boolean;
+  canSave?: boolean;
   notice?: React.ReactNode;
 }) {
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const firstField = document.querySelector<HTMLElement>(".wreader-model-modal select, .wreader-model-modal input");
+    firstField?.focus();
+    return () => { if (opener?.isConnected) opener.focus(); };
+  }, []);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !saving) onClose();
@@ -188,7 +196,7 @@ function ModelConfigModal({
         <div className="wreader-model-modal-body">{children}</div>
         <footer>
           <div className="wreader-model-modal-footer-actions">
-            <button type="button" onClick={onSave} disabled={saving}>{saving ? "正在保存…" : saveLabel}</button>
+            <button type="button" onClick={onSave} disabled={saving || !canSave}>{saving ? "正在保存…" : saveLabel}</button>
           </div>
         </footer>
       </section>
@@ -617,12 +625,14 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
             provider={insight?.configured ? insight.provider : undefined}
             onClick={openInsightModal}
           />
+          <p className="wreader-model-hint">已有的 BidClub 摘要无需配置即可阅读。使用自己的 AI 服务生成新摘要时，文章或逐字稿会经应用后端发送给所选服务商，费用按服务商规则从你的账号扣除。</p>
           {insightModalOpen && (
             <ModelConfigModal
               title="配置 AI 摘要"
               onClose={() => setInsightModalOpen(false)}
               onSave={() => void saveInsight()}
               saving={insightSaving}
+              canSave={!validateInsightBasics()}
               notice={insightFeedback ? <ConnectionFeedback feedback={insightFeedback} /> : null}
             >
               <div className="wreader-model-field">
@@ -822,6 +832,7 @@ export function LocalAiSettingsPanel({ view = "transcription", panelId }: { view
             onClose={() => setTranscriptionModalOpen(false)}
             onSave={() => void saveTranscription()}
             saving={saving}
+            canSave={Boolean(draftProvider && (draftKey.trim() || settings?.provider === draftTranscriptionProvider))}
             notice={transcriptionFeedback ? <ConnectionFeedback feedback={transcriptionFeedback} /> : null}
           >
             <div className="wreader-model-field">

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { Article, AudioProgress } from "../types";
 import type { SharedAudioPlayer } from "../hooks/useAudioPlayer";
 import { formatArticleRelativeTime, resolveImageUrl } from "./ArticleList";
@@ -10,6 +10,7 @@ interface PlaylistViewProps {
   audioProgressMap: Record<string, AudioProgress>;
   onSelectArticle: (article: Article) => void;
   onRemoveFromPlaylist: (articleId: string) => void;
+  onToggleListened?: (article: Article) => void;
   onClearPlaylist: () => void;
   onNavigateFeeds: () => void;
   onReorder?: (orderedArticleIds: string[]) => void;
@@ -59,6 +60,8 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({
   audioProgressMap,
   onSelectArticle,
   onRemoveFromPlaylist,
+  onToggleListened,
+  onNavigateFeeds,
   onReorder,
   isLoading = false,
   audioPlayer,
@@ -121,13 +124,13 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({
 
   return (
     <div className="wreader-tool-view wreader-playlist-view animate-fadeIn">
-      <section className={`playlist-player ${activeArticle ? "" : "is-empty"}`} aria-label="播放控制器">
+      {activeArticle && <section className="playlist-player" aria-label="播放控制器">
         <div className="playlist-player-main">
           <div className="playlist-player-cover">{activeArticle && resolveImageUrl(activeArticle.thumbnail) ? <img src={resolveImageUrl(activeArticle.thumbnail)} alt="" referrerPolicy="no-referrer" onError={(event) => {
             if (!retryBackendImage(event.currentTarget, activeArticle.thumbnail)) event.currentTarget.style.display = "none";
           }} /> : <span>{activeArticle?.feedTitle || "待播清单"}</span>}</div>
           <div className="playlist-player-body">
-            <div className="playlist-player-copy"><strong>{activeArticle?.title || "播放列表为空"}</strong>{activeArticle && <span>{activeArticle.feedTitle}</span>}</div>
+            <div className="playlist-player-copy"><strong>正在播放 · {activeArticle.title}</strong><span>{activeArticle.feedTitle}</span></div>
             <div className="playlist-timeline">
               <div className="playlist-progress player-track" role="slider" aria-label="播放进度" aria-valuemin={0} aria-valuemax={Math.round(shownDuration)} aria-valuenow={Math.round(shownTime)} aria-valuetext={`${formatTime(shownTime)} / ${formatTime(shownDuration)}`} tabIndex={activeArticle ? 0 : -1} onClick={seek} onKeyDown={handleSeekKeyDown}><i style={{ width: `${progressPercent}%` }} /></div>
               <div className="playlist-times player-times"><span>{formatTime(shownTime)}</span><span>{formatTime(shownDuration)}</span></div>
@@ -143,10 +146,10 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({
           </div>
         </div>
         {isControllerActive && audioPlayer?.audioPlayError && <p className="playlist-player-error" role="status">{audioPlayer.audioPlayError}</p>}
-      </section>
+      </section>}
 
       <div className="playlist-list">
-        {articles.length === 0 ? <div className="playlist-empty"><strong>播放列表为空</strong><span>在音频文章中选择“加入播放列表”即可添加。</span></div> : articles.map((article) => {
+        {articles.length === 0 ? <div className="playlist-empty"><strong>待播为空</strong><span>打开时间线中的播客，点播放器上的「加入待播」。</span><button type="button" className="wreader-btn wreader-btn-primary" onClick={onNavigateFeeds}>浏览播客</button></div> : articles.map((article) => {
           const progress = audioProgressMap[article.id];
           const isActive = activeArticle?.id === article.id;
           const coverUrl = resolveImageUrl(article.thumbnail);
@@ -156,10 +159,11 @@ export const PlaylistView: React.FC<PlaylistViewProps> = ({
                 <span className="playlist-thumb">{coverUrl ? <img src={coverUrl} alt="" referrerPolicy="no-referrer" onError={(event) => {
                   if (!retryBackendImage(event.currentTarget, article.thumbnail)) event.currentTarget.style.display = "none";
                 }} /> : <span>{article.feedTitle.slice(0, 2)}</span>}</span>
-                <span className="playlist-item-copy"><strong>{article.title} <span>｜{article.feedTitle}</span></strong><small>{remainingLabel(progress)} · {formatArticleRelativeTime(article.pubDate)}</small></span>
+                <span className="playlist-item-copy"><strong>{article.title} <span>｜{article.feedTitle}</span></strong><small>{article.listened ? "已听 · " : ""}{remainingLabel(progress)} · {formatArticleRelativeTime(article.pubDate)}</small></span>
               </button>
               <button type="button" className="playlist-row-play" onClick={() => togglePlayback(article)} aria-label={`${isActive && playing ? "暂停" : "播放"} ${article.title}`} title={`${isActive && playing ? "暂停" : "播放"} ${article.title}`}>{isActive && playing ? <PlayerIcon type="pause" /> : <PlayerIcon type="play" />}</button>
-              <button type="button" className="playlist-remove" onClick={() => onRemoveFromPlaylist(article.id)} aria-label={`从播放列表删除 ${article.title}`} title="从播放列表删除"><PlayerIcon type="trash" /></button>
+              {onToggleListened && <button type="button" className="playlist-listened" onClick={() => onToggleListened(article)} aria-pressed={Boolean(article.listened)} aria-label={`${article.listened ? "标记为未听" : "标记为已听"} ${article.title}`} title={article.listened ? "标记为未听" : "标记为已听"}><CheckCircle2 aria-hidden="true" /></button>}
+              <button type="button" className="playlist-remove" onClick={() => onRemoveFromPlaylist(article.id)} aria-label={`从待播移除 ${article.title}`} title="从待播移除"><PlayerIcon type="trash" /></button>
             </article>
           );
         })}

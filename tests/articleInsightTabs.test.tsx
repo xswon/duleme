@@ -42,6 +42,25 @@ function parseMarkup(html: string) {
 }
 
 describe("ArticleInsightTabs", () => {
+  it("marks the active timed sentence and renders untimed transcripts without a notice", () => {
+    const timed = renderModel({ article: { ...article, audioUrl: "https://example.com/a.mp3", transcription: {
+      provider: "aliyun", sourceAudioUrl: "https://example.com/a.mp3", status: "completed", updatedAt: "now",
+      segments: [{ startMs: 0, endMs: 2000, text: "开场" }, { startMs: 2000, endMs: 4000, text: "第二句" }],
+    } }, tab: "transcript", currentAudioTime: 2.5 });
+    expect(timed).toContain('data-transcript-start-ms="2000" class="is-current"');
+    expect(timed).toContain("跳至 0:02：第二句");
+    const untimed = renderModel({ tab: "transcript", transcriptHtml: "<p>访谈原稿</p>" });
+    expect(untimed).toContain("访谈原稿");
+    expect(untimed).not.toContain("未提供时间信息");
+    expect(parseMarkup(untimed).querySelector(".reader-service-bar")).toBeNull();
+  });
+
+  it("labels saved AI summaries with the provider and original Key source", () => {
+    const html = renderModel({ article: { ...article, aiSummaryProvenance: {
+      provider: "DeepSeek", model: "deepseek-chat", keySource: "personal",
+    } }, tab: "overview", summary: "生成的摘要" });
+    expect(html).toContain("DeepSeek · deepseek-chat（使用你的 Key）");
+  });
   it("uses the same empty-state layout when transcription is not configured", () => {
     const html = renderModel({
       article: { ...article, audioUrl: "https://cdn.example.com/a.mp3" },
@@ -306,11 +325,10 @@ describe("ArticleInsightTabs", () => {
       tab: "overview",
       summary: "Generated summary",
       transcriptState: "ready",
-      summaryServiceLabel: "DeepSeek · deepseek-chat",
       onRegenerateSummary: vi.fn(),
     });
     expect(html).toContain("Generated summary");
-    expect(html).toContain("摘要模型：DeepSeek · deepseek-chat");
+    expect(html).toContain("摘要来源：AI 生成（旧摘要未记录具体服务与 Key 来源）");
     expect(html).toContain("重新生成");
     expect(html).not.toContain("复制");
     expect(html).not.toContain("原文");
@@ -380,7 +398,10 @@ describe("ArticleInsightTabs", () => {
     });
     const document = parseMarkup(html);
     const attribution = document.querySelector('[data-testid="enrichment-attribution"]');
-    expect(attribution?.textContent).toContain("增强内容由 BidClub 提供");
+    expect(attribution?.textContent).toBe("来源 · BidClub");
+    expect(attribution?.closest(".audio-highlight-body")).not.toBeNull();
+    expect(document.querySelectorAll('[data-testid="enrichment-attribution"]')).toHaveLength(1);
+    expect(html).not.toContain("无需配置个人 AI Key");
     expect(attribution?.querySelector("a")?.getAttribute("href")).toBe("https://bidclub.ai/e/ep-1");
     expect(html).not.toContain("BidClub 摘要");
     expect(html).not.toContain("BidClub 逐字稿");

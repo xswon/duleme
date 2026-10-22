@@ -133,7 +133,9 @@ html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color
 #article-reader .wreader-audio-play { width: 34px !important; height: 34px !important; border-radius: 50% !important; background: var(--wreader-primary-button); color: var(--wreader-on-accent) !important; }
 #article-reader .wreader-audio-play:hover { background: var(--wreader-primary-button) !important; color: var(--wreader-on-accent) !important; }
 
-#article-reader .reader-tabs { max-width: 650px; min-height: 40px; display: flex; align-items: stretch; gap: 24px; margin: 20px 0 0; overflow-x: auto; }
+#article-reader .reader-tabs-row { display: flex; max-width: 650px; align-items: center; gap: 16px; margin: 20px 0 0; }
+#article-reader .reader-tabs { min-width: 0; min-height: 40px; display: flex; flex: 1; align-items: stretch; gap: 24px; overflow-x: auto; }
+#article-reader .reader-tab-content { padding-top: 16px; }
 #article-reader .reader-tab { position: relative; min-height: 40px; display: inline-flex; align-items: center; flex: none; gap: 7px; padding: 0 1px; border: 0; color: var(--wreader-ui-muted); font-size: 15px; line-height: 22px; font-weight: 400; white-space: nowrap; }
 #article-reader .reader-tab-icon { width: 16px; height: 16px; color: currentColor; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 #article-reader .reader-tab.is-active { color: var(--wreader-accent-text); font-weight: 600; }
@@ -177,6 +179,8 @@ html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color
 #article-reader .reader-service-bar > button:hover { background: var(--wreader-surface-subtle); color: var(--wreader-accent-text); }
 #article-reader .audio-insight-layout { display: flex; flex-direction: column; gap: 30px; }
 #article-reader .audio-highlight-body { padding: 16px 20px 19px; border-radius: 12px; background: var(--wreader-surface-subtle); }
+#article-reader .audio-highlight-body > .reader-service-bar { margin-bottom: 12px; }
+#article-reader .reader-service-bar a:hover { color: var(--wreader-accent-text); text-decoration: underline; }
 #article-reader .audio-highlight-body p,#article-reader .audio-deep-summary p { margin: 0 0 14px; }
 #article-reader .audio-highlight-body ul { margin: 0; padding-left: 20px; }
 #article-reader .audio-highlight-body li + li { margin-top: 6px; }
@@ -189,6 +193,18 @@ html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color
 #article-reader .wreader-ai-summary-layout > .bidclub-overview { padding: 16px 20px 19px; border-radius: 12px; background: var(--wreader-surface-subtle); }
 #article-reader .audio-transcript-panel p { display: flex; align-items: flex-start; gap: 12px; margin: 0 0 18px; }
 #article-reader .transcript-time { flex: none; margin-top: 2px; padding: 3px 7px; border-radius: 6px; background: var(--wreader-surface-subtle); color: var(--wreader-accent-text); font-size: 11px; font-weight: 700; }
+#article-reader .audio-transcript-panel p.is-current { border-radius: 8px; background: var(--wreader-selection); }
+#article-reader .audio-transcript-panel .transcript-sentence { cursor: pointer; border-radius: 4px; }
+#article-reader .audio-transcript-panel .transcript-sentence:focus-visible { outline: 2px solid var(--wreader-focus); outline-offset: 2px; }
+#article-reader .audio-transcript-panel .transcript-sentence small { color: var(--wreader-ui-muted); }
+#article-reader .reader-help { position: relative; display: inline-flex; flex: none; }
+#article-reader .reader-service-bar > .reader-help { overflow: visible; }
+#article-reader .reader-help-trigger { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 7px; color: var(--wreader-ui-muted); }
+#article-reader .reader-help-trigger svg { width: 15px; height: 15px; }
+#article-reader .reader-help-trigger:hover,
+#article-reader .reader-help-trigger[aria-expanded="true"] { background: var(--wreader-hover); color: var(--wreader-accent-text); }
+#article-reader .reader-help-trigger:focus-visible { outline: 2px solid var(--wreader-focus); outline-offset: 2px; }
+#article-reader .reader-help-content { position: absolute; z-index: 5; top: 100%; right: 0; width: max-content; max-width: min(260px, calc(100vw - 64px)); padding: 10px 12px; border: 1px solid var(--wreader-ui-border); border-radius: 9px; background: var(--wreader-ui-surface); box-shadow: 0 4px 16px var(--wreader-shadow-color); color: var(--wreader-ui-muted); font-size: 12px; font-weight: 400; line-height: 1.6; white-space: normal; }
 #article-reader .reader-attribution { margin: 12px 0 0; color: var(--wreader-ui-muted); font-size: 11px; }
 #article-reader .reader-notes-panel { display: flex; flex-direction: column; gap: 12px; }
 #article-reader .reader-note-card { padding: 14px 16px; border: 1px solid var(--wreader-ui-border); border-radius: 10px; background: var(--wreader-ui-surface); }
@@ -210,10 +226,10 @@ html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color
 #article-reader[data-reader-line-height="relaxed"] .reader-content { line-height: 2; }
 #article-reader[data-reader-measure="compact"] .reader-column,
 #article-reader[data-reader-measure="compact"] .reader-content,
-#article-reader[data-reader-measure="compact"] .reader-tabs { max-width: 580px; }
+#article-reader[data-reader-measure="compact"] .reader-tabs-row { max-width: 580px; }
 #article-reader[data-reader-measure="wide"] .reader-column,
 #article-reader[data-reader-measure="wide"] .reader-content,
-#article-reader[data-reader-measure="wide"] .reader-tabs { max-width: 720px; }
+#article-reader[data-reader-measure="wide"] .reader-tabs-row { max-width: 720px; }
 
 @media (max-width: 1039px) {
   #article-reader > [aria-label="阅读工具栏"] { border-bottom: 1px solid var(--wreader-separator); }
@@ -226,6 +242,17 @@ html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color
 }
 
 @media (max-width: 760px) {
+  .wreader-workspace-grid[data-detail-open="true"] .wreader-master { visibility: hidden; }
+  .wreader-workspace-grid[data-detail-open="true"][data-edge-swiping] .wreader-master { visibility: visible; }
+  .wreader-workspace-grid[data-detail-open="true"] .wreader-detail { background: var(--wreader-ui-surface); }
+  #article-reader > [aria-label="阅读工具栏"] { position: relative; z-index: 3; }
+  #article-reader .wreader-reader-toolbar-inner { display: flex !important; min-width: 0; justify-content: space-between; gap: 4px; }
+  #article-reader .wreader-reader-nav { flex: none; }
+  #article-reader .wreader-reader-nav > button:not(:first-child),
+  #article-reader .wreader-reader-nav > div { display: none; }
+  #article-reader .wreader-reader-actions { display: flex; min-width: 0; gap: 0; padding: 0; }
+  #article-reader .wreader-reader-actions > button,
+  #article-reader .wreader-reader-actions > a { width: 32px; min-width: 32px; height: 36px; }
   #article-reader > [aria-label="阅读工具栏"] > div:first-child { padding: 0 10px; }
   #article-reader .reader-scroll { padding: 9px 18px calc(24px + env(safe-area-inset-bottom)); }
   #article-reader h1 { font-size: 24px; line-height: 1.25; }
@@ -233,5 +260,5 @@ html[data-theme="dark"] #article-reader .article-copy [style*="color" i] { color
   #article-reader .reader-feature-empty { min-height: 260px; padding: 30px 12px 36px; }
   #article-reader .wreader-audio-card { height: auto; min-height: 84px; grid-template-columns: 54px minmax(0, 1fr); gap: 10px; padding: 10px; }
   #article-reader .wreader-audio-cover { width: 54px; height: 54px; }
-  #article-reader .wreader-audio-controls { grid-column: 1 / -1; justify-content: space-between; }
+  #article-reader .audio-controls-compact { grid-column: 1 / -1; justify-content: space-between; }
 }

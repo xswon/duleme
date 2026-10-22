@@ -59,6 +59,7 @@ function renderDetail(
   root: ReturnType<typeof createRoot>,
   article: Article,
   options: {
+    onClose?: () => void;
     onPrevArticle?: () => void;
     onNextArticle?: () => void;
     savedScrollTop?: number;
@@ -106,6 +107,50 @@ afterEach(() => {
 });
 
 describe("ArticleDetailModal resolved enrichment behavior", () => {
+  it("shows note and audio hints only for the current content and transcript timing", async () => {
+    hookState.value = { episode, loading: false, error: null };
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onClose = vi.fn();
+    await act(async () => renderDetail(root, baseArticle, { onClose }));
+    const openTab = async (label: string) => {
+      await act(async () => [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+        .find((tab) => tab.textContent === label)!.click());
+    };
+
+    expect(container.textContent).not.toContain("选中文字可高亮或写笔记。");
+    const openHelp = async () => {
+      await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="阅读帮助"]')!.click());
+    };
+    await openHelp();
+    expect(container.querySelector(".reader-help-content")?.textContent).toBe("选中文字可高亮或写笔记。");
+    expect(container.textContent).not.toContain("跳转音频");
+    await openTab("AI 摘要");
+    expect(container.querySelector(".reader-help-content")).toBeNull();
+    await openHelp();
+    expect(container.querySelector(".reader-help-content")?.textContent).toBe("选中文字可高亮或写笔记。");
+    expect(container.textContent).not.toContain("跳转音频");
+    await openTab("逐字稿");
+    expect(container.querySelector('[aria-label="阅读帮助"]')).toBeNull();
+    expect(container.textContent).not.toContain("未提供时间信息");
+    expect(container.textContent).toContain("Verified transcript");
+    expect(container.textContent).not.toContain("跳转音频");
+
+    await act(async () => renderDetail(root, { ...baseArticle, transcription: {
+      provider: "aliyun", sourceAudioUrl: baseArticle.audioUrl!, status: "completed", updatedAt: "now",
+      segments: [{ startMs: 0, endMs: 2000, text: "开场" }],
+    } }, { onClose }));
+    await openHelp();
+    expect(container.querySelector(".reader-help-content")?.textContent)
+      .toBe("选中文字可高亮或写笔记；点击时间戳或句子可跳转音频。");
+    await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+    expect(container.querySelector(".reader-help-content")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("未提供时间信息");
+    await act(async () => root.unmount());
+  });
+
   it("keeps the reader scroller mounted and its position when appearance changes", async () => {
     localStorage.removeItem("wreader.appearance.v1");
     const container = document.createElement("div");
@@ -402,6 +447,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
 
     await selectText("先配置转录服务和 AI 模型，生成时会自动创建逐字稿。");
     expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
+    expect(container.querySelector('[aria-label="阅读帮助"]')).toBeNull();
 
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLElement>('[role="tab"]'))
@@ -410,6 +456,7 @@ describe("ArticleDetailModal resolved enrichment behavior", () => {
     });
     await selectText("配置转录服务后，即可将音频转换为可搜索的文本。");
     expect(container.querySelector('[aria-label="文本标注"]')).toBeNull();
+    expect(container.querySelector('[aria-label="阅读帮助"]')).toBeNull();
 
     await act(async () => root.unmount());
     container.remove();

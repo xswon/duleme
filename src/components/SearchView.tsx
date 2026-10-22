@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from "react";
-import { FileText, Search as SearchIcon, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FileText, Headphones, Search as SearchIcon, X } from "lucide-react";
 import { Article, Feed } from "../types";
-import { getHighlightSegments, getPreparedSearchDocument, type SearchResult } from "../services/searchService";
+import { getHighlightSegments, getPreparedSearchDocument, getSearchExcerpt, type SearchResult } from "../services/searchService";
 import { VirtualWindow } from "./VirtualWindow";
+import { displayAuthor } from "../services/authorDisplay";
 
 export interface SearchViewProps {
   results: SearchResult[];
@@ -46,6 +47,11 @@ export const SearchView: React.FC<SearchViewProps> = ({
   selectedArticleId,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [typeFilter, setTypeFilter] = useState<"all" | "article" | "podcast">("all");
+  const pending = searchQuery.trim() !== resultQuery.trim();
+  const visibleResults = useMemo(() => !searchQuery.trim() || pending ? [] : results.filter(({ article }) => (
+    typeFilter === "all" || (typeFilter === "podcast" ? Boolean(article.audioUrl?.trim()) : !article.audioUrl?.trim())
+  )), [pending, results, searchQuery, typeFilter]);
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -83,16 +89,20 @@ export const SearchView: React.FC<SearchViewProps> = ({
         ) : <kbd>⌘K</kbd>}
       </label>
 
-      <div className="wreader-search-results" aria-live="polite">
-        {results.length > 0 ? <VirtualWindow
-          count={results.length}
-          estimateSize={66}
+      {searchQuery.trim() && <div className="wreader-search-controls" aria-label="搜索结果筛选">
+        {(["all", "article", "podcast"] as const).map((type) => <button key={type} type="button" aria-pressed={typeFilter === type} onClick={() => setTypeFilter(type)}>{type === "all" ? "全部" : type === "article" ? "文章" : "播客"}</button>)}
+        <span role="status" className="wreader-search-count">{pending ? "正在搜索…" : `${visibleResults.length} 条结果`}</span>
+      </div>}
+      <div className="wreader-search-results" aria-live="polite" aria-busy={pending}>
+        {visibleResults.length > 0 ? <VirtualWindow
+          count={visibleResults.length}
+          estimateSize={96}
           gap={4}
           overscan={10}
           className="wreader-search-virtual-window"
-          getItemKey={(index) => results[index].article.id}
+          getItemKey={(index) => visibleResults[index].article.id}
           renderItem={(index) => {
-          const article = results[index].article;
+          const article = visibleResults[index].article;
           const fields = getPreparedSearchDocument(article).fields;
           return (
           <button
@@ -101,13 +111,14 @@ export const SearchView: React.FC<SearchViewProps> = ({
             className={`wreader-search-result${selectedArticleId === article.id ? " is-selected" : ""}`}
             onClick={() => onSelectArticle(article)}
           >
-            <span className="wreader-search-result-icon"><FileText /></span>
+            <span className="wreader-search-result-icon">{article.audioUrl?.trim() ? <Headphones /> : <FileText />}</span>
             <span className="wreader-search-result-copy">
               <strong><HighlightedText text={fields.title} query={resultQuery} /></strong>
               <small>
                 <HighlightedText text={fields.source} query={resultQuery} />
-                {article.author && article.author !== article.feedTitle ? <> · <HighlightedText text={fields.author} query={resultQuery} /></> : null}
+                {displayAuthor(article.author, article.feedTitle) ? <> · <HighlightedText text={displayAuthor(article.author, article.feedTitle)} query={resultQuery} /></> : null}
               </small>
+              <span className="wreader-search-excerpt"><HighlightedText text={getSearchExcerpt(article, resultQuery, 110)} query={resultQuery} /></span>
             </span>
             <time dateTime={article.pubDate}>{formatRelativeTime(article.pubDate)}</time>
           </button>
@@ -115,8 +126,8 @@ export const SearchView: React.FC<SearchViewProps> = ({
         }} /> : (
           <div className="wreader-search-empty">
             <SearchIcon />
-            <strong>{searchQuery.trim() ? "未找到匹配文章" : "暂无可显示文章"}</strong>
-            <span>{searchQuery.trim() ? "尝试更换关键词。" : "输入关键词即可搜索全部订阅源。"}</span>
+            <strong>{pending ? "正在搜索…" : searchQuery.trim() ? "未找到匹配内容" : "开始搜索"}</strong>
+            <span>{pending ? "正在查找文章和播客。" : searchQuery.trim() ? "尝试更换关键词或内容类型。" : "输入关键词即可搜索全部订阅源。"}</span>
           </div>
         )}
       </div>

@@ -25,7 +25,7 @@ describe("NotesView", () => {
     const root = createRoot(container);
     await act(async () => root.render(<NotesView notes={[]} articles={articles} onOpen={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()} />));
 
-    expect(container.querySelector(".wreader-notes-empty")?.textContent).toBe("暂无笔记");
+    expect(container.querySelector(".wreader-notes-empty")?.textContent).toContain("暂无笔记打开文章或逐字稿");
     expect(container.querySelector(".wreader-notes-empty svg")).toBeNull();
     expect(container.textContent).not.toContain("在文章详情中选择文字");
     await act(async () => root.unmount());

@@ -36,7 +36,7 @@ export function parseReaderRoute(location: Pick<Location, "pathname" | "search">
   const query = new URLSearchParams(location.search);
   const articleId = cleanId(query.get("article"));
   const requestedTab = query.get("tab");
-  const detailTab = requestedTab && DETAIL_TABS.has(requestedTab as DetailTab | "notes")
+  const detailTab = articleId && requestedTab && DETAIL_TABS.has(requestedTab as DetailTab | "notes")
     ? requestedTab as DetailTab | "notes"
     : undefined;
   const base: ReaderRoute = {
@@ -85,7 +85,7 @@ export function buildReaderUrl(route: SerializableReaderRoute): string {
   if (route.activeTab === "feeds" && route.filterType !== "starred" && route.contentType && route.contentType !== "all") query.set("type", route.contentType);
   if (route.activeTab === "feeds" && route.filterType !== "starred" && route.historyWindowDays && route.historyWindowDays !== DEFAULT_ROUTE_HISTORY_DAYS) query.set("days", String(route.historyWindowDays));
   if (route.articleId) query.set("article", route.articleId);
-  if (route.detailTab) query.set("tab", route.detailTab);
+  if (route.articleId && route.detailTab) query.set("tab", route.detailTab);
   const search = query.toString();
   return `${pathname}${search ? `?${search}` : ""}`;
 }

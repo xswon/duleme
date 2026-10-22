@@ -14,6 +14,7 @@ import {
   Maximize2,
   Minimize2,
   Menu,
+  CheckCircle2,
 } from "lucide-react";
 import { Article, ArticleNote, DetailTab, OverviewPipelineStage } from "../types";
 import { resolveImageUrl } from "./ArticleList";
@@ -32,6 +33,7 @@ import { AudioPlayerCard } from "./AudioPlayerCard";
 import { ArticleInsightTabs } from "./ArticleInsightTabs";
 import { AiSummaryIcon, TranscriptWaveIcon } from "./InsightIcons";
 import { ArticleNotesTab } from "./ArticleNotesTab";
+import { ReaderHelp } from "./ReaderHelp";
 import {
   deleteArticleNoteFromDB,
   getArticleNotesFromDB,
@@ -40,6 +42,8 @@ import {
   TRANSCRIPTION_SETTINGS_CHANGED_EVENT,
 } from "../services/dbService";
 import { resolveArticlePresentation } from "../services/articlePresentation";
+import { displayAuthor } from "../services/authorDisplay";
+import { getSummaryProvenance } from "../services/summaryProvenance";
 import {
   normalizeDetailPresentation,
   resolveArticleDefaultTab,
@@ -197,14 +201,6 @@ function htmlToPlainText(value?: string): string {
   return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function formatAiModelLabel(model?: string): string {
-  const value = model?.trim();
-  if (!value) return "用户配置模型";
-  if (/^deepseek$/i.test(value)) return "DeepSeek";
-  if (/deepseek/i.test(value)) return `DeepSeek · ${value}`;
-  return value;
-}
-
 interface ArticleDetailModalProps {
   article: Article | null;
   onClose: () => void;
@@ -273,7 +269,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   const summaryInFlightRef = useRef(false);
   const pipelineForceSummaryRef = useRef(false);
   const [aiConfigured, setAiConfigured] = useState(false);
-  const [aiModelLabel, setAiModelLabel] = useState("用户配置模型");
   const [cloudTranscriptionAvailable, setCloudTranscriptionAvailable] = useState(false);
   const [localTranscriptionAvailable, setLocalTranscriptionAvailable] = useState(false);
   const [runtimeCapabilitiesLoaded, setRuntimeCapabilitiesLoaded] = useState(false);
@@ -372,7 +367,6 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
         .then(([ai, transcription]) => {
           if (cancelled) return;
           setAiConfigured(ai.configured);
-          setAiModelLabel(formatAiModelLabel("model" in ai ? ai.model : undefined));
           setCloudTranscriptionAvailable(Boolean(transcription?.apiKey));
         })
         .finally(() => {
@@ -465,6 +459,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     setPipelineStage("summarizing");
 
     try {
+      const provenancePromise = getSummaryProvenance();
       const summary = await summarizeArticleWithAI(
         article.title,
         input,
@@ -477,6 +472,10 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
       onArticlePatch?.(articleId, {
         aiSummary: summary,
         aiSummarySource: source,
+        aiSummaryProvenance: undefined,
+      });
+      void provenancePromise.then((provenance) => {
+        if (activeArticleIdRef.current === articleId) onArticlePatch?.(articleId, { aiSummaryProvenance: provenance });
       });
       if (activeArticleIdRef.current === articleId) {
         setAiSummary(summary);
@@ -890,7 +889,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
   };
 
   const timeAgo = getRelativeTimeStr(article.pubDate);
-  const showAuthor = article.author && article.author !== article.feedTitle;
+  const visibleAuthor = displayAuthor(article.author, article.feedTitle);
 
   const tabs = presentation?.tabs || [];
   const hasOverviewContent = Boolean(
@@ -908,6 +907,11 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
     || detailTab === "digest"
     || (detailTab === "overview" && hasOverviewContent)
     || (detailTab === "transcript" && hasTranscriptContent);
+  const noteHint = detailTab === "transcript"
+    ? (article.transcription?.segments?.length || effectiveArtifacts?.transcript?.length)
+      ? "选中文字可高亮或写笔记；点击时间戳或句子可跳转音频。"
+      : null
+    : "选中文字可高亮或写笔记。";
   const markUserInteracted = () => {
     userInteractedRef.current = true;
   };
@@ -1223,6 +1227,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             >
               <ExternalLink className="h-4 w-4" />
             </a>
+            {hasAudio && <button type="button" className="reader-action" onClick={() => onArticlePatch?.(article.id, { listened: !article.listened })} aria-pressed={Boolean(article.listened)} aria-label={article.listened ? "标记为未听" : "标记为已听"} title={article.listened ? "标记为未听" : "标记为已听"}><CheckCircle2 className="h-4 w-4" /></button>}
             <button
               type="button"
               ref={readerSettingsTriggerRef}
@@ -1277,10 +1282,10 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             </h1>
             <div className="reader-subtitle min-w-0 flex flex-wrap items-center gap-x-1.5 gap-y-1">
               <strong>{article.feedTitle}</strong>
-              {showAuthor && (
+              {visibleAuthor && (
                 <>
                   <span>·</span>
-                  <span>{article.author}</span>
+                  <span>{visibleAuthor}</span>
                 </>
               )}
               <span>·</span>
@@ -1291,7 +1296,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {hasAudio && <AudioPlayerCard ref={setAudioCardRef} model={{ article, isPlaying, currentTime, duration, playbackRate, audioPlayError, isInPlaylist, onTogglePlaylist, togglePlay: handleTogglePlay, onSeek: seekTo, onRateChange: () => audioPlayer?.cyclePlaybackRate(), onRewind: () => seekTo(currentTime - 15), onForward: () => seekTo(currentTime + 30) }} />}
 
             {/* Ordinary articles read as tabs too: body first, then the AI summary. */}
-            {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
+            {(tabs.length > 1 || (notesLoaded && notes.length > 0)) && <div className="reader-tabs-row">
+            <div role="tablist" aria-label="文章内容" data-notes-loaded={notesLoaded} className="reader-tabs">
               {tabs.map((tab) => {
                 const InsightIcon = tab.key === "body"
                   ? FileText
@@ -1328,6 +1334,8 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
                   笔记 <em>{notes.length}</em>
                 </button>
               )}
+            </div>
+            {notesEnabledForCurrentTab && noteHint && <ReaderHelp key={`${article.id}-${detailTab}`} label="阅读帮助">{noteHint}</ReaderHelp>}
             </div>}
 
             {/* Cover Image (无音频时占播放器位置；BidClub 用节目真实封面。
@@ -1365,7 +1373,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
             {/* Tab Content */}
             <div
               ref={selectableContentRef}
-              className="pt-3"
+              className="reader-tab-content"
               onPointerUp={notesEnabledForCurrentTab ? captureSelection : undefined}
               onKeyUp={notesEnabledForCurrentTab ? captureSelection : undefined}
               onClick={notesEnabledForCurrentTab ? handleHighlightClick : undefined}
@@ -1380,7 +1388,7 @@ export const ArticleDetailModal: React.FC<ArticleDetailModalProps> = ({
               {detailTab === "notes" ? (
                 <ArticleNotesTab notes={notes} onUpdate={updateNote} onDelete={deleteNote} onOpenTranscript={openTranscriptNote} />
               ) : (
-                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, overviewState: effectivePipelineStage === "transcribing" || effectivePipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage: effectivePipelineStage, pipelinePendingSummary: effectivePipelinePendingSummary, pipelineError: effectivePipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, bidclubEpisodeUrl: article.enrichment?.episodeUrl, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: generation ? undefined : cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: effectiveSummarizing, summaryProgress: effectiveSummaryProgress, summaryServiceLabel: aiModelLabel, summaryError: effectivePipelineError || summaryError, localArtifacts: effectiveArtifacts, localProgress: effectiveTranscriptionProgress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: generation ? () => { void generation.startTranscription(article.id, { preferLocal: localTranscriptionAvailable, force: true }); } : localTranscriptionAvailable ? localPodcast.regenerateTranscription : () => { void startCloudTranscription(); }, onRetryTranscription: startPreferredTranscription, onCreateInsight: localTranscriptionAvailable ? localPodcast.createInsight : undefined, onSeekTranscript: seekTo }} />
+                <ArticleInsightTabs model={{ article, tab: detailTab, summary: aiSummary, currentAudioTime: currentTime, overviewState: effectivePipelineStage === "transcribing" || effectivePipelineStage === "summarizing" ? "processing" : presentation?.overviewState || "needs_ai_config", transcriptState: presentation?.transcriptState, pipelineStage: effectivePipelineStage, pipelinePendingSummary: effectivePipelinePendingSummary, pipelineError: effectivePipelineError, enrichmentLoading: bidclubLoading, enrichmentError: bidclubError, overviewHtml: bidclubTldrHtml, digestHtml: bidclubDigestHtml, dek: bidclubDek, transcriptHtml: bidclub?.transcriptHtml, bidclubEpisodeUrl: article.enrichment?.episodeUrl, onSummarize: handleSummarize, onRegenerateSummary: handleRegenerateSummary, onCancelPipeline: generation ? undefined : cancelPendingSummary, onConfigureAi: onOpenAiSettings, onConfigureTranscription: onOpenTranscriptionSettings, summarizing: effectiveSummarizing, summaryProgress: effectiveSummaryProgress, summaryError: effectivePipelineError || summaryError, localArtifacts: effectiveArtifacts, localProgress: effectiveTranscriptionProgress, localFetchError: localTranscriptionAvailable ? localPodcast.fetchError : cloudTranscription.missingKey ? "请先配置转录服务。" : undefined, localRestoring: false, transcriptionMode: transcriptionAvailable ? (localTranscriptionAvailable ? "local" : "cloud") : undefined, onStartTranscription: startPreferredTranscription, onRegenerateTranscript: generation ? () => { void generation.startTranscription(article.id, { preferLocal: localTranscriptionAvailable, force: true }); } : localTranscriptionAvailable ? localPodcast.regenerateTranscription : () => { void startCloudTranscription(); }, onRetryTranscription: startPreferredTranscription, onCreateInsight: localTranscriptionAvailable ? localPodcast.createInsight : undefined, onSeekTranscript: seekTo }} />
               )}
             </div>
             {notesError && <p className="mt-3 text-xs text-rose-600" role="alert">{notesError}</p>}

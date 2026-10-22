@@ -319,24 +319,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {scope === "today" ? <PrototypeIcon><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" /></PrototypeIcon> : <PrototypeIcon><path d="m12 3 2.78 5.63 6.22.9-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.92 1.06-6.2L3 9.53l6.22-.9L12 3Z" /></PrototypeIcon>}
                 </span>
                 <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">{label}</span>
-                {count > 0 && <span className="wreader-nav-count ml-auto text-xs tabular-nums text-slate-500" aria-label={getUnreadCountAriaLabel(count)} title={getUnreadCountAriaLabel(count)}>{formatUnreadCount(count)}</span>}
+                {count > 0 && <span className="wreader-nav-count ml-auto text-xs tabular-nums text-slate-500" aria-label={scope === "starred" ? `${count} 篇收藏` : getUnreadCountAriaLabel(count)} title={scope === "starred" ? `${count} 篇收藏` : getUnreadCountAriaLabel(count)}>{formatUnreadCount(count)}</span>}
               </button>
             ))}
           </section>
           <section aria-label="快捷入口" className="wreader-primary-tools shrink-0 space-y-0.5">
-            <button id="nav-tab-playlist" aria-label="播客" onClick={() => selectUtilityTab("playlist")} className={itemClass(activeTab === "playlist")}>
+            <button id="nav-tab-playlist" aria-label={`待播，${playlistCount} 条`} onClick={() => selectUtilityTab("playlist")} className={itemClass(activeTab === "playlist")}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="wreader-nav-leading"><Podcast aria-hidden="true" /></span>
-                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">播客</span>
+                <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">待播</span>
               </div>
-              {playlistCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500">{playlistCount}</span>}
+              {playlistCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500" title={`${playlistCount} 条待播`}>{playlistCount}</span>}
             </button>
-            <button id="nav-tab-notes" aria-label="笔记" onClick={() => selectUtilityTab("notes")} className={itemClass(activeTab === "notes")}>
+            <button id="nav-tab-notes" aria-label={`笔记，${notesCount} 条`} onClick={() => selectUtilityTab("notes")} className={itemClass(activeTab === "notes")}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="wreader-nav-leading"><PrototypeIcon><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" /><path d="M7 11h10M7 15h6M7 7h8" /></PrototypeIcon></span>
                 <span className="wreader-nav-label wreader-nav-primary-label truncate text-xs">笔记</span>
               </div>
-              {notesCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500">{notesCount}</span>}
+              {notesCount > 0 && <span className="wreader-nav-count ml-auto shrink-0 text-right text-xs tabular-nums text-slate-500" title={`${notesCount} 条笔记`}>{notesCount}</span>}
             </button>
             <button id="nav-tab-search" aria-label="搜索" onClick={() => selectUtilityTab("search")} className={itemClass(activeTab === "search")}>
               <div className="flex min-w-0 items-center gap-2">

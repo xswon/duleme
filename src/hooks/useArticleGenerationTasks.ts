@@ -3,6 +3,7 @@ import type { Article, DetailTab, LocalPodcastArtifacts, LocalTaskStatus, Transc
 import { getTranscriptionSettings } from "../services/dbService";
 import { localPodcastApi, type LocalSessionStatus } from "../services/localPodcastService";
 import { summarizeArticleWithAI } from "../services/rssService";
+import { getSummaryProvenance } from "../services/summaryProvenance";
 import { transcriptionApi } from "../services/transcriptionService";
 
 export type ArticleGenerationStage = "transcribing" | "summarizing";
@@ -129,6 +130,7 @@ export function useArticleGenerationTasks({
       },
     }));
     try {
+      const provenancePromise = getSummaryProvenance();
       const summary = await summarizeArticleWithAI(
         article.title,
         input,
@@ -140,10 +142,16 @@ export function useArticleGenerationTasks({
       callbacksRef.current.patchArticle(article.id, {
         aiSummary: summary,
         aiSummarySource: source,
+        aiSummaryProvenance: undefined,
         insightUnread: {
           ...current.insightUnread,
           summary: !callbacksRef.current.isResultVisible(article.id, "overview"),
         },
+      });
+      void provenancePromise.then((provenance) => {
+        if (findArticle(article.id)?.aiSummary === summary) {
+          callbacksRef.current.patchArticle(article.id, { aiSummaryProvenance: provenance });
+        }
       });
       updateTask(article.id, { status: "completed", progress: 100, error: undefined });
       callbacksRef.current.onCompleted(
