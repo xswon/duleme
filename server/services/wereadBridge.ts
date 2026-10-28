@@ -86,6 +86,53 @@ function parseCliJson(output: string): Record<string, unknown> {
   return data;
 }
 
+/**
+ * Safe local-only diagnostics: neither captured stdout, stderr, account IDs,
+ * article content nor credentials are returned to the browser.
+ */
+export async function diagnoseWeReadSubscriptions(run: WeReadRunner = runWeReadCli) {
+  const stdout = await run(["public-accounts", "subscriptions", "--json"], 30_000);
+  const trimmed = stdout.trim();
+  let parsed: unknown;
+  let validJson = false;
+  try {
+    parsed = JSON.parse(stdout);
+    validJson = true;
+  } catch {
+    // The shape alone distinguishes a banner, multiple JSON lines and ANSI noise.
+  }
+  const first = trimmed[0] ?? "";
+  const last = trimmed.at(-1) ?? "";
+  const shape = (value: string) => {
+    if (value === "{") return "object-brace";
+    if (value === "}") return "object-close";
+    if (value === "[") return "array-bracket";
+    if (value === "]") return "array-close";
+    if (value === '"') return "quote";
+    if (/^[0-9-]$/.test(value)) return "digit";
+    if (/^[A-Za-z]$/.test(value)) return "letter";
+    return value ? "other" : "none";
+  };
+  const record = validJson && parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : null;
+  return {
+    jsonValid: validJson,
+    jsonType: !validJson ? "invalid" : parsed === null ? "null" : Array.isArray(parsed) ? "array" : typeof parsed,
+    stdoutLength: stdout.length,
+    lineCount: stdout ? stdout.split(/\\r?\\n/).filter(Boolean).length : 0,
+    firstCharacter: shape(first),
+    lastCharacter: shape(last),
+    hasAnsiEscape: /\\x1b\\[/.test(stdout),
+    hasBom: stdout.startsWith("\\uFEFF"),
+    accountsIsArray: Array.isArray(record?.accounts),
+    accountCount: Array.isArray(record?.accounts) ? record.accounts.length : null,
+    serverCwdIsHome: process.cwd() === homedir(),
+    cliCwdIsHome: true,
+    nodeVersion: process.version,
+  };
+}
+
 export async function listWeReadSubscriptions(run: WeReadRunner = runWeReadCli): Promise<WeReadSubscription[]> {
   // Use the same invocation proven to work in the user's terminal. An explicit
   // --count may be handled differently by older published CLI versions.
