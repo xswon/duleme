@@ -10,6 +10,7 @@ import {
 import { CuratedFeedOption, Feed } from "../types";
 import { CURATED_FEEDS, resolveKnownEnrichmentSource } from "../data/defaultFeeds";
 import { fetchRssFeed, matchBidclubItems } from "../services/rssService";
+import { backendRequest, hasReaderBackendCapability } from "../services/readerBackend";
 import { isEnrichmentSourceEditorEnabled } from "../config/features";
 import { resolveFeedEnrichmentSource } from "../services/feedEnrichment";
 
@@ -40,7 +41,10 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [failedCuratedId, setFailedCuratedId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"custom" | "curated" | "opml">("custom");
+  const [activeTab, setActiveTab] = useState<"custom" | "curated" | "weread" | "opml">("custom");
+  const [weReadAccounts, setWeReadAccounts] = useState<Array<{ accountId: string; title: string; cover?: string }>>([]);
+  const [weReadLoaded, setWeReadLoaded] = useState(false);
+  const weReadAvailable = hasReaderBackendCapability("weread");
   const [curatedCategory, setCuratedCategory] = useState("Featured");
   const enrichmentSourceEditorEnabled = isEnrichmentSourceEditorEnabled();
 
@@ -182,6 +186,56 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
     }
   };
 
+
+  const handleLoadWeRead = async () => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const response = await backendRequest("/api/weread/subscriptions");
+      const result = await response.json() as {
+        accounts?: Array<{ accountId: string; title: string; cover?: string }>;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(result.error || "无法读取微信读书书架");
+      if (!Array.isArray(result.accounts)) throw new Error("微信读书订阅列表格式无效");
+      setWeReadAccounts(result.accounts);
+      setWeReadLoaded(true);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "微信读书连接失败");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddWeRead = async (account: { accountId: string; title: string; cover?: string }) => {
+    const feedUrl = `weread:${account.accountId}`;
+    if (existingFeeds.some((feed) => feed.feedUrl === feedUrl)) return;
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const parsed = await fetchRssFeed(feedUrl, { limit: 10 });
+      if (!parsed.items.length) throw new Error("尚未获取到可阅读的公众号文章，请稍后重试");
+      const id = `feed-weread-${account.accountId}`;
+      const favicon = account.cover || parsed.feedImage || parsed.favicon;
+      const newFeed: Feed = {
+        id, title: account.title, feedUrl, siteUrl: "https://weread.qq.com/",
+        favicon, category: "微信公众号",
+        description: "通过本地微信读书连接器同步", unreadCount: parsed.items.length,
+        lastUpdated: new Date().toISOString(),
+      };
+      const added = await onAddFeed(newFeed, parsed.items.map((item) => ({
+        ...item, feedId: id, feedTitle: account.title, feedFavicon: favicon,
+        read: false, starred: false,
+      })));
+      if (added === false) return;
+      onShowToast?.(`已导入「${account.title}」`);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "导入公众号失败");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
@@ -264,6 +318,20 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
             }`}
           >
             推荐源
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "weread"}
+            onClick={() => { setActiveTab("weread"); setErrorMsg(null); }}
+            className={`pb-3 border-b-2 transition-all cursor-pointer ${
+              activeTab === "weread"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            微信读书
           </button>
           <button
             type="button"
@@ -493,6 +561,57 @@ export const AddFeedModal: React.FC<AddFeedModalProps> = ({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+
+          {activeTab === "weread" && (
+            <div className="space-y-4">
+              <p className="text-xs leading-5 text-slate-500">
+                从微信读书书架导入已关注的公众号。当前为本地 Web 试验版，
+                需要电脑上已登录 weread-omni；无需运行独立 RSS 服务。
+              </p>
+              {!weReadAvailable ? (
+                <p role="status" className="p-3 rounded-lg bg-amber-50 text-amber-800 text-xs">
+                  ChatGPT Sites 暂不支持微信读书连接。当前仅在本地 Web 环境开放。
+                </p>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => void handleLoadWeRead()}
+                    className="wreader-btn wreader-btn-lg wreader-btn-primary"
+                  >
+                    {isLoading ? "正在连接…" : weReadLoaded ? "重新读取书架" : "读取微信读书书架"}
+                  </button>
+                  {weReadLoaded && weReadAccounts.length === 0 && (
+                    <p className="text-xs text-slate-500">书架中没有公众号，请先在手机微信读书 App 中加入书架。</p>
+                  )}
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {weReadAccounts.map((account) => {
+                      const alreadyAdded = existingFeeds.some((feed) => feed.feedUrl === `weread:${account.accountId}`);
+                      return (
+                        <div key={account.accountId} className="flex items-center justify-between rounded-lg bg-slate-50 p-3 gap-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            {account.cover && <img src={account.cover} alt="" className="w-8 h-8 rounded object-cover" />}
+                            <span className="text-sm text-slate-800 truncate">{account.title}</span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isLoading || alreadyAdded}
+                            onClick={() => void handleAddWeRead(account)}
+                            className="wreader-btn wreader-btn-primary shrink-0"
+                          >
+                            {alreadyAdded ? "已导入" : "导入"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+              {errorMsg && <p role="alert" className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{errorMsg}</p>}
             </div>
           )}
 
