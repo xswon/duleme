@@ -14,7 +14,7 @@ describe("local WeRead bridge", () => {
 
   it("returns only validated subscription metadata", async () => {
     const run: WeReadRunner = async (args) => {
-      expect(args).toContain("--json");
+      expect(args).toEqual(["public-accounts", "subscriptions", "--json"]);
       return JSON.stringify({ accounts: [
         { accountId: "MP_WXS_2396392481", title: "刘润", cover: "http://wx.qlogo.cn/logo" },
         { accountId: "MP_WXS_1;bad", title: "invalid" },
@@ -48,7 +48,9 @@ describe("local WeRead bridge", () => {
 
   it("rejects bad CLI responses instead of silently importing an empty feed", async () => {
     const invalid: WeReadRunner = async () => "not json";
-    await expect(listWeReadSubscriptions(invalid)).rejects.toBeInstanceOf(WeReadBridgeError);
+    await expect(listWeReadSubscriptions(invalid)).rejects.toMatchObject({ code: "weread_non_json_output" });
+    const empty: WeReadRunner = async () => "";
+    await expect(listWeReadSubscriptions(empty)).rejects.toMatchObject({ code: "weread_empty_output" });
     const blocked: WeReadRunner = async () => JSON.stringify({ error: "challenge", errCode: -2041 });
     await expect(listWeReadSubscriptions(blocked)).rejects.toMatchObject({ code: "weread_challenge" });
   });
