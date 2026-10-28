@@ -56,9 +56,13 @@ export const runWeReadCli: WeReadRunner = async (args, timeoutMs) => {
 };
 
 function parseCliJson(output: string): Record<string, unknown> {
+  if (!output.trim()) {
+    throw new WeReadBridgeError("微信读书命令没有输出 JSON，请确认本机 CLI 登录状态。", "weread_empty_output", 502);
+  }
   let parsed: unknown;
   try { parsed = JSON.parse(output); } catch {
-    throw new WeReadBridgeError("微信读书返回的数据无效。", "weread_invalid_response", 502);
+    // Never echo stdout: it might include upstream account data or session details.
+    throw new WeReadBridgeError("微信读书命令没有返回标准 JSON。", "weread_non_json_output", 502);
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     throw new WeReadBridgeError("微信读书返回的数据无效。", "weread_invalid_response", 502);
@@ -75,7 +79,9 @@ function parseCliJson(output: string): Record<string, unknown> {
 }
 
 export async function listWeReadSubscriptions(run: WeReadRunner = runWeReadCli): Promise<WeReadSubscription[]> {
-  const output = parseCliJson(await run(["public-accounts", "subscriptions", "--count", "100", "--json"], 30_000));
+  // Use the same invocation proven to work in the user's terminal. An explicit
+  // --count may be handled differently by older published CLI versions.
+  const output = parseCliJson(await run(["public-accounts", "subscriptions", "--json"], 30_000));
   if (!Array.isArray(output.accounts)) {
     throw new WeReadBridgeError("微信读书订阅列表格式无效。", "weread_invalid_response", 502);
   }
