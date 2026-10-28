@@ -1,11 +1,20 @@
 import { Router } from "express";
 import { parseRssQueryOptions, RssQueryError } from "../services/rssParser";
 import {
-  fetchWeReadFeed, listWeReadSubscriptions, WeReadBridgeError, WEREAD_ACCOUNT_PATTERN,
+  diagnoseWeReadSubscriptions, fetchWeReadFeed, listWeReadSubscriptions, WeReadBridgeError, WEREAD_ACCOUNT_PATTERN,
 } from "../services/wereadBridge";
 
 export function createWeReadRouter() {
   const router = Router();
+
+  router.get("/diagnostics", async (_req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    try {
+      return res.json(await diagnoseWeReadSubscriptions());
+    } catch (error) {
+      return sendError(res, error);
+    }
+  });
 
   router.get("/subscriptions", async (_req, res) => {
     res.setHeader("Cache-Control", "private, no-store");
