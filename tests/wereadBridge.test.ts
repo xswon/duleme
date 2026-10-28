@@ -42,7 +42,7 @@ describe("local WeRead bridge", () => {
     });
     expect(JSON.stringify(ok)).not.toContain("private-public-account-title");
 
-    const banner: WeReadRunner = async () => 'cli-banner\\n{"accounts":[]}\\n';
+    const banner: WeReadRunner = async () => 'cli-banner\n{"accounts":[]}\n';
     const bad = await diagnoseWeReadSubscriptions(banner);
     expect(bad).toMatchObject({
       jsonValid: false,
