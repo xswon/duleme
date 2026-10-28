@@ -10,6 +10,7 @@ export type ReaderAssetResolution = "primary" | "fallback";
 
 export type ReaderBackendCapability =
   | "rss"
+  | "weread"
   | "bidclub"
   | "ai"
   | "loopbackAi"
@@ -28,6 +29,7 @@ export interface ReaderBackend {
 
 const WEB_CAPABILITIES: ReaderBackendCapabilities = {
   rss: true,
+  weread: true,
   bidclub: true,
   ai: true,
   loopbackAi: true,

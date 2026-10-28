@@ -115,7 +115,8 @@ const article = (id: string, patch: Partial<Article> = {}): Article => ({
   feedTitle: feed.title,
   title: "Same episode",
   link: `https://example.com/${id}`,
-  pubDate: "2026-09-23T00:00:00.000Z",
+  // Keep fixtures inside the rolling 30-day visibility window.
+  pubDate: new Date().toISOString(),
   snippet: "snippet",
   content: "content",
   read: false,
@@ -433,7 +434,7 @@ describe("App persistence rollback", () => {
 
     await act(async () => second.resolve(remoteFeed(article("second", {
       title: "Episode 12: Building Reliable Systems",
-      pubDate: "2026-09-23T00:00:00.000Z",
+      pubDate: new Date().toISOString(),
       duration: "01:00:00",
     }))));
     await waitFor(() => rss.fetchRssFeed.mock.calls.length === 4 && rss.replaceRefreshSnapshot.mock.calls.length === 3);

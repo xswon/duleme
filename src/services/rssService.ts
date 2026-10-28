@@ -429,14 +429,18 @@ export interface FetchRssFeedOptions {
 const RSS_FOREGROUND_TIMEOUT_MS = 15_000;
 
 export async function fetchRssFeed(feedUrl: string, options: FetchRssFeedOptions = {}): Promise<RssParseResponse> {
-  const search = new URLSearchParams({ url: feedUrl });
+  const wereadAccount = feedUrl.match(/^weread:(MP_WXS_[0-9]+)$/);
+  const search = wereadAccount
+    ? new URLSearchParams({ accountId: wereadAccount[1] })
+    : new URLSearchParams({ url: feedUrl });
   if (options.since !== undefined) search.set("since", options.since);
   if (options.limit !== undefined) search.set("limit", String(options.limit));
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? RSS_FOREGROUND_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? (wereadAccount ? 125_000 : RSS_FOREGROUND_TIMEOUT_MS));
   let response: Response;
   try {
-    response = await backendRequest(`/api/rss/parse?${search.toString()}`, { signal: controller.signal });
+    const path = wereadAccount ? "/api/weread/feed" : "/api/rss/parse";
+    response = await backendRequest(`${path}?${search.toString()}`, { signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted) {
       throw new RssFeedRequestError("订阅源响应超时，将稍后在后台重试。", "rss_timeout", 504, true);

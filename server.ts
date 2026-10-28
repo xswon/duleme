@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { createRssRouter } from "./server/routes/rss";
+import { createWeReadRouter } from "./server/routes/weread";
 import { createProxyRouter } from "./server/routes/proxy";
 import { createBidclubRouter } from "./server/routes/bidclub";
 import { createAiRouter } from "./server/routes/ai";
@@ -17,6 +18,7 @@ export function createApp() {
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
   app.use("/api", requireLocalAccess);
   app.use("/api/rss", createRssRouter());
+  app.use("/api/weread", createWeReadRouter());
   app.use("/api/proxy", createProxyRouter());
   app.use("/api", (req, _res, next) => {
     if (req.url.startsWith("/proxy-image")) req.url = "/image" + req.url.slice("/proxy-image".length);
