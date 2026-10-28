@@ -115,7 +115,8 @@ const article = (id: string, patch: Partial<Article> = {}): Article => ({
   feedTitle: feed.title,
   title: "Same episode",
   link: `https://example.com/${id}`,
-  pubDate: "2026-09-23T00:00:00.000Z",
+  // Keep fixtures inside the rolling 30-day visibility window.
+  pubDate: new Date().toISOString(),
   snippet: "snippet",
   content: "content",
   read: false,
