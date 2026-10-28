@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { writeFile } from "node:fs/promises";
 import {
-  fetchWeReadFeed, listWeReadSubscriptions, WeReadBridgeError, wereadFeedUrl,
+  fetchWeReadFeed, listWeReadSubscriptions, wereadFeedUrl,
   type WeReadRunner,
 } from "../server/services/wereadBridge";
 
@@ -51,6 +51,12 @@ describe("local WeRead bridge", () => {
     await expect(listWeReadSubscriptions(invalid)).rejects.toMatchObject({ code: "weread_non_json_output" });
     const empty: WeReadRunner = async () => "";
     await expect(listWeReadSubscriptions(empty)).rejects.toMatchObject({ code: "weread_empty_output" });
+    const nullResult: WeReadRunner = async () => "null";
+    await expect(listWeReadSubscriptions(nullResult)).rejects.toMatchObject({ code: "weread_json_null" });
+    const scalarResult: WeReadRunner = async () => '"no accounts"';
+    await expect(listWeReadSubscriptions(scalarResult)).rejects.toMatchObject({ code: "weread_json_scalar" });
+    const missingAccounts: WeReadRunner = async () => '{"ok":true}';
+    await expect(listWeReadSubscriptions(missingAccounts)).rejects.toMatchObject({ code: "weread_missing_accounts" });
     const blocked: WeReadRunner = async () => JSON.stringify({ error: "challenge", errCode: -2041 });
     await expect(listWeReadSubscriptions(blocked)).rejects.toMatchObject({ code: "weread_challenge" });
   });
