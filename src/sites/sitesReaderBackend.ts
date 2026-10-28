@@ -8,6 +8,7 @@ import {
 
 const SITES_CAPABILITIES: ReaderBackendCapabilities = {
   rss: true,
+  weread: false,
   bidclub: true,
   ai: true,
   loopbackAi: false,
@@ -38,6 +39,7 @@ function applicationApiPath(input: RequestInfo | URL): string | null {
 
 function capabilityForPath(pathname: string): ReaderBackendCapability {
   if (pathname.startsWith("/api/rss/")) return "rss";
+  if (pathname.startsWith("/api/weread/")) return "weread";
   if (pathname.startsWith("/api/bidclub/")) return "bidclub";
   if (pathname.startsWith("/api/ai/")) return "ai";
   if (pathname.startsWith("/api/transcription")) return "transcription";
