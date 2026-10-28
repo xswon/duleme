@@ -434,7 +434,7 @@ describe("App persistence rollback", () => {
 
     await act(async () => second.resolve(remoteFeed(article("second", {
       title: "Episode 12: Building Reliable Systems",
-      pubDate: "2026-09-23T00:00:00.000Z",
+      pubDate: new Date().toISOString(),
       duration: "01:00:00",
     }))));
     await waitFor(() => rss.fetchRssFeed.mock.calls.length === 4 && rss.replaceRefreshSnapshot.mock.calls.length === 3);
