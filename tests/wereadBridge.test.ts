@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { writeFile } from "node:fs/promises";
 import {
-  fetchWeReadFeed, listWeReadSubscriptions, wereadFeedUrl,
+  diagnoseWeReadSubscriptions, fetchWeReadFeed, listWeReadSubscriptions, wereadFeedUrl,
   type WeReadRunner,
 } from "../server/services/wereadBridge";
 
@@ -24,6 +24,34 @@ describe("local WeRead bridge", () => {
     expect(await listWeReadSubscriptions(run)).toEqual([
       { accountId: "MP_WXS_2396392481", title: "刘润", cover: "http://wx.qlogo.cn/logo" },
     ]);
+  });
+
+  it("reports JSON shape without exposing upstream account data", async () => {
+    const valid: WeReadRunner = async () => JSON.stringify({
+      accounts: [{ accountId: "MP_WXS_2396392481", title: "private-public-account-title" }],
+      totalCount: 1,
+    });
+    const ok = await diagnoseWeReadSubscriptions(valid);
+    expect(ok).toMatchObject({
+      jsonValid: true,
+      jsonType: "object",
+      accountCount: 1,
+      accountsIsArray: true,
+      firstCharacter: "object-brace",
+      lastCharacter: "object-close",
+    });
+    expect(JSON.stringify(ok)).not.toContain("private-public-account-title");
+
+    const banner: WeReadRunner = async () => 'cli-banner\\n{"accounts":[]}\\n';
+    const bad = await diagnoseWeReadSubscriptions(banner);
+    expect(bad).toMatchObject({
+      jsonValid: false,
+      jsonType: "invalid",
+      firstCharacter: "letter",
+      lastCharacter: "object-close",
+      lineCount: 2,
+      accountsIsArray: false,
+    });
   });
 
   it("generates parsed articles without an externally accessible RSS service", async () => {
