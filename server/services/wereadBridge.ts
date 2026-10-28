@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { parseFeedXml, type ParseFeedOptions } from "./rssParser";
 
@@ -33,6 +33,8 @@ export const runWeReadCli: WeReadRunner = async (args, timeoutMs) => {
       timeout: timeoutMs,
       maxBuffer: 4 * 1024 * 1024,
       windowsHide: true,
+      // Keep CLI resolution of user configuration identical to an interactive run from ~.
+      cwd: homedir(),
     });
     return stdout;
   } catch (error) {
@@ -64,8 +66,14 @@ function parseCliJson(output: string): Record<string, unknown> {
     // Never echo stdout: it might include upstream account data or session details.
     throw new WeReadBridgeError("微信读书命令没有返回标准 JSON。", "weread_non_json_output", 502);
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new WeReadBridgeError("微信读书返回的数据无效。", "weread_invalid_response", 502);
+  if (parsed === null) {
+    throw new WeReadBridgeError("微信读书命令返回了 JSON null，而不是订阅列表。", "weread_json_null", 502);
+  }
+  if (Array.isArray(parsed)) {
+    throw new WeReadBridgeError("微信读书命令返回了 JSON 数组，而不是订阅列表。", "weread_json_array", 502);
+  }
+  if (typeof parsed !== "object") {
+    throw new WeReadBridgeError("微信读书命令返回了 JSON 标量，而不是订阅列表。", "weread_json_scalar", 502);
   }
   const data = parsed as Record<string, unknown>;
   if (typeof data.error === "string") {
@@ -83,7 +91,7 @@ export async function listWeReadSubscriptions(run: WeReadRunner = runWeReadCli):
   // --count may be handled differently by older published CLI versions.
   const output = parseCliJson(await run(["public-accounts", "subscriptions", "--json"], 30_000));
   if (!Array.isArray(output.accounts)) {
-    throw new WeReadBridgeError("微信读书订阅列表格式无效。", "weread_invalid_response", 502);
+    throw new WeReadBridgeError("微信读书返回的 JSON 对象缺少 accounts 数组。", "weread_missing_accounts", 502);
   }
   return output.accounts.flatMap((item): WeReadSubscription[] => {
     if (!item || typeof item !== "object") return [];
